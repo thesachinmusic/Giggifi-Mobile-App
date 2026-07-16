@@ -37,6 +37,7 @@ const styles = StyleSheet.create({
     borderRadius: 420,
     left: -140,
     top: -120,
+    overflow: "hidden",
   },
   glowOrange: {
     position: "absolute",
@@ -45,6 +46,7 @@ const styles = StyleSheet.create({
     borderRadius: 460,
     right: -160,
     top: -60,
+    overflow: "hidden",
   },
   content: {
     flex: 1,

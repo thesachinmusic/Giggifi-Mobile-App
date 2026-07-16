@@ -8,6 +8,7 @@ import { useLocalSearchParams } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
+import { DateField } from "@/components/DateField";
 import { fetchArtist, sendEnquiry, ApiError, type ArtistSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -21,6 +22,7 @@ export default function ArtistDetailScreen() {
   const [showForm, setShowForm] = useState(false);
   const [eventType, setEventType] = useState("");
   const [eventCity, setEventCity] = useState("");
+  const [eventDate, setEventDate] = useState<Date | null>(null);
   const [specialRequests, setSpecialRequests] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -37,11 +39,17 @@ export default function ArtistDetailScreen() {
   }, [id]);
 
   async function handleSubmitEnquiry() {
-    if (!artist || !eventType || !eventCity) return;
+    if (!artist || !eventType || !eventCity || !eventDate) return;
     setSubmitting(true);
     setFormError("");
     try {
-      await sendEnquiry({ artistId: artist.id, eventType, eventCity, specialRequests: specialRequests || undefined });
+      await sendEnquiry({
+        artistId: artist.id,
+        eventType,
+        eventCity,
+        eventDate: eventDate.toISOString(),
+        specialRequests: specialRequests || undefined,
+      });
       setSent(true);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Could not send enquiry. Please try again.");
@@ -139,9 +147,16 @@ export default function ArtistDetailScreen() {
               <View style={styles.form}>
                 <FormField label="EVENT TYPE" value={eventType} onChangeText={setEventType} placeholder="Wedding, Birthday, Corporate…" />
                 <FormField label="EVENT CITY" value={eventCity} onChangeText={setEventCity} placeholder="Mumbai" />
+                <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
                 <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
                 {formError ? <Text style={styles.error}>{formError}</Text> : null}
-                <Btn label="Send Enquiry" onPress={handleSubmitEnquiry} disabled={!eventType || !eventCity} loading={submitting} style={styles.formButton} />
+                <Btn
+                  label="Send Enquiry"
+                  onPress={handleSubmitEnquiry}
+                  disabled={!eventType || !eventCity || !eventDate}
+                  loading={submitting}
+                  style={styles.formButton}
+                />
               </View>
             ) : (
               <Btn label="Send Enquiry" onPress={() => setShowForm(true)} style={styles.formButton} />
