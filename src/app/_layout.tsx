@@ -1,18 +1,51 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { useEffect } from "react";
+import { View, ActivityIndicator } from "react-native";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { AuthProvider } from "@/lib/auth-context";
+import { useAppFonts } from "@/theme/typography";
+import { colors } from "@/theme";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-SplashScreen.preventAutoHideAsync();
+export default function RootLayout() {
+  const [fontsLoaded, fontError] = useAppFonts();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator color={colors.pink} />
+      </View>
+    );
+  }
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <AuthProvider>
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.ink },
+        }}
+      >
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="artist/[id]"
+          options={{
+            headerShown: true,
+            headerTransparent: true,
+            headerTitle: "",
+            headerTintColor: colors.text,
+            headerBackTitle: "Back",
+          }}
+        />
+      </Stack>
+    </AuthProvider>
   );
 }
