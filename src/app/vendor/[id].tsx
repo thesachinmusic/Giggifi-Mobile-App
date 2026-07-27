@@ -11,13 +11,13 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { RatingBadge } from "@/components/RatingBadge";
-import { fetchArtist, sendEnquiry, ApiError, type ArtistSummary } from "@/lib/api";
+import { fetchVendor, sendVendorEnquiry, ApiError, type VendorSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
 import { colors, fonts, radii, spacing } from "@/theme";
 
-export default function ArtistDetailScreen() {
+export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [artist, setArtist] = useState<ArtistSummary | null>(null);
+  const [vendor, setVendor] = useState<VendorSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -25,32 +25,32 @@ export default function ArtistDetailScreen() {
   const [eventType, setEventType] = useState("");
   const [eventCity, setEventCity] = useState("");
   const [eventDate, setEventDate] = useState<Date | null>(null);
-  const [specialRequests, setSpecialRequests] = useState("");
+  const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    fetchArtist(id)
-      .then(({ artist: result }) => {
-        setArtist(result);
+    fetchVendor(id)
+      .then(({ vendor: result }) => {
+        setVendor(result);
         setEventCity(result.city ?? "");
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this artist."))
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this vendor."))
       .finally(() => setLoading(false));
   }, [id]);
 
   async function handleSubmitEnquiry() {
-    if (!artist || !eventType || !eventCity || !eventDate) return;
+    if (!vendor || !eventType || !eventCity || !description) return;
     setSubmitting(true);
     setFormError("");
     try {
-      await sendEnquiry({
-        artistId: artist.id,
+      await sendVendorEnquiry({
+        vendorId: vendor.id,
         eventType,
         eventCity,
-        eventDate: eventDate.toISOString(),
-        specialRequests: specialRequests || undefined,
+        eventDate: eventDate?.toISOString(),
+        description,
       });
       setSent(true);
     } catch (err) {
@@ -70,51 +70,46 @@ export default function ArtistDetailScreen() {
     );
   }
 
-  if (error || !artist) {
+  if (error || !vendor) {
     return (
       <GradientBackground>
         <SafeAreaView style={styles.centered}>
-          <Text style={styles.muted}>{error || "Artist not found."}</Text>
+          <Text style={styles.muted}>{error || "Vendor not found."}</Text>
         </SafeAreaView>
       </GradientBackground>
     );
   }
 
-  const name = artist.stageName ?? "GiggiFi Artist";
+  const name = vendor.businessName ?? "GiggiFi Vendor";
   const initial = name.trim().charAt(0).toUpperCase();
-  const [c1, c2] = duotoneFor(artist.id);
-  const chips = [...artist.genres, ...artist.eventTypes].slice(0, 8);
+  const [c1, c2] = duotoneFor(vendor.id);
+  const chips = [vendor.category, ...vendor.subcategories].filter((c): c is string => Boolean(c)).slice(0, 8);
 
   return (
     <GradientBackground>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <ArtistHero artist={artist} c1={c1} c2={c2} initial={initial} />
+        <VendorHero vendor={vendor} c1={c1} c2={c2} initial={initial} />
 
         <View style={styles.body}>
-          {artist.performerType ? <Text style={styles.tagline}>{artist.performerType.toUpperCase()}</Text> : null}
+          {vendor.category ? <Text style={styles.tagline}>{vendor.category.toUpperCase()}</Text> : null}
           <View style={styles.nameRow}>
             <Text style={styles.name}>{name}</Text>
-            <RatingBadge rating={artist.avgRating} size={15} />
+            <RatingBadge rating={vendor.avgRating} size={14} />
           </View>
 
-          {artist.city ? (
+          {vendor.city ? (
             <View style={styles.row}>
               <Feather name="map-pin" size={13} color={colors.textMute} />
-              <Text style={styles.loc}>{artist.city}{artist.state ? `, ${artist.state}` : ""}</Text>
+              <Text style={styles.loc}>{vendor.city}{vendor.state ? `, ${vendor.state}` : ""}</Text>
             </View>
           ) : null}
 
-          <View style={styles.availabilityRow}>
-            <View style={[styles.availabilityDot, artist.availability ? styles.availabilityDotOn : styles.availabilityDotOff]} />
-            <Text style={styles.availabilityText}>{artist.availability ? "Available now" : "Currently unavailable"}</Text>
-          </View>
-
-          {artist.bio ? <Text style={styles.bio}>{artist.bio}</Text> : null}
+          {vendor.bio ? <Text style={styles.bio}>{vendor.bio}</Text> : null}
 
           <View style={styles.statsRow}>
-            {artist.yearsExperience ? <Stat label="YEARS" value={String(artist.yearsExperience)} /> : null}
-            {artist.reviewCount ? <Stat label="REVIEWS" value={String(artist.reviewCount)} /> : null}
-            <Stat label="TRAVEL" value={artist.travelAvailable ? "Yes" : "Local"} />
+            {vendor.yearsExperience ? <Stat label="YEARS" value={String(vendor.yearsExperience)} /> : null}
+            {vendor.reviewCount ? <Stat label="REVIEWS" value={String(vendor.reviewCount)} /> : null}
+            <Stat label="TRAVEL" value={vendor.travelAvailable ? "Yes" : "Local"} />
           </View>
 
           {chips.length ? (
@@ -127,16 +122,14 @@ export default function ArtistDetailScreen() {
             </View>
           ) : null}
 
-          {artist.languages.length ? (
-            <View style={styles.languagesBlock}>
-              <Text style={styles.fieldLabel}>LANGUAGES</Text>
-              <View style={styles.chipRow}>
-                {artist.languages.map((lang) => (
-                  <View key={lang} style={styles.chip}>
-                    <Text style={styles.chipText}>{lang}</Text>
-                  </View>
+          {vendor.portfolioPhotos.length ? (
+            <View style={styles.galleryBlock}>
+              <Text style={styles.fieldLabel}>PORTFOLIO</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
+                {vendor.portfolioPhotos.map((uri) => (
+                  <Image key={uri} source={{ uri }} style={styles.galleryPhoto} contentFit="cover" />
                 ))}
-              </View>
+              </ScrollView>
             </View>
           ) : null}
 
@@ -144,9 +137,9 @@ export default function ArtistDetailScreen() {
             <View style={styles.priceRow}>
               <View>
                 <Text style={styles.priceLabel}>STARTING AT</Text>
-                <Text style={styles.price}>{artist.ratePerEvent ? `₹${artist.ratePerEvent.toLocaleString("en-IN")}` : "On request"}</Text>
+                <Text style={styles.price}>{vendor.startingPrice ? `₹${vendor.startingPrice.toLocaleString("en-IN")}` : "On request"}</Text>
               </View>
-              {artist.priceNegotiable ? (
+              {vendor.priceNegotiable ? (
                 <View style={styles.negotiableBadge}>
                   <Text style={styles.negotiableText}>Negotiable</Text>
                 </View>
@@ -156,19 +149,19 @@ export default function ArtistDetailScreen() {
             {sent ? (
               <View style={styles.sentBox}>
                 <Feather name="check-circle" size={18} color={colors.ok} />
-                <Text style={styles.sentText}>Enquiry sent — {name.split(" ")[0]} will respond soon.</Text>
+                <Text style={styles.sentText}>Enquiry sent — {name} will respond soon.</Text>
               </View>
             ) : showForm ? (
               <View style={styles.form}>
                 <FormField label="EVENT TYPE" value={eventType} onChangeText={setEventType} placeholder="Wedding, Birthday, Corporate…" />
                 <FormField label="EVENT CITY" value={eventCity} onChangeText={setEventCity} placeholder="Mumbai" />
                 <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
-                <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
+                <FormField label="WHAT DO YOU NEED?" value={description} onChangeText={setDescription} placeholder="Describe what you're looking for…" multiline />
                 {formError ? <Text style={styles.error}>{formError}</Text> : null}
                 <Btn
                   label="Send Enquiry"
                   onPress={handleSubmitEnquiry}
-                  disabled={!eventType || !eventCity || !eventDate}
+                  disabled={!eventType || !eventCity || !description}
                   loading={submitting}
                   style={styles.formButton}
                 />
@@ -188,9 +181,9 @@ export default function ArtistDetailScreen() {
   );
 }
 
-function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: string; c2: string; initial: string }) {
+function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: string; c2: string; initial: string }) {
   const [muted, setMuted] = useState(true);
-  const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
+  const videoSource = vendor.portfolioVideoUrl ?? null;
 
   const player = useVideoPlayer(videoSource ?? "", (instance) => {
     instance.loop = true;
@@ -206,8 +199,8 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
     <View style={styles.hero}>
       {videoSource ? (
         <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
-      ) : artist.profileImageUrl ? (
-        <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      ) : vendor.profileImageUrl ? (
+        <Image source={{ uri: vendor.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
         <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill}>
           <Text style={styles.heroInitial}>{initial}</Text>
@@ -272,6 +265,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  galleryBlock: { marginBottom: spacing.lg, gap: spacing.xs },
+  galleryRow: { gap: spacing.sm },
+  galleryPhoto: { width: 120, height: 150, borderRadius: radii.md, backgroundColor: colors.surface },
   body: { padding: spacing.lg, marginTop: -radii.xl, backgroundColor: colors.ink, borderTopLeftRadius: radii.xl * 1.5, borderTopRightRadius: radii.xl * 1.5 },
   tagline: {
     fontFamily: fonts.mono,
@@ -280,20 +276,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: spacing.sm,
   },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: spacing.sm },
+  nameRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginBottom: spacing.sm },
   name: {
+    flex: 1,
     fontFamily: fonts.display,
     fontSize: 34,
     color: colors.text,
   },
   row: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.md },
   loc: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute },
-  availabilityRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: spacing.md },
-  availabilityDot: { width: 7, height: 7, borderRadius: 3.5 },
-  availabilityDotOn: { backgroundColor: colors.ok },
-  availabilityDotOff: { backgroundColor: colors.textMute },
-  availabilityText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textDim },
-  languagesBlock: { marginBottom: spacing.lg, gap: spacing.xs },
   bio: {
     fontFamily: fonts.body,
     fontSize: 14.5,

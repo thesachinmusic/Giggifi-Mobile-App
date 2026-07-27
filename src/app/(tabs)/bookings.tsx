@@ -1,23 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
 import { fetchBookings, type Booking } from "@/lib/api";
+import { STATUS_LABEL } from "@/lib/booking-status";
 import { colors, fonts, spacing, radii } from "@/theme";
-
-const STATUS_LABEL: Record<string, string> = {
-  ENQUIRY_SENT: "Enquiry sent",
-  QUOTE_RECEIVED: "Quote received",
-  AWAITING_PAYMENT: "Awaiting payment",
-  PAYMENT_HELD: "Confirmed",
-  EVENT_UPCOMING: "Upcoming",
-  EVENT_COMPLETED: "Completed",
-  CANCELLED_BY_ARTIST: "Cancelled by artist",
-  CANCELLED_BY_BOOKER: "Cancelled",
-  DISPUTED: "In dispute",
-  PAYOUT_RELEASED: "Paid out",
-};
 
 export default function BookingsScreen() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -57,20 +46,22 @@ export default function BookingsScreen() {
             contentContainerStyle={styles.list}
             ListEmptyComponent={<Text style={styles.muted}>No bookings yet — go book an artist from Browse.</Text>}
             renderItem={({ item }) => {
-              const otherParty = item.artist?.stageName ?? item.booker?.fullName ?? "GiggFi";
+              const otherParty = item.artist?.stageName ?? item.booker?.fullName ?? "GiggiFi";
               return (
-                <GlassCard style={styles.card}>
-                  <View style={styles.row}>
-                    <Text style={styles.eventName} numberOfLines={1}>{item.eventName}</Text>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{STATUS_LABEL[item.status] ?? item.status}</Text>
+                <Pressable onPress={() => router.push({ pathname: "/booking/[id]", params: { id: item.id } })}>
+                  <GlassCard style={styles.card}>
+                    <View style={styles.row}>
+                      <Text style={styles.eventName} numberOfLines={1}>{item.eventName}</Text>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{STATUS_LABEL[item.status] ?? item.status}</Text>
+                      </View>
                     </View>
-                  </View>
-                  <Text style={styles.meta}>{otherParty} · {item.eventCity}</Text>
-                  {item.totalAmount ? (
-                    <Text style={styles.amount}>₹{item.totalAmount.toLocaleString("en-IN")}</Text>
-                  ) : null}
-                </GlassCard>
+                    <Text style={styles.meta}>{otherParty} · {item.eventCity}</Text>
+                    {item.totalAmount ? (
+                      <Text style={styles.amount}>₹{item.totalAmount.toLocaleString("en-IN")}</Text>
+                    ) : null}
+                  </GlassCard>
+                </Pressable>
               );
             }}
           />

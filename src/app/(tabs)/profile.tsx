@@ -27,7 +27,7 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.name}>{user?.name ?? "GiggFi user"}</Text>
+            <Text style={styles.name}>{user?.name ?? "GiggiFi user"}</Text>
             {user?.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
             {user?.email ? <Text style={styles.meta}>{user.email}</Text> : null}
             {user?.role ? (

@@ -37,6 +37,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="reels"
+        options={{
+          title: "Reels",
+          tabBarIcon: ({ color, size }) => <Feather name="film" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="bookings"
         options={{
           title: "Bookings",

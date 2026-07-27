@@ -1,0 +1,16 @@
+export const STATUS_LABEL: Record<string, string> = {
+  ENQUIRY_SENT: "Enquiry sent",
+  ENQUIRY_VIEWED: "Enquiry viewed",
+  QUOTE_RECEIVED: "Quote received",
+  QUOTE_ACCEPTED: "Quote accepted",
+  AWAITING_PAYMENT: "Awaiting payment",
+  PAYMENT_HELD: "Confirmed",
+  EVENT_UPCOMING: "Upcoming",
+  EVENT_COMPLETED: "Completed",
+  PAYOUT_PROCESSING: "Payout processing",
+  PAYOUT_RELEASED: "Paid out",
+  CANCELLED_BY_ARTIST: "Cancelled by artist",
+  CANCELLED_BY_BOOKER: "Cancelled",
+  DISPUTED: "In dispute",
+  RESOLVED: "Resolved",
+};

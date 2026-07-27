@@ -36,7 +36,7 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
           <View style={styles.brand}>
-            <Image source={require("@/assets/images/giggifi-logo.png")} style={styles.logo} resizeMode="contain" />
+            <Image source={require("@/assets/images/giggifi-logo-cropped.png")} style={styles.logo} resizeMode="contain" />
           </View>
 
           <View style={styles.pitch}>
@@ -63,7 +63,7 @@ export default function LoginScreen() {
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <GradientButton label="Continue" onPress={handleContinue} disabled={!canSubmit} loading={loading} style={styles.button} />
-            <Text style={styles.terms}>By continuing, you agree to GiggFi's Terms & Privacy Policy.</Text>
+            <Text style={styles.terms}>By continuing, you agree to GiggiFi's Terms & Privacy Policy.</Text>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1, paddingHorizontal: spacing.lg },
   brand: { paddingTop: spacing.lg, alignItems: "flex-start" },
-  logo: { height: 40, width: 140 },
+  logo: { height: 68, aspectRatio: 2.43 },
   pitch: { marginTop: spacing.xxl, marginBottom: spacing.xl },
   eyebrow: {
     fontFamily: fonts.mono,
