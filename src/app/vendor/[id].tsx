@@ -185,11 +185,23 @@ function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: st
   const [muted, setMuted] = useState(true);
   const videoSource = vendor.portfolioVideoUrl ?? null;
 
-  const player = useVideoPlayer(videoSource ?? "", (instance) => {
+  const player = useVideoPlayer(null, (instance) => {
     instance.loop = true;
     instance.muted = true;
-    instance.play();
   });
+
+  useEffect(() => {
+    if (!videoSource) return;
+    let cancelled = false;
+    player.replaceAsync(videoSource).then(() => {
+      if (cancelled) return;
+      player.muted = muted;
+      player.play();
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [videoSource, player]);
 
   useEffect(() => {
     if (videoSource) player.muted = muted;

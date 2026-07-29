@@ -14,6 +14,7 @@ import {
   sendBookingMessage,
   createRazorpayOrder,
   verifyRazorpayPayment,
+  respondToBooking,
   ApiError,
   type BookingDetail,
   type BookingMessage,
@@ -33,6 +34,8 @@ export default function BookingDetailScreen() {
   const [sending, setSending] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState("");
+  const [responding, setResponding] = useState<"accept" | "decline" | null>(null);
+  const [respondError, setRespondError] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -86,6 +89,19 @@ export default function BookingDetailScreen() {
       else if (err instanceof ApiError) setPayError(err.message);
     } finally {
       setPaying(false);
+    }
+  }
+
+  async function handleRespond(action: "accept_quote" | "cancel_by_booker") {
+    setResponding(action === "accept_quote" ? "accept" : "decline");
+    setRespondError("");
+    try {
+      await respondToBooking(id, action);
+      await load();
+    } catch (err) {
+      setRespondError(err instanceof ApiError ? err.message : "Could not update this booking. Please try again.");
+    } finally {
+      setResponding(null);
     }
   }
 
@@ -144,6 +160,34 @@ export default function BookingDetailScreen() {
             {booking.totalAmount ? <SummaryRow icon="credit-card" label="Total" value={`₹${booking.totalAmount.toLocaleString("en-IN")}`} /> : null}
             {booking.payment ? <SummaryRow icon="shield" label="Payment" value={booking.payment.status} /> : null}
           </GlassCard>
+
+          {booking.status === "QUOTE_RECEIVED" && booking.viewerRole === "BOOKER" ? (
+            <GlassCard style={styles.payCard}>
+              <View style={styles.quoteRow}>
+                <View>
+                  <Text style={styles.priceLabel}>QUOTE FROM {booking.artist.name?.toUpperCase() ?? "ARTIST"}</Text>
+                  <Text style={styles.price}>{booking.quotedPrice ? `₹${booking.quotedPrice.toLocaleString("en-IN")}` : "—"}</Text>
+                </View>
+              </View>
+              {respondError ? <Text style={styles.error}>{respondError}</Text> : null}
+              <View style={styles.quoteActions}>
+                <Pressable
+                  style={styles.declineButton}
+                  onPress={() => handleRespond("cancel_by_booker")}
+                  disabled={responding !== null}
+                >
+                  {responding === "decline" ? <ActivityIndicator size="small" color={colors.textDim} /> : <Text style={styles.declineButtonText}>Decline</Text>}
+                </Pressable>
+                <Btn
+                  label="Accept & Continue"
+                  onPress={() => handleRespond("accept_quote")}
+                  loading={responding === "accept"}
+                  disabled={responding !== null}
+                  style={styles.acceptButton}
+                />
+              </View>
+            </GlassCard>
+          ) : null}
 
           {booking.status === "AWAITING_PAYMENT" && booking.viewerRole === "BOOKER" ? (
             <GlassCard style={styles.payCard}>
@@ -229,6 +273,21 @@ const styles = StyleSheet.create({
   payRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   payText: { flex: 1, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textDim },
   payButton: {},
+  quoteRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  priceLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, marginBottom: 4 },
+  price: { fontFamily: fonts.display, fontSize: 26, color: colors.text },
+  quoteActions: { flexDirection: "row", gap: spacing.sm },
+  declineButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+  },
+  declineButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textDim },
+  acceptButton: { flex: 1.4 },
   error: { fontFamily: fonts.body, fontSize: 12.5, color: colors.err },
   summaryRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   summaryLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, width: 60 },

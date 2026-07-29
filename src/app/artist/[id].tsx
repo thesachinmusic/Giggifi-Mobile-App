@@ -25,6 +25,7 @@ export default function ArtistDetailScreen() {
   const [eventType, setEventType] = useState("");
   const [eventCity, setEventCity] = useState("");
   const [eventDate, setEventDate] = useState<Date | null>(null);
+  const [budgetAmount, setBudgetAmount] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -51,6 +52,7 @@ export default function ArtistDetailScreen() {
         eventCity,
         eventDate: eventDate.toISOString(),
         specialRequests: specialRequests || undefined,
+        budgetAmount: budgetAmount ? Number(budgetAmount) : undefined,
       });
       setSent(true);
     } catch (err) {
@@ -163,6 +165,13 @@ export default function ArtistDetailScreen() {
                 <FormField label="EVENT TYPE" value={eventType} onChangeText={setEventType} placeholder="Wedding, Birthday, Corporate…" />
                 <FormField label="EVENT CITY" value={eventCity} onChangeText={setEventCity} placeholder="Mumbai" />
                 <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
+                <FormField
+                  label="YOUR BUDGET (OPTIONAL)"
+                  value={budgetAmount}
+                  onChangeText={(v) => setBudgetAmount(v.replace(/[^0-9]/g, ""))}
+                  placeholder={artist.ratePerEvent ? `Artist's rate: ₹${artist.ratePerEvent.toLocaleString("en-IN")}` : "e.g. 12000"}
+                  keyboardType="number-pad"
+                />
                 <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
                 {formError ? <Text style={styles.error}>{formError}</Text> : null}
                 <Btn
@@ -192,11 +201,26 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   const [muted, setMuted] = useState(true);
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
 
-  const player = useVideoPlayer(videoSource ?? "", (instance) => {
+  const player = useVideoPlayer(null, (instance) => {
     instance.loop = true;
     instance.muted = true;
-    instance.play();
   });
+
+  // Explicitly await the remote source loading before commanding play — calling
+  // play() in the same tick the source is set can race ahead of the network
+  // load on slower connections, leaving the hero stuck on a frozen first frame.
+  useEffect(() => {
+    if (!videoSource) return;
+    let cancelled = false;
+    player.replaceAsync(videoSource).then(() => {
+      if (cancelled) return;
+      player.muted = muted;
+      player.play();
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [videoSource, player]);
 
   useEffect(() => {
     if (videoSource) player.muted = muted;

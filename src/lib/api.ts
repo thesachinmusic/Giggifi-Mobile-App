@@ -356,10 +356,18 @@ export function sendEnquiry(input: {
   audienceSize?: number;
   duration?: number;
   specialRequests?: string;
+  budgetAmount?: number;
 }) {
   return request<{ success: true; bookingId: string }>("/api/mobile/bookings", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker", reason?: string) {
+  return request<{ success: true; status: string }>(`/api/mobile/booking/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ action, reason }),
   });
 }
 
