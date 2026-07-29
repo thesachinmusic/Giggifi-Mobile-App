@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -10,28 +10,23 @@ import { GlassCard } from "@/components/GlassCard";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchBooking,
-  fetchBookingMessages,
-  sendBookingMessage,
   createRazorpayOrder,
   verifyRazorpayPayment,
   respondToBooking,
   ApiError,
   type BookingDetail,
-  type BookingMessage,
 } from "@/lib/api";
 import { STATUS_LABEL } from "@/lib/booking-status";
 import { colors, fonts, radii, spacing } from "@/theme";
+
+const HELPLINE_NUMBER = "8655688134";
 
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const [booking, setBooking] = useState<BookingDetail | null>(null);
-  const [messages, setMessages] = useState<BookingMessage[]>([]);
-  const [viewerActor, setViewerActor] = useState<string>("BOOKER");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState("");
   const [responding, setResponding] = useState<"accept" | "decline" | null>(null);
@@ -39,13 +34,8 @@ export default function BookingDetailScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [{ booking: b }, { messages: m, viewerActor: va }] = await Promise.all([
-        fetchBooking(id),
-        fetchBookingMessages(id),
-      ]);
+      const { booking: b } = await fetchBooking(id);
       setBooking(b);
-      setMessages(m);
-      setViewerActor(va);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load this booking.");
     } finally {
@@ -102,20 +92,6 @@ export default function BookingDetailScreen() {
       setRespondError(err instanceof ApiError ? err.message : "Could not update this booking. Please try again.");
     } finally {
       setResponding(null);
-    }
-  }
-
-  async function handleSend() {
-    if (!draft.trim()) return;
-    setSending(true);
-    try {
-      const { message } = await sendBookingMessage(id, draft.trim());
-      setMessages((prev) => [...prev, message]);
-      setDraft("");
-    } catch {
-      // Keep the draft so the user can retry.
-    } finally {
-      setSending(false);
     }
   }
 
@@ -205,37 +181,19 @@ export default function BookingDetailScreen() {
             </GlassCard>
           ) : null}
 
-          <Text style={styles.messagesTitle}>Messages</Text>
-          <FlatList
-            data={messages}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.messageList}
-            ListEmptyComponent={<Text style={styles.muted}>No messages yet — say hello.</Text>}
-            renderItem={({ item }) => {
-              const isMine = item.actor === viewerActor;
-              return (
-                <View style={[styles.messageRow, isMine ? styles.messageRowMine : null]}>
-                  <View style={[styles.messageBubble, isMine ? styles.messageBubbleMine : null]}>
-                    <Text style={styles.messageText}>{item.body}</Text>
-                  </View>
-                </View>
-              );
-            }}
-          />
-
-          <View style={styles.composer}>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Type a message…"
-              placeholderTextColor={colors.textMute}
-              style={styles.composerInput}
-              multiline
-            />
-            <Pressable style={styles.sendButton} onPress={handleSend} disabled={sending || !draft.trim()}>
-              {sending ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
+          <GlassCard style={styles.helplineCard}>
+            <View style={styles.helplineRow}>
+              <Feather name="headphones" size={18} color={colors.purple} />
+              <Text style={styles.helplineTitle}>Need help with this booking?</Text>
+            </View>
+            <Text style={styles.helplineBody}>
+              For your safety, GiggiFi handles all communication between clients and artists. For any queries, contact our helpline — don't try to reach the artist directly.
+            </Text>
+            <Pressable style={styles.helplineButton} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)}>
+              <Feather name="phone" size={15} color="#fff" />
+              <Text style={styles.helplineButtonText}>Call {HELPLINE_NUMBER}</Text>
             </Pressable>
-          </View>
+          </GlassCard>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
@@ -292,49 +250,19 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   summaryLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, width: 60 },
   summaryValue: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: colors.text },
-  messagesTitle: { fontFamily: fonts.displayMedium, fontSize: 15, color: colors.text, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
-  messageList: { paddingHorizontal: spacing.lg, gap: spacing.xs, flexGrow: 1 },
-  messageRow: { flexDirection: "row" },
-  messageRowMine: { justifyContent: "flex-end" },
-  messageBubble: {
-    maxWidth: "78%",
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  messageBubbleMine: { backgroundColor: colors.purple, borderColor: colors.purple },
-  messageText: { fontFamily: fonts.body, fontSize: 13.5, color: colors.text, lineHeight: 19 },
-  composer: {
+  helplineCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
+  helplineRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  helplineTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14.5, color: colors.text },
+  helplineBody: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 18, color: colors.textDim },
+  helplineButton: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  composerInput: {
-    flex: 1,
-    maxHeight: 100,
-    backgroundColor: colors.ink2,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radii.md,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.text,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.pink,
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: radii.lg,
+    backgroundColor: colors.purple,
   },
+  helplineButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#fff" },
   muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, paddingHorizontal: spacing.lg },
 });

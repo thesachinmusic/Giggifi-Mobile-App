@@ -129,7 +129,7 @@ export interface Booking {
   eventCity: string;
   status: string;
   totalAmount: number | null;
-  artist?: { stageName: string | null; fullName: string | null; performerType: string | null; profileImageUrl: string | null; city: string | null };
+  artist?: { stageName: string | null; performerType: string | null; profileImageUrl: string | null; city: string | null };
   booker?: { fullName: string | null; city: string | null };
   payment?: { status: string; amount: number } | null;
 }
@@ -153,13 +153,6 @@ export interface BookingDetail {
   artist: { id: string; name: string | null; performerType: string | null; profileImageUrl: string | null; city: string | null };
   booker: { id: string; name: string | null; city: string | null };
   payment: { status: string; amount: number; platformFee: number; paidAt: string | null; releasedAt: string | null } | null;
-}
-
-export interface BookingMessage {
-  id: string;
-  actor: "ARTIST" | "BOOKER" | "ADMIN" | "SYSTEM";
-  body: string;
-  createdAt: string;
 }
 
 // ─── Auth ───
@@ -290,17 +283,6 @@ export function fetchBookings() {
 
 export function fetchBooking(id: string) {
   return request<{ booking: BookingDetail }>(`/api/mobile/booking/${id}`);
-}
-
-export function fetchBookingMessages(id: string) {
-  return request<{ messages: BookingMessage[]; viewerActor: string }>(`/api/mobile/booking/${id}/messages`);
-}
-
-export function sendBookingMessage(id: string, body: string) {
-  return request<{ message: BookingMessage }>(`/api/mobile/booking/${id}/messages`, {
-    method: "POST",
-    body: JSON.stringify({ body }),
-  });
 }
 
 // ─── Payments (Razorpay) ───

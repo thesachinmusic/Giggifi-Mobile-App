@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -87,7 +87,8 @@ export default function VendorDetailScreen() {
 
   return (
     <GradientBackground>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView style={styles.scrollFlex} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
+      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <VendorHero vendor={vendor} c1={c1} c2={c2} initial={initial} />
 
         <View style={styles.body}>
@@ -177,6 +178,7 @@ export default function VendorDetailScreen() {
           </GlassCard>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </GradientBackground>
   );
 }
@@ -208,9 +210,11 @@ function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: st
   }, [muted, player, videoSource]);
 
   return (
-    <View style={styles.hero}>
+    <View style={styles.hero} pointerEvents="box-none">
       {videoSource ? (
-        <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
+        </View>
       ) : vendor.profileImageUrl ? (
         <Image source={{ uri: vendor.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
@@ -256,6 +260,7 @@ function FormField({
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  scrollFlex: { flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
   hero: { aspectRatio: 1, position: "relative" },
   heroInitial: {
