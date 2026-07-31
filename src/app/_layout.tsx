@@ -70,6 +70,16 @@ export default function RootLayout() {
                   headerBackTitle: "Back",
                 }}
               />
+              <Stack.Screen
+                name="booker-profile"
+                options={{
+                  headerShown: true,
+                  headerTitle: "My Profile",
+                  headerTintColor: colors.text,
+                  headerStyle: { backgroundColor: colors.ink },
+                  headerBackTitle: "Back",
+                }}
+              />
               <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
               <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
               <Stack.Screen

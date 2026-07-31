@@ -329,6 +329,17 @@ export function unregisterPushToken() {
   return request<{ success: true }>("/api/mobile/push-token", { method: "DELETE" });
 }
 
+export function saveBookerProfile(input: { fullName: string; email: string; city: string; state: string; companyName?: string }) {
+  return request<{ success: true }>("/api/mobile/booker-profile", {
+    method: "POST",
+    body: JSON.stringify({
+      ...input,
+      bookerType: "INDIVIDUAL",
+      terms: { service: true, escrow: true },
+    }),
+  });
+}
+
 export function sendEnquiry(input: {
   artistId: string;
   eventName?: string;
@@ -360,4 +371,38 @@ export function updateProfile(input: { name?: string; image?: string }) {
     method: "PATCH",
     body: JSON.stringify(input),
   });
+}
+
+export interface BookerProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  companyName: string | null;
+  bookerType: "INDIVIDUAL" | "CORPORATE" | "PLANNER" | "AGENCY";
+  city: string | null;
+  state: string | null;
+  kycVerified: boolean;
+}
+
+export function fetchMyProfile() {
+  return request<{ bookerProfile: BookerProfile | null }>("/api/mobile/profile");
+}
+
+export async function uploadProfilePhoto(uri: string, mimeType: string): Promise<{ url: string }> {
+  const token = await getStoredToken();
+  const filename = uri.split("/").pop() ?? "photo.jpg";
+  const formData = new FormData();
+  formData.append("file", { uri, name: filename, type: mimeType } as unknown as Blob);
+
+  const response = await fetch(`${API_BASE_URL}/api/mobile/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new ApiError(response.status, body.error ?? "Could not upload photo.");
+  }
+  return body as { url: string };
 }

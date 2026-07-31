@@ -53,6 +53,16 @@ export default function BrowseScreen() {
     }
   }, []);
 
+  // Browse is a tab screen — it stays mounted after the first visit, so a
+  // later router.push({ pathname: "/(tabs)/browse", params }) from Home
+  // updates useLocalSearchParams() without remounting this component. The
+  // useState initializers above only capture params from the very first
+  // mount, so re-sync on every params change to pick up later category taps.
+  useEffect(() => {
+    if (params.vertical) setVertical(params.vertical);
+    if (params.category) setCategory(params.category);
+  }, [params.vertical, params.category]);
+
   useEffect(() => {
     load(vertical, category, search);
     // eslint-disable-next-line react-hooks/exhaustive-deps

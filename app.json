@@ -44,6 +44,12 @@
         {
           "color": "#ec4899"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "GiggiFi uses your photos to set your profile picture."
+        }
       ]
     ],
     "experiments": {

@@ -11,12 +11,14 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { RatingBadge } from "@/components/RatingBadge";
-import { fetchArtist, sendEnquiry, ApiError, type ArtistSummary } from "@/lib/api";
+import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
+import { useAuth } from "@/lib/auth-context";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { refreshSession } = useAuth();
   const [artist, setArtist] = useState<ArtistSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,6 +32,14 @@ export default function ArtistDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const [needsBookerProfile, setNeedsBookerProfile] = useState(false);
+  const [profileFullName, setProfileFullName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [profileCity, setProfileCity] = useState("");
+  const [profileState, setProfileState] = useState("");
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
     fetchArtist(id)
@@ -56,9 +66,32 @@ export default function ArtistDetailScreen() {
       });
       setSent(true);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not send enquiry. Please try again.");
+      // First-time bookers have no BookerProfile row yet — collect it inline
+      // instead of dead-ending the enquiry they already filled in.
+      if (err instanceof ApiError && err.status === 404) {
+        setProfileCity((prev) => prev || eventCity);
+        setNeedsBookerProfile(true);
+      } else {
+        setFormError(err instanceof ApiError ? err.message : "Could not send enquiry. Please try again.");
+      }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleCompleteProfileAndSubmit() {
+    if (!profileFullName || !profileEmail || !profileCity || !profileState) return;
+    setProfileSubmitting(true);
+    setProfileError("");
+    try {
+      await saveBookerProfile({ fullName: profileFullName, email: profileEmail, city: profileCity, state: profileState });
+      await refreshSession();
+      setNeedsBookerProfile(false);
+      await handleSubmitEnquiry();
+    } catch (err) {
+      setProfileError(err instanceof ApiError ? err.message : "Could not save your details. Please try again.");
+    } finally {
+      setProfileSubmitting(false);
     }
   }
 
@@ -160,6 +193,25 @@ export default function ArtistDetailScreen() {
               <View style={styles.sentBox}>
                 <Feather name="check-circle" size={18} color={colors.ok} />
                 <Text style={styles.sentText}>Enquiry sent — {name.split(" ")[0]} will respond soon.</Text>
+              </View>
+            ) : needsBookerProfile ? (
+              <View style={styles.form}>
+                <Text style={styles.profileIntro}>One last step — tell us a bit about you and we'll send your enquiry.</Text>
+                <FormField label="FULL NAME" value={profileFullName} onChangeText={setProfileFullName} placeholder="Your name" />
+                <FormField label="EMAIL" value={profileEmail} onChangeText={setProfileEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
+                <FormField label="CITY" value={profileCity} onChangeText={setProfileCity} placeholder="Mumbai" />
+                <FormField label="STATE" value={profileState} onChangeText={setProfileState} placeholder="Maharashtra" />
+                {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
+                <Btn
+                  label="Continue & Send Enquiry"
+                  onPress={handleCompleteProfileAndSubmit}
+                  disabled={!profileFullName || !profileEmail || !profileCity || !profileState}
+                  loading={profileSubmitting || submitting}
+                  style={styles.formButton}
+                />
+                <Pressable onPress={() => setNeedsBookerProfile(false)}>
+                  <Text style={styles.profileBack}>Back</Text>
+                </Pressable>
               </View>
             ) : showForm ? (
               <View style={styles.form}>
@@ -410,6 +462,8 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   fieldInputMultiline: { minHeight: 70, textAlignVertical: "top" },
+  profileIntro: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textDim },
+  profileBack: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textMute, textAlign: "center", marginTop: 2 },
   error: { fontFamily: fonts.body, fontSize: 12.5, color: colors.err },
   sentBox: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   sentText: { flex: 1, fontFamily: fonts.body, fontSize: 13.5, color: colors.text },

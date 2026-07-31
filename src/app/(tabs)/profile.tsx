@@ -1,14 +1,28 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Pressable, StyleSheet, Text, View, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
 import { useAuth } from "@/lib/auth-context";
+import { fetchMyProfile, type BookerProfile } from "@/lib/api";
 import { colors, fonts, spacing, radii } from "@/theme";
+
+const PROFILE_FIELDS = 6; // fullName, email, city, state, companyName, photo
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const [bookerProfile, setBookerProfile] = useState<BookerProfile | null | undefined>(undefined);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.role === "ARTIST") return;
+      fetchMyProfile()
+        .then(({ bookerProfile: result }) => setBookerProfile(result))
+        .catch(() => setBookerProfile(null));
+    }, [user?.role]),
+  );
 
   async function handleLogout() {
     await logout();
@@ -17,19 +31,29 @@ export default function ProfileScreen() {
 
   const initial = (user?.name ?? user?.phone ?? "G").trim().charAt(0).toUpperCase();
 
+  const filledCount = bookerProfile
+    ? [bookerProfile.fullName, bookerProfile.email, bookerProfile.city, bookerProfile.state, bookerProfile.companyName, user?.image].filter(Boolean).length
+    : 0;
+  const completionPct = bookerProfile ? Math.round((filledCount / PROFILE_FIELDS) * 100) : 0;
+  const showBookerProfileCard = user?.role !== "ARTIST" && bookerProfile !== undefined;
+
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <Text style={styles.title}>Profile</Text>
 
         <GlassCard style={styles.userCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
-          </View>
+          {user?.image ? (
+            <Image source={{ uri: user.image }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initial}</Text>
+            </View>
+          )}
           <View style={styles.userInfo}>
-            <Text style={styles.name}>{user?.name ?? "GiggiFi user"}</Text>
+            <Text style={styles.name}>{bookerProfile?.fullName ?? user?.name ?? "GiggiFi user"}</Text>
             {user?.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
-            {user?.email ? <Text style={styles.meta}>{user.email}</Text> : null}
+            {(bookerProfile?.email ?? user?.email) ? <Text style={styles.meta}>{bookerProfile?.email ?? user?.email}</Text> : null}
             {user?.role ? (
               <View style={styles.roleBadge}>
                 <Text style={styles.roleText}>{user.role === "ARTIST" ? "ARTIST" : "CLIENT"}</Text>
@@ -38,7 +62,40 @@ export default function ProfileScreen() {
           </View>
         </GlassCard>
 
+        {showBookerProfileCard ? (
+          !bookerProfile ? (
+            <Pressable onPress={() => router.push("/booker-profile")}>
+              <GlassCard style={styles.completeCard}>
+                <View style={styles.completeIcon}>
+                  <Feather name="user-plus" size={18} color={colors.orange} />
+                </View>
+                <View style={styles.completeTextWrap}>
+                  <Text style={styles.completeTitle}>Complete your profile</Text>
+                  <Text style={styles.completeSub}>Add your details to book artists faster.</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.textMute} />
+              </GlassCard>
+            </Pressable>
+          ) : completionPct < 100 ? (
+            <Pressable onPress={() => router.push("/booker-profile")}>
+              <GlassCard style={styles.completeCard}>
+                <View style={styles.progressRing}>
+                  <Text style={styles.progressRingText}>{completionPct}%</Text>
+                </View>
+                <View style={styles.completeTextWrap}>
+                  <Text style={styles.completeTitle}>Profile {completionPct}% complete</Text>
+                  <Text style={styles.completeSub}>Finish your profile for a smoother booking experience.</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.textMute} />
+              </GlassCard>
+            </Pressable>
+          ) : null
+        ) : null}
+
         <View style={styles.menu}>
+          {showBookerProfileCard && bookerProfile && completionPct === 100 ? (
+            <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
+          ) : null}
           <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
           <MenuRow icon="help-circle" label="Help & support" onPress={() => {}} />
           <MenuRow icon="file-text" label="Terms & Privacy" onPress={() => {}} />
@@ -92,6 +149,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: "#fff",
   },
+  avatarImage: { width: 56, height: 56, borderRadius: 28 },
   userInfo: { flex: 1, gap: 2 },
   name: {
     fontFamily: fonts.displayMedium,
@@ -118,6 +176,45 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.textDim,
     letterSpacing: 0.5,
+  },
+  completeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  completeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,138,61,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  completeTextWrap: { flex: 1, gap: 2 },
+  completeTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 14.5,
+    color: colors.text,
+  },
+  completeSub: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.textMute,
+  },
+  progressRing: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: colors.orange,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  progressRingText: {
+    fontFamily: fonts.mono,
+    fontSize: 9.5,
+    color: colors.orange,
   },
   menu: {
     borderRadius: radii.xl,
