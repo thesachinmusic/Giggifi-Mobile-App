@@ -72,7 +72,11 @@ export default function BookerProfileScreen() {
       await refreshSession();
       router.back();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not save your profile. Please try again.");
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Couldn't reach GiggiFi — check your internet connection and try again.");
+      }
     } finally {
       setSaving(false);
     }
