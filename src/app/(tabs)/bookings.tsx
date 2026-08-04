@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
 import { fetchBookings, type Booking } from "@/lib/api";
@@ -11,10 +11,14 @@ import { colors, fonts, spacing, radii } from "@/theme";
 export default function BookingsScreen() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
+  // setLoading(false) only ever fires here, never reset to true afterwards —
+  // so the first call (on initial mount, since useFocusEffect below fires
+  // then too) shows the full-screen spinner, and every later call just
+  // updates the list quietly in place instead of re-blocking the screen.
   const load = useCallback(async () => {
-    setLoading(true);
     setError("");
     try {
       const { bookings: results } = await fetchBookings();
@@ -26,9 +30,19 @@ export default function BookingsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refreshes every time this tab is focused — e.g. after paying for a
+  // booking on its detail screen and coming back here.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
   return (
     <GradientBackground>
@@ -37,13 +51,18 @@ export default function BookingsScreen() {
 
         {loading ? (
           <ActivityIndicator color={colors.pink} style={styles.loader} />
-        ) : error ? (
+        ) : error && bookings.length === 0 ? (
+          // Only block on error before any data has loaded — a later
+          // background refresh failure (focus, pull-to-refresh) shouldn't
+          // blank out an already-populated list.
           <Text style={styles.muted}>{error}</Text>
         ) : (
           <FlatList
             data={bookings}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             ListEmptyComponent={<Text style={styles.muted}>No bookings yet — go book an artist from Browse.</Text>}
             renderItem={({ item }) => {
               const otherParty = item.artist?.stageName ?? item.booker?.fullName ?? "GiggiFi";

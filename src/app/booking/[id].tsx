@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -23,6 +23,13 @@ import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
 import { clearPendingPayment, getPendingPayment, setPendingPayment, type PendingPayment } from "@/lib/pending-payment-storage";
 import { colors, fonts, radii, spacing } from "@/theme";
 
+// Statuses where the other side is expected to act soon (artist hasn't
+// responded yet, or the client hasn't paid yet) — worth polling for while
+// this screen is open. Once past these, nothing changes fast enough to be
+// worth a background request every 30s.
+const POLLABLE_STATUSES = new Set(["ENQUIRY_SENT", "ENQUIRY_VIEWED", "AWAITING_PAYMENT"]);
+const POLL_INTERVAL_MS = 30_000;
+
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
@@ -46,17 +53,16 @@ export default function BookingDetailScreen() {
     }
   }, [id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Every time this screen opens: retry a stuck verify for this booking, and
+  // Every time this screen opens: refresh the booking outright (fixes the
+  // general staleness case — e.g. an artist's quote arriving while this
+  // screen wasn't open), then retry a stuck verify for this booking, and
   // separately ask the server directly (payment-status) in case the webhook
   // or the reconciliation cron already resolved it — either path clears the
   // stored pending payment and reloads once the booking has actually moved.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      load();
 
       (async () => {
         const stored = await getPendingPayment();
@@ -87,6 +93,18 @@ export default function BookingDetailScreen() {
         cancelled = true;
       };
     }, [id, load]),
+  );
+
+  // Polls while waiting on the other side to act. useFocusEffect's cleanup
+  // fires on blur as well as unmount, so this stops on its own the moment
+  // the screen loses focus — no separate AppState/blur handling needed.
+  useFocusEffect(
+    useCallback(() => {
+      if (!booking || !POLLABLE_STATUSES.has(booking.status)) return;
+
+      const interval = setInterval(load, POLL_INTERVAL_MS);
+      return () => clearInterval(interval);
+    }, [booking?.status, load]),
   );
 
   async function handlePay() {
@@ -173,7 +191,10 @@ export default function BookingDetailScreen() {
     );
   }
 
-  if (error || !booking) {
+  // Not `error || !booking`: once a booking has loaded successfully, a later
+  // background refresh failure (poll, focus-refresh) shouldn't blank out an
+  // already-working screen — only block rendering if we never got data at all.
+  if (!booking) {
     return (
       <GradientBackground>
         <SafeAreaView style={styles.centered}>
