@@ -18,11 +18,10 @@ import {
   type BookingDetail,
 } from "@/lib/api";
 import { STATUS_LABEL } from "@/lib/booking-status";
+import { HELPLINE_NUMBER } from "@/lib/constants";
 import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
 import { clearPendingPayment, getPendingPayment, setPendingPayment, type PendingPayment } from "@/lib/pending-payment-storage";
 import { colors, fonts, radii, spacing } from "@/theme";
-
-const HELPLINE_NUMBER = "8655688134";
 
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

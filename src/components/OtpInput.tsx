@@ -20,8 +20,19 @@ export function OtpInput({ value, onChange }: Props) {
       onChange(next);
       return;
     }
-    const char = clean[clean.length - 1];
-    const next = (value.slice(0, index) + char + value.slice(index + 1)).slice(0, LENGTH);
+
+    if (clean.length > 1) {
+      // A paste or OS autofill (SMS Retriever / iOS one-time-code) delivers
+      // the whole code as one string to whichever box is focused — spread it
+      // across the remaining boxes instead of keeping only the last digit.
+      const next = (value.slice(0, index) + clean).slice(0, LENGTH);
+      onChange(next);
+      const nextIndex = Math.min(index + clean.length, LENGTH - 1);
+      inputs.current[nextIndex]?.focus();
+      return;
+    }
+
+    const next = (value.slice(0, index) + clean + value.slice(index + 1)).slice(0, LENGTH);
     onChange(next);
     if (index < LENGTH - 1) inputs.current[index + 1]?.focus();
   }
@@ -44,7 +55,20 @@ export function OtpInput({ value, onChange }: Props) {
           onChangeText={(text) => handleChange(text, index)}
           onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
           keyboardType="number-pad"
-          maxLength={1}
+          // Only the first box needs room for a multi-digit delivery (OS
+          // autofill/paste always lands there — see the autoComplete/
+          // textContentType props below). A maxLength of 1 there could
+          // truncate that at the native level before onChangeText ever sees
+          // more than one character. The other boxes keep maxLength=1: it's
+          // what makes re-typing over an already-filled box replace rather
+          // than append (raising it everywhere breaks that).
+          maxLength={index === 0 ? LENGTH : 1}
+          // Re-focusing an already-filled box selects its digit, so typing
+          // immediately replaces it instead of appending — without this,
+          // retyping over box 0 specifically could native-append into a
+          // 2-character string and get misread as a fresh paste.
+          selectTextOnFocus
+          {...(index === 0 ? { autoComplete: "sms-otp" as const, textContentType: "oneTimeCode" as const } : null)}
           style={[styles.box, digit.trim() ? styles.boxFilled : null]}
         />
       ))}
