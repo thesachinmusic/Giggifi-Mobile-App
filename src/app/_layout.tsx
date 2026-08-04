@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AppState, View, ActivityIndicator, type AppStateStatus } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/lib/auth-context";
 import { SavedArtistsProvider } from "@/lib/saved-artists-context";
 import { usePushRegistration } from "@/lib/push-notifications";
+import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
 import { IntroSplash } from "@/components/IntroSplash";
 import { useAppFonts } from "@/theme/typography";
 import { colors } from "@/theme";
@@ -16,6 +17,31 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function PushRegistrar() {
   usePushRegistration();
+  return null;
+}
+
+// App-wide backstop for a Razorpay payment whose verify call never landed —
+// retries on cold start and every time the app returns to the foreground,
+// regardless of which screen is open. The booking screen itself also
+// retries on focus; this covers the case where the user never navigates
+// back to that exact screen before reopening the app.
+function PendingPaymentRecovery() {
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    recoverPendingPayment().catch(() => {});
+
+    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
+      const cameToForeground = appState.current.match(/inactive|background/) && next === "active";
+      appState.current = next;
+      if (cameToForeground) {
+        recoverPendingPayment().catch(() => {});
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   return null;
 }
 
@@ -41,6 +67,7 @@ export default function RootLayout() {
         <AuthProvider>
           <SavedArtistsProvider>
             <PushRegistrar />
+            <PendingPaymentRecovery />
             <StatusBar style="light" />
             <Stack
               screenOptions={{

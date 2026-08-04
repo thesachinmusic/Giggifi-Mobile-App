@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import RazorpayCheckout from "react-native-razorpay";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
@@ -10,6 +10,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchBooking,
+  fetchBookingPaymentStatus,
   createRazorpayOrder,
   verifyRazorpayPayment,
   respondToBooking,
@@ -17,6 +18,8 @@ import {
   type BookingDetail,
 } from "@/lib/api";
 import { STATUS_LABEL } from "@/lib/booking-status";
+import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
+import { clearPendingPayment, getPendingPayment, setPendingPayment, type PendingPayment } from "@/lib/pending-payment-storage";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 const HELPLINE_NUMBER = "8655688134";
@@ -29,6 +32,7 @@ export default function BookingDetailScreen() {
   const [error, setError] = useState("");
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState("");
+  const [pendingPayment, setPendingPaymentState] = useState<PendingPayment | null>(null);
   const [responding, setResponding] = useState<"accept" | "decline" | null>(null);
   const [respondError, setRespondError] = useState("");
 
@@ -47,13 +51,53 @@ export default function BookingDetailScreen() {
     load();
   }, [load]);
 
+  // Every time this screen opens: retry a stuck verify for this booking, and
+  // separately ask the server directly (payment-status) in case the webhook
+  // or the reconciliation cron already resolved it — either path clears the
+  // stored pending payment and reloads once the booking has actually moved.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+
+      (async () => {
+        const stored = await getPendingPayment();
+        if (!cancelled) setPendingPaymentState(stored && stored.bookingId === id ? stored : null);
+
+        if (stored?.bookingId === id) {
+          const { resolved } = await recoverPendingPayment();
+          if (!cancelled && resolved) {
+            setPendingPaymentState(null);
+            await load();
+            return;
+          }
+        }
+
+        try {
+          const status = await fetchBookingPaymentStatus(id);
+          if (!cancelled && status.payment?.status === "PAID" && status.bookingStatus !== "AWAITING_PAYMENT") {
+            if (stored?.bookingId === id) await clearPendingPayment();
+            setPendingPaymentState(null);
+            await load();
+          }
+        } catch {
+          // Background self-heal check — a failed poll here isn't user-facing.
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [id, load]),
+  );
+
   async function handlePay() {
     if (!booking) return;
     setPaying(true);
     setPayError("");
+    let razorpayResult: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string } | null = null;
     try {
       const order = await createRazorpayOrder(booking.id);
-      const result = await RazorpayCheckout.open({
+      razorpayResult = await RazorpayCheckout.open({
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
@@ -63,20 +107,45 @@ export default function BookingDetailScreen() {
         prefill: { name: user?.name ?? undefined, email: user?.email ?? undefined, contact: user?.phone ?? undefined },
         theme: { color: colors.pink },
       });
-      await verifyRazorpayPayment({
-        bookingId: booking.id,
-        razorpay_order_id: result.razorpay_order_id,
-        razorpay_payment_id: result.razorpay_payment_id,
-        razorpay_signature: result.razorpay_signature,
-      });
-      await load();
     } catch (err) {
-      // Razorpay rejects with its own error shape on cancel/failure — a user
-      // backing out of checkout isn't an error worth surfacing.
+      // Covers both createRazorpayOrder (plain ApiError) and
+      // RazorpayCheckout.open() (Razorpay's own error shape, including a
+      // silent cancel) — neither case has moved any money, so a red error
+      // here is fine; a cancel just has no description and stays silent.
       const description = (err as { error?: { description?: string }; description?: string })?.error?.description
         ?? (err as { description?: string })?.description;
       if (description) setPayError(description);
       else if (err instanceof ApiError) setPayError(err.message);
+      setPaying(false);
+      return;
+    }
+
+    // Razorpay succeeded — money has moved. From here on, never show a red
+    // error; a failed verify just means the confirmation hasn't landed yet.
+    try {
+      await verifyRazorpayPayment({
+        bookingId: booking.id,
+        razorpay_order_id: razorpayResult.razorpay_order_id,
+        razorpay_payment_id: razorpayResult.razorpay_payment_id,
+        razorpay_signature: razorpayResult.razorpay_signature,
+      });
+      await load();
+    } catch {
+      const stuck: PendingPayment = {
+        bookingId: booking.id,
+        razorpayOrderId: razorpayResult.razorpay_order_id,
+        razorpayPaymentId: razorpayResult.razorpay_payment_id,
+        razorpaySignature: razorpayResult.razorpay_signature,
+      };
+      await setPendingPayment(stuck);
+      setPendingPaymentState(stuck);
+      // One immediate retry before settling into the calm "confirming" state —
+      // cheap, and resolves the common transient-network case right away.
+      const { resolved } = await recoverPendingPayment();
+      if (resolved) {
+        setPendingPaymentState(null);
+        await load();
+      }
     } finally {
       setPaying(false);
     }
@@ -165,7 +234,16 @@ export default function BookingDetailScreen() {
             </GlassCard>
           ) : null}
 
-          {booking.status === "AWAITING_PAYMENT" && booking.viewerRole === "BOOKER" ? (
+          {booking.status === "AWAITING_PAYMENT" && booking.viewerRole === "BOOKER" && pendingPayment?.bookingId === booking.id ? (
+            <GlassCard style={styles.payCard}>
+              <View style={styles.recoveryRow}>
+                <ActivityIndicator size="small" color={colors.ok} />
+                <Text style={styles.recoveryText}>
+                  Payment received. We're confirming your booking — this usually takes under a minute.
+                </Text>
+              </View>
+            </GlassCard>
+          ) : booking.status === "AWAITING_PAYMENT" && booking.viewerRole === "BOOKER" ? (
             <GlassCard style={styles.payCard}>
               <View style={styles.payRow}>
                 <Feather name="check-circle" size={16} color={colors.ok} />
@@ -230,6 +308,8 @@ const styles = StyleSheet.create({
   payCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   payRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   payText: { flex: 1, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textDim },
+  recoveryRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  recoveryText: { flex: 1, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.text },
   payButton: {},
   quoteRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   priceLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, marginBottom: 4 },

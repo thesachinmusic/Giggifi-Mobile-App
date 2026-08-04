@@ -316,6 +316,26 @@ export function verifyRazorpayPayment(input: {
   });
 }
 
+export interface BookingPaymentStatus {
+  bookingId: string;
+  bookingStatus: string;
+  escrowStatus: string;
+  payment: {
+    status: string;
+    providerStatus: string | null;
+    paidAt: string | null;
+    failureMessage: string | null;
+  } | null;
+}
+
+// Poll target for when verifyRazorpayPayment fails after a successful
+// checkout (dropped network, app backgrounded) — the webhook or the
+// reconciliation cron will have already moved the booking on regardless of
+// whether this call ever landed, so this just lets the UI find out.
+export function fetchBookingPaymentStatus(bookingId: string) {
+  return request<BookingPaymentStatus>(`/api/mobile/booking/${bookingId}/payment-status`);
+}
+
 // ─── Push notifications ───
 
 export function registerPushToken(token: string) {
