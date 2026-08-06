@@ -111,14 +111,21 @@ export interface MatchResult {
   [key: string]: unknown;
 }
 
+export type NotificationCategory = "BOOKING" | "PAYMENT" | "EVENT_DAY" | "SECURITY" | "SUPPORT" | "OFFER";
+export type NotificationPriority = "CRITICAL" | "HIGH" | "NORMAL" | "LOW";
+
 export interface NotificationItem {
   id: string;
   title: string;
   body: string;
   type: string;
+  category: NotificationCategory;
+  priority: NotificationPriority;
   read: boolean;
   actionUrl: string | null;
+  imageUrl: string | null;
   createdAt: string;
+  expiresAt: string | null;
 }
 
 export interface Booking {
@@ -264,8 +271,14 @@ export function unsaveArtist(artistId: string) {
 
 // ─── Notifications ───
 
-export function fetchNotifications() {
-  return request<{ notifications: NotificationItem[]; unreadCount: number }>("/api/mobile/notifications");
+export function fetchNotifications(params?: { cursor?: string; limit?: number }) {
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  return request<{ notifications: NotificationItem[]; nextCursor: string | null; unreadCount: number }>(
+    `/api/mobile/notifications${qs ? `?${qs}` : ""}`,
+  );
 }
 
 export function markNotificationRead(id: string) {
@@ -273,6 +286,59 @@ export function markNotificationRead(id: string) {
     method: "PATCH",
     body: JSON.stringify({ id }),
   });
+}
+
+export function markAllNotificationsRead() {
+  return request<{ success: true }>("/api/mobile/notifications", {
+    method: "PATCH",
+    body: JSON.stringify({ all: true }),
+  });
+}
+
+// ─── Notification preferences ───
+
+export interface NotificationPreferences {
+  categories: Record<NotificationCategory, boolean>;
+  quietHoursStart: number;
+  quietHoursEnd: number;
+  marketingConsent: {
+    granted: boolean;
+    grantedAt: string | null;
+    consentTextVersion: string | null;
+  };
+}
+
+export function fetchNotificationPreferences() {
+  return request<NotificationPreferences>("/api/mobile/notification-preferences");
+}
+
+export function updateNotificationPreferences(patch: {
+  categories?: Partial<Record<NotificationCategory, boolean>>;
+  quietHoursStart?: number;
+  quietHoursEnd?: number;
+  marketingConsent?: { granted: boolean; consentTextVersion: string };
+}) {
+  return request<{ success: true }>("/api/mobile/notification-preferences", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+// ─── Announcements ───
+// Backend endpoint ships in a later phase (admin console). Until then this
+// 404s and callers treat that identically to "no announcements" — see
+// src/components/AnnouncementBanner.tsx.
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  actionUrl: string | null;
+}
+
+export function fetchAnnouncements() {
+  return request<{ announcements: Announcement[] }>("/api/mobile/announcements");
 }
 
 // ─── Bookings ───

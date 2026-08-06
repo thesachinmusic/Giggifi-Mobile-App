@@ -1,11 +1,16 @@
 import { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Notifications from "expo-notifications";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
+import { OemDeliveryCard } from "@/components/OemDeliveryCard";
 import { fetchBookings, type Booking } from "@/lib/api";
 import { STATUS_LABEL } from "@/lib/booking-status";
+import { CONFIRMED_STATUSES, reconcileEventReminders } from "@/lib/event-reminders";
+import { getOemGuidance, type OemGuidance } from "@/lib/oem-delivery";
+import { hasSeenOemCard, markOemCardSeen } from "@/lib/oem-guidance-storage";
 import { colors, fonts, spacing, radii } from "@/theme";
 
 export default function BookingsScreen() {
@@ -13,6 +18,7 @@ export default function BookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [oemGuidance, setOemGuidance] = useState<OemGuidance | null>(null);
 
   // setLoading(false) only ever fires here, never reset to true afterwards —
   // so the first call (on initial mount, since useFocusEffect below fires
@@ -23,12 +29,32 @@ export default function BookingsScreen() {
     try {
       const { bookings: results } = await fetchBookings();
       setBookings(results);
+      reconcileEventReminders(results).catch(() => {});
+      maybeShowOemCard(results);
     } catch {
       setError("Couldn't load your bookings.");
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Only worth interrupting the user about background-delivery quirks if
+  // there's an actual upcoming booking whose reminders/pushes could get
+  // silently eaten, notifications are already on, this is a known
+  // aggressive-killer OEM, and they haven't seen this card before.
+  async function maybeShowOemCard(results: Booking[]) {
+    const guidance = getOemGuidance();
+    if (!guidance) return;
+    if (!results.some((b) => CONFIRMED_STATUSES.has(b.status))) return;
+    const [{ status }, seen] = await Promise.all([Notifications.getPermissionsAsync(), hasSeenOemCard()]);
+    if (status !== "granted" || seen) return;
+    setOemGuidance(guidance);
+  }
+
+  function dismissOemCard() {
+    setOemGuidance(null);
+    markOemCardSeen().catch(() => {});
+  }
 
   // Refreshes every time this tab is focused — e.g. after paying for a
   // booking on its detail screen and coming back here.
@@ -48,6 +74,12 @@ export default function BookingsScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <Text style={styles.title}>Bookings</Text>
+
+        {oemGuidance ? (
+          <View style={styles.oemCardWrap}>
+            <OemDeliveryCard guidance={oemGuidance} onDismiss={dismissOemCard} />
+          </View>
+        ) : null}
 
         {loading ? (
           <ActivityIndicator color={colors.pink} style={styles.loader} />
@@ -99,6 +131,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },
+  oemCardWrap: { paddingHorizontal: spacing.lg },
   loader: { marginTop: spacing.xl },
   list: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
   card: { gap: 6 },

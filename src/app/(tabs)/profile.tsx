@@ -97,6 +97,7 @@ export default function ProfileScreen() {
             <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
           ) : null}
           <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
+          <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
           <MenuRow icon="help-circle" label="Help & support" onPress={() => {}} />
           <MenuRow icon="file-text" label="Terms & Privacy" onPress={() => {}} />
         </View>

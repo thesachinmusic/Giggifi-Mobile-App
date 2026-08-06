@@ -1,18 +1,11 @@
-import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { fetchNotifications } from "@/lib/api";
+import { useNotifications } from "@/lib/notifications-context";
 import { colors, fonts } from "@/theme";
 
 export function NotificationBell() {
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    fetchNotifications()
-      .then(({ unreadCount: count }) => setUnreadCount(count))
-      .catch(() => {});
-  }, []);
+  const { unreadCount } = useNotifications();
 
   return (
     <Pressable style={styles.button} onPress={() => router.push("/notifications")}>

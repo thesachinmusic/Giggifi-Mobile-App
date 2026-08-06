@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { SearchBarStatic } from "@/components/SearchBar";
 import { BannerCarousel } from "@/components/BannerCarousel";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { CategoryGrid } from "@/components/CategoryGrid";
 import { FeaturedArtistCard, FEATURED_CARD_WIDTH } from "@/components/FeaturedArtistCard";
 import { ArtistCard } from "@/components/ArtistCard";
@@ -95,6 +96,8 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who's the act tonight?</Text>
           </View>
+
+          <AnnouncementBanner />
 
           <View style={styles.searchWrap}>
             <SearchBarStatic label="Search artists, DJs, bands…" onPress={() => router.push("/(tabs)/browse")} />

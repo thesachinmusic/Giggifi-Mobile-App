@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { AppState, View, ActivityIndicator, type AppStateStatus } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { View, ActivityIndicator, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
@@ -7,8 +7,12 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/lib/auth-context";
 import { SavedArtistsProvider } from "@/lib/saved-artists-context";
+import { NotificationsProvider } from "@/lib/notifications-context";
 import { usePushRegistration } from "@/lib/push-notifications";
+import { useNotificationRouter } from "@/lib/notification-router";
+import { NotificationToastHost } from "@/lib/toast-host";
 import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
+import { useAppForeground } from "@/lib/use-app-foreground";
 import { IntroSplash } from "@/components/IntroSplash";
 import { useAppFonts } from "@/theme/typography";
 import { colors } from "@/theme";
@@ -20,27 +24,36 @@ function PushRegistrar() {
   return null;
 }
 
+// Routes a tapped notification to its actionUrl — cold start and a tap
+// while already running both flow through the same effect. See
+// src/lib/notification-router.ts for why this is safe against index.tsx's
+// own <Redirect>.
+//
+// Not mounted on web at all (see below) — expo-notifications has no web
+// implementation of getLastNotificationResponseAsync/
+// useLastNotificationResponse (confirmed via node_modules source: unlike
+// permissions and listeners, which degrade gracefully on web, this one
+// throws "not available on web" the moment it's called).
+function NotificationTapHandler() {
+  useNotificationRouter();
+  return null;
+}
+
 // App-wide backstop for a Razorpay payment whose verify call never landed —
 // retries on cold start and every time the app returns to the foreground,
 // regardless of which screen is open. The booking screen itself also
 // retries on focus; this covers the case where the user never navigates
 // back to that exact screen before reopening the app.
 function PendingPaymentRecovery() {
-  const appState = useRef(AppState.currentState);
+  const retry = useCallback(() => {
+    recoverPendingPayment().catch(() => {});
+  }, []);
 
   useEffect(() => {
-    recoverPendingPayment().catch(() => {});
+    retry();
+  }, [retry]);
 
-    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
-      const cameToForeground = appState.current.match(/inactive|background/) && next === "active";
-      appState.current = next;
-      if (cameToForeground) {
-        recoverPendingPayment().catch(() => {});
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
+  useAppForeground(retry);
 
   return null;
 }
@@ -66,60 +79,74 @@ export default function RootLayout() {
       <BottomSheetModalProvider>
         <AuthProvider>
           <SavedArtistsProvider>
-            <PushRegistrar />
-            <PendingPaymentRecovery />
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.ink },
-              }}
-            >
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="artist/[id]"
-                options={{
-                  headerShown: true,
-                  headerTransparent: true,
-                  headerTitle: "",
-                  headerTintColor: colors.text,
-                  headerBackTitle: "Back",
+            <NotificationsProvider>
+              <PushRegistrar />
+              {Platform.OS !== "web" ? <NotificationTapHandler /> : null}
+              <NotificationToastHost />
+              <PendingPaymentRecovery />
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.ink },
                 }}
-              />
-              <Stack.Screen
-                name="vendor/[id]"
-                options={{
-                  headerShown: true,
-                  headerTransparent: true,
-                  headerTitle: "",
-                  headerTintColor: colors.text,
-                  headerBackTitle: "Back",
-                }}
-              />
-              <Stack.Screen
-                name="booker-profile"
-                options={{
-                  headerShown: true,
-                  headerTitle: "My Profile",
-                  headerTintColor: colors.text,
-                  headerStyle: { backgroundColor: colors.ink },
-                  headerBackTitle: "Back",
-                }}
-              />
-              <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
-              <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
-              <Stack.Screen
-                name="booking/[id]"
-                options={{
-                  headerShown: true,
-                  headerTitle: "Booking",
-                  headerTintColor: colors.text,
-                  headerStyle: { backgroundColor: colors.ink },
-                  headerBackTitle: "Back",
-                }}
-              />
-            </Stack>
+              >
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen
+                  name="artist/[id]"
+                  options={{
+                    headerShown: true,
+                    headerTransparent: true,
+                    headerTitle: "",
+                    headerTintColor: colors.text,
+                    headerBackTitle: "Back",
+                  }}
+                />
+                <Stack.Screen
+                  name="vendor/[id]"
+                  options={{
+                    headerShown: true,
+                    headerTransparent: true,
+                    headerTitle: "",
+                    headerTintColor: colors.text,
+                    headerBackTitle: "Back",
+                  }}
+                />
+                <Stack.Screen
+                  name="booker-profile"
+                  options={{
+                    headerShown: true,
+                    headerTitle: "My Profile",
+                    headerTintColor: colors.text,
+                    headerStyle: { backgroundColor: colors.ink },
+                    headerBackTitle: "Back",
+                  }}
+                />
+                <Stack.Screen
+                  name="notification-settings"
+                  options={{
+                    headerShown: true,
+                    headerTitle: "Notification Settings",
+                    headerTintColor: colors.text,
+                    headerStyle: { backgroundColor: colors.ink },
+                    headerBackTitle: "Back",
+                  }}
+                />
+                <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
+                <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
+                <Stack.Screen
+                  name="booking/[id]"
+                  options={{
+                    headerShown: true,
+                    headerTitle: "Booking",
+                    headerTintColor: colors.text,
+                    headerStyle: { backgroundColor: colors.ink },
+                    headerBackTitle: "Back",
+                  }}
+                />
+              </Stack>
+            </NotificationsProvider>
           </SavedArtistsProvider>
         </AuthProvider>
       </BottomSheetModalProvider>

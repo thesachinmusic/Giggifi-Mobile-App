@@ -14,6 +14,10 @@ import { RatingBadge } from "@/components/RatingBadge";
 import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
 import { useAuth } from "@/lib/auth-context";
+import { usePushPrimer } from "@/lib/use-push-primer";
+import { PushPrimerSheet } from "@/components/PushPrimerSheet";
+import { useOffersOptIn } from "@/lib/use-offers-optin";
+import { OffersOptInSheet } from "@/components/OffersOptInSheet";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 export default function ArtistDetailScreen() {
@@ -32,6 +36,27 @@ export default function ArtistDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const {
+    sheetRef: offersSheetRef,
+    maybePresent: maybePresentOffersOptIn,
+    handleAccept: handleOffersAccept,
+    handleDecline: handleOffersDecline,
+    handleClosed: handleOffersClosed,
+  } = useOffersOptIn();
+
+  // Offers opt-in shows right after the push primer sheet is gone — never
+  // on top of it — regardless of how the primer resolved (or whether it
+  // even presented at all, e.g. permission already granted).
+  const {
+    sheetRef: pushSheetRef,
+    maybePresent: maybePresentPushPrimer,
+    handleEnable: handlePushEnable,
+    handleNotNow: handlePushNotNow,
+    handleClosed: handlePushClosed,
+  } = usePushPrimer(() => {
+    maybePresentOffersOptIn();
+  });
 
   const [needsBookerProfile, setNeedsBookerProfile] = useState(false);
   const [profileFullName, setProfileFullName] = useState("");
@@ -65,6 +90,12 @@ export default function ArtistDetailScreen() {
         budgetAmount: budgetAmount ? Number(budgetAmount) : undefined,
       });
       setSent(true);
+      // If the primer sheet didn't present (already granted, or denied and
+      // can't ask again), there's nothing for its onClosed chain to fire —
+      // go straight to the offers opt-in instead of losing it silently.
+      maybePresentPushPrimer().then((shown) => {
+        if (!shown) maybePresentOffersOptIn();
+      });
     } catch (err) {
       // First-time bookers have no BookerProfile row yet — collect it inline
       // instead of dead-ending the enquiry they already filled in.
@@ -247,6 +278,9 @@ export default function ArtistDetailScreen() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      <PushPrimerSheet ref={pushSheetRef} onEnable={handlePushEnable} onNotNow={handlePushNotNow} onClosed={handlePushClosed} />
+      <OffersOptInSheet ref={offersSheetRef} onAccept={handleOffersAccept} onDecline={handleOffersDecline} onClosed={handleOffersClosed} />
     </GradientBackground>
   );
 }
