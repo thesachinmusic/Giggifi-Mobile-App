@@ -67,8 +67,7 @@
         {
           "locationWhenInUsePermission": "GiggiFi uses your location to find Quick Moments artists near you."
         }
-      ],
-      "@sentry/react-native"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
