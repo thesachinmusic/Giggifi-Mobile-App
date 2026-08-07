@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { registerDeviceForPush, requestPushPermission } from "./push-notifications";
 import { recordPushPromptDecline, shouldShowPushPrimer } from "./push-permission-storage";
+import { captureError } from "./telemetry";
 
 // Decides whether to show the priming sheet at all, and handles both
 // outcomes once shown. Never calls the OS prompt directly — that only ever
@@ -54,7 +55,7 @@ export function usePushPrimer(onClosed?: () => void) {
     if (outcome === "enable") {
       const granted = await requestPushPermission();
       if (granted) {
-        await registerDeviceForPush().catch(() => {});
+        await registerDeviceForPush().catch((err) => captureError(err, "push-token-register-after-enable"));
       } else {
         // An OS-level decline still counts toward the 3-try cap.
         await recordPushPromptDecline();

@@ -13,6 +13,7 @@ import { DateField } from "@/components/DateField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { fetchVendor, sendVendorEnquiry, ApiError, type VendorSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
+import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 export default function VendorDetailScreen() {
@@ -199,7 +200,7 @@ function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: st
       if (cancelled) return;
       player.muted = muted;
       player.play();
-    }).catch(() => {});
+    }).catch((err) => captureError(err, "vendor-video-load"));
     return () => {
       cancelled = true;
     };

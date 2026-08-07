@@ -107,6 +107,18 @@ export default function HomeScreen() {
             <BannerCarousel />
           </View>
 
+          <Pressable style={styles.qmPromo} onPress={() => router.push("/quick-moments")}>
+            <LinearGradient colors={[colors.orange, colors.magenta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qmPromoGradient}>
+              <Text style={styles.qmPromoDoodle}>⚡</Text>
+              <View style={styles.qmPromoBody}>
+                <Text style={styles.qmPromoEyebrow}>GIGGIFI 20-20</Text>
+                <Text style={styles.qmPromoTitle}>Quick Moments</Text>
+                <Text style={styles.qmPromoSub}>A spontaneous ~15 min performance, booked in minutes</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#fff" />
+            </LinearGradient>
+          </Pressable>
+
           <View style={styles.section}>
             <SectionHeader title="Artists" sub="Performers for your event" onSeeAll={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: "artist" } })} />
             <CategoryGrid vertical="artist" />
@@ -321,6 +333,21 @@ const styles = StyleSheet.create({
     color: colors.textMute,
     textAlign: "center",
   },
+  qmPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
+  qmPromoGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    position: "relative",
+    overflow: "hidden",
+  },
+  qmPromoDoodle: { fontSize: 30 },
+  qmPromoBody: { flex: 1, gap: 1 },
+  qmPromoEyebrow: { fontFamily: fonts.mono, fontSize: 9, color: "rgba(255,255,255,0.85)", letterSpacing: 1 },
+  qmPromoTitle: { fontFamily: fonts.displayMedium, fontSize: 16, color: "#fff" },
+  qmPromoSub: { fontFamily: fonts.body, fontSize: 11, lineHeight: 14, color: "rgba(255,255,255,0.85)" },
   reelsPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
   reelsPromoGradient: {
     flexDirection: "row",

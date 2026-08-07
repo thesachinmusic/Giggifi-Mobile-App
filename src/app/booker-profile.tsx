@@ -8,6 +8,7 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, saveBookerProfile, uploadProfilePhoto, updateProfile, ApiError } from "@/lib/api";
+import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 export default function BookerProfileScreen() {
@@ -36,7 +37,7 @@ export default function BookerProfileScreen() {
           setEmail(user?.email ?? "");
         }
       })
-      .catch(() => {})
+      .catch((err) => captureError(err, "booker-profile-fetch"))
       .finally(() => setLoading(false));
   }, [user?.email]);
 

@@ -3,6 +3,7 @@ import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { updateNotificationPreferences } from "./api";
 import { CURRENT_MARKETING_CONSENT_VERSION } from "./marketing-consent";
 import { hasSeenOffersOptIn, markOffersOptInSeen } from "./offers-optin-storage";
+import { captureError } from "./telemetry";
 
 // One-time marketing-consent opt-in, shown right after the push-permission
 // primer resolves (see src/app/artist/[id].tsx) — never at the same time as
@@ -40,7 +41,7 @@ export function useOffersOptIn() {
       await updateNotificationPreferences({
         categories: { OFFER: true },
         marketingConsent: { granted: true, consentTextVersion: CURRENT_MARKETING_CONSENT_VERSION },
-      }).catch(() => {});
+      }).catch((err) => captureError(err, "offers-optin-consent-write"));
     }
   }, []);
 

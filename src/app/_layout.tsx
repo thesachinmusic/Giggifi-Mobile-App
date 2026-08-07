@@ -3,6 +3,7 @@ import { View, ActivityIndicator, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
+import * as Sentry from "@sentry/react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/lib/auth-context";
@@ -13,11 +14,15 @@ import { useNotificationRouter } from "@/lib/notification-router";
 import { NotificationToastHost } from "@/lib/toast-host";
 import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
 import { useAppForeground } from "@/lib/use-app-foreground";
+import { initTelemetry, captureError } from "@/lib/telemetry";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { IntroSplash } from "@/components/IntroSplash";
 import { useAppFonts } from "@/theme/typography";
 import { colors } from "@/theme";
 
-SplashScreen.preventAutoHideAsync().catch(() => {});
+initTelemetry();
+
+SplashScreen.preventAutoHideAsync().catch((err) => captureError(err, "splash-prevent-auto-hide"));
 
 function PushRegistrar() {
   usePushRegistration();
@@ -46,7 +51,7 @@ function NotificationTapHandler() {
 // back to that exact screen before reopening the app.
 function PendingPaymentRecovery() {
   const retry = useCallback(() => {
-    recoverPendingPayment().catch(() => {});
+    recoverPendingPayment().catch((err) => captureError(err, "pending-payment-recovery"));
   }, []);
 
   useEffect(() => {
@@ -58,12 +63,12 @@ function PendingPaymentRecovery() {
   return null;
 }
 
-export default function RootLayout() {
+function RootLayoutContent() {
   const [fontsLoaded, fontError] = useAppFonts();
   const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => {});
+    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch((err) => captureError(err, "splash-hide"));
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
@@ -136,6 +141,26 @@ export default function RootLayout() {
                 <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
                 <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
                 <Stack.Screen
+                  name="quick-moments/index"
+                  options={{
+                    headerShown: true,
+                    headerTitle: "Quick Moments",
+                    headerTintColor: colors.text,
+                    headerStyle: { backgroundColor: colors.ink },
+                    headerBackTitle: "Back",
+                  }}
+                />
+                <Stack.Screen
+                  name="quick-moments/book"
+                  options={{
+                    headerShown: true,
+                    headerTitle: "Book a Slot",
+                    headerTintColor: colors.text,
+                    headerStyle: { backgroundColor: colors.ink },
+                    headerBackTitle: "Back",
+                  }}
+                />
+                <Stack.Screen
                   name="booking/[id]"
                   options={{
                     headerShown: true,
@@ -154,3 +179,18 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// ErrorBoundary is the outermost thing — it has to wrap the font-loading
+// gate and the intro splash too, not just the fully-loaded app, since a
+// render throw can happen during either of those. Sentry.wrap adds native
+// crash tracking and screen/touch breadcrumbs around the same root; it
+// no-ops the same way captureError does when EXPO_PUBLIC_SENTRY_DSN isn't set.
+function RootLayout() {
+  return (
+    <ErrorBoundary>
+      <RootLayoutContent />
+    </ErrorBoundary>
+  );
+}
+
+export default Sentry.wrap(RootLayout);

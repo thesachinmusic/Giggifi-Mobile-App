@@ -10,6 +10,7 @@ import { RatingBadge } from "@/components/RatingBadge";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import { duotoneFor } from "@/lib/palette";
 import { fetchArtists, type ArtistSummary } from "@/lib/api";
+import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 type ReelFilter = "all" | "music" | "other";
@@ -33,7 +34,7 @@ export default function ReelsScreen() {
   useEffect(() => {
     fetchArtists({})
       .then(({ artists }) => setReels(artists.filter((a) => a.introVideoUrl || a.showreelUrl)))
-      .catch(() => {})
+      .catch((err) => captureError(err, "reels-fetch"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -139,10 +140,10 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
         if (cancelled) return;
         player.muted = muted;
         player.play();
-      }).catch(() => {});
+      }).catch((err) => captureError(err, "reels-video-load"));
     } else {
       player.pause();
-      player.replaceAsync(null).catch(() => {});
+      player.replaceAsync(null).catch((err) => captureError(err, "reels-video-unload"));
     }
     return () => {
       cancelled = true;

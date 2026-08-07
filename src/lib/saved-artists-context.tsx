@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { fetchSavedArtistIds, saveArtist, unsaveArtist } from "./api";
+import { captureError } from "./telemetry";
 
 interface SavedArtistsContextValue {
   savedIds: Set<string>;
@@ -21,7 +22,7 @@ export function SavedArtistsProvider({ children }: { children: ReactNode }) {
     }
     fetchSavedArtistIds()
       .then(({ artistIds }) => setSavedIds(new Set(artistIds)))
-      .catch(() => {});
+      .catch((err) => captureError(err, "saved-artists-fetch"));
   }, [user]);
 
   const toggle = useCallback(async (artistId: string) => {

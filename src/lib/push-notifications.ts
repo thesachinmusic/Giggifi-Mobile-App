@@ -6,6 +6,7 @@ import Constants from "expo-constants";
 import { useAuth } from "./auth-context";
 import { registerPushToken } from "./api";
 import { useAppForeground } from "./use-app-foreground";
+import { captureError } from "./telemetry";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -95,7 +96,7 @@ export function usePushRegistration() {
 
   const trySilentRegister = useCallback(() => {
     if (!userRef.current) return Promise.resolve();
-    return registerDeviceForPush().catch(() => {});
+    return registerDeviceForPush().catch((err) => captureError(err, "push-token-register-silent"));
   }, []);
 
   useEffect(() => {

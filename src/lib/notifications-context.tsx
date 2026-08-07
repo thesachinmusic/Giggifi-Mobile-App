@@ -3,6 +3,7 @@ import * as Notifications from "expo-notifications";
 import { useAuth } from "./auth-context";
 import { useAppForeground } from "./use-app-foreground";
 import { fetchNotifications, markAllNotificationsRead, markNotificationRead, type NotificationItem } from "./api";
+import { captureError } from "./telemetry";
 
 const PAGE_SIZE = 20;
 
@@ -90,7 +91,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    Notifications.setBadgeCountAsync(unreadCount).catch(() => {});
+    Notifications.setBadgeCountAsync(unreadCount).catch((err) => captureError(err, "badge-count-set"));
   }, [unreadCount]);
 
   const markRead = useCallback(async (id: string) => {

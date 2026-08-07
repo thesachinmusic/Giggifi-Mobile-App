@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { clearStoredToken, getStoredToken, setStoredToken } from "./auth-storage";
 import { fetchSession, sendOtp, verifyOtp, unregisterPushToken, type SessionUser } from "./api";
+import { captureError } from "./telemetry";
 
 interface AuthContextValue {
   user: SessionUser | null;
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     // Best-effort — a logged-out device shouldn't keep receiving this user's
     // push notifications, but a failed unregister shouldn't block sign-out.
-    await unregisterPushToken().catch(() => {});
+    await unregisterPushToken().catch((err) => captureError(err, "push-token-unregister-on-logout"));
     await clearStoredToken();
     setUser(null);
   }, []);

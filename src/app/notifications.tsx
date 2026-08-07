@@ -9,6 +9,7 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { useNotifications } from "@/lib/notifications-context";
 import { resolveNotificationHref } from "@/lib/notification-links";
 import { CATEGORY_META } from "@/lib/notification-category-meta";
+import { captureError } from "@/lib/telemetry";
 import { type NotificationCategory, type NotificationItem } from "@/lib/api";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -36,7 +37,7 @@ export default function NotificationsScreen() {
   useEffect(() => {
     Notifications.getPermissionsAsync()
       .then(({ status }) => setPermissionDenied(status === "denied"))
-      .catch(() => {});
+      .catch((err) => captureError(err, "notification-permission-check"));
   }, []);
 
   const filtered = useMemo(
@@ -45,7 +46,7 @@ export default function NotificationsScreen() {
   );
 
   async function handlePress(item: NotificationItem) {
-    if (!item.read) markRead(item.id).catch(() => {});
+    if (!item.read) markRead(item.id).catch((err) => captureError(err, "notification-mark-read"));
     const href = resolveNotificationHref(item.actionUrl);
     if (href) router.push(href);
   }

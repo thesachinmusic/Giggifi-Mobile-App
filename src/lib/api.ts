@@ -76,6 +76,12 @@ export interface ArtistSummary {
   reviewCount?: number;
   recentReviews?: ReviewSummary[];
   isFeatured?: boolean;
+  // Quick Moments — undefined on list endpoints that don't select these.
+  quickMomentsEnabled?: boolean;
+  quickMomentsPricePerSlot?: number | null;
+  quickMomentsRadiusKm?: number | null;
+  quickMomentsAvgRating?: number | null;
+  quickMomentsReviewCount?: number;
   bookingCount?: number;
 }
 
@@ -160,6 +166,70 @@ export interface BookingDetail {
   artist: { id: string; name: string | null; performerType: string | null; profileImageUrl: string | null; city: string | null };
   booker: { id: string; name: string | null; city: string | null };
   payment: { status: string; amount: number; platformFee: number; paidAt: string | null; releasedAt: string | null } | null;
+  // Quick Moments — format is "FULL_GIG" for every booking except these.
+  format: "FULL_GIG" | "QUICK_MOMENT";
+  quickMomentFormat: QuickMomentFormat | null;
+  requestedWindowStart: string | null;
+  enRouteAt: string | null;
+  arrivedAt: string | null;
+  completedAt: string | null;
+  // Only ever populated for the booker (viewerRole === "BOOKER") — the
+  // website never sends these to the artist side, see the API route comment.
+  arrivalOtpCode: string | null;
+  completionOtpCode: string | null;
+}
+
+// ─── Quick Moments ("Giggifi 20-20") ───
+
+export type QuickMomentFormat = "BIRTHDAY_SURPRISE" | "ANNIVERSARY_SERENADE" | "JUST_BECAUSE";
+
+export interface QuickMomentMatch {
+  id: string;
+  stageName: string | null;
+  performerType: string | null;
+  city: string | null;
+  profileImageUrl: string | null;
+  pricePerSlot: number | null;
+  distanceKm: number;
+}
+
+export function fetchQuickMomentsMatch(params: { lat: number; lng: number; budgetMax?: number; slotStartTime?: string }) {
+  const query = new URLSearchParams();
+  query.set("lat", String(params.lat));
+  query.set("lng", String(params.lng));
+  if (params.budgetMax) query.set("budgetMax", String(params.budgetMax));
+  if (params.slotStartTime) query.set("slotStartTime", params.slotStartTime);
+  return request<{ results: QuickMomentMatch[]; total: number }>(`/api/mobile/quick-moments/match?${query.toString()}`);
+}
+
+export function bookQuickMoment(input: {
+  artistId: string;
+  quickMomentFormat: QuickMomentFormat;
+  slotStartTime: string;
+  venueAddress: string;
+  eventCity: string;
+  specialRequests?: string;
+}) {
+  return request<{ success: true; bookingId: string }>("/api/mobile/quick-moments/book", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface QuickMomentLocation {
+  active: boolean;
+  lat: number | null;
+  lng: number | null;
+  updatedAt: string | null;
+}
+
+// Polling, not a Pusher subscription — pusher-js's React Native support is
+// deprecated and its suggested replacement was unpublished in 2022. The
+// artist reports periodically (not continuously) from the website
+// dashboard, so a poll every ~10s here delivers the same practical
+// freshness without a dead client dependency.
+export function fetchQuickMomentLocation(bookingId: string) {
+  return request<QuickMomentLocation>(`/api/quick-moments/${bookingId}/location`);
 }
 
 // ─── Auth ───

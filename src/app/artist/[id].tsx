@@ -5,19 +5,21 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { RatingBadge } from "@/components/RatingBadge";
-import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary } from "@/lib/api";
+import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary, type QuickMomentFormat } from "@/lib/api";
+import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { duotoneFor } from "@/lib/palette";
 import { useAuth } from "@/lib/auth-context";
 import { usePushPrimer } from "@/lib/use-push-primer";
 import { PushPrimerSheet } from "@/components/PushPrimerSheet";
 import { useOffersOptIn } from "@/lib/use-offers-optin";
 import { OffersOptInSheet } from "@/components/OffersOptInSheet";
+import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 export default function ArtistDetailScreen() {
@@ -57,6 +59,8 @@ export default function ArtistDetailScreen() {
   } = usePushPrimer(() => {
     maybePresentOffersOptIn();
   });
+
+  const [qmFormat, setQmFormat] = useState<QuickMomentFormat | null>(null);
 
   const [needsBookerProfile, setNeedsBookerProfile] = useState(false);
   const [profileFullName, setProfileFullName] = useState("");
@@ -174,6 +178,12 @@ export default function ArtistDetailScreen() {
           <View style={styles.availabilityRow}>
             <View style={[styles.availabilityDot, artist.availability ? styles.availabilityDotOn : styles.availabilityDotOff]} />
             <Text style={styles.availabilityText}>{artist.availability ? "Available now" : "Currently unavailable"}</Text>
+            {artist.quickMomentsEnabled ? (
+              <View style={styles.qmBadge}>
+                <Feather name="zap" size={10} color={colors.orange} />
+                <Text style={styles.qmBadgeText}>Quick Moments</Text>
+              </View>
+            ) : null}
           </View>
 
           {artist.bio ? <Text style={styles.bio}>{artist.bio}</Text> : null}
@@ -275,6 +285,56 @@ export default function ArtistDetailScreen() {
               <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
             </View>
           </GlassCard>
+
+          {artist.quickMomentsEnabled ? (
+            <GlassCard style={styles.qmCard}>
+              <View style={styles.qmCardHeader}>
+                <View>
+                  <Text style={styles.qmCardEyebrow}>GIGGIFI 20-20</Text>
+                  <Text style={styles.qmCardTitle}>Book a Quick Moment</Text>
+                </View>
+                {artist.quickMomentsAvgRating != null ? (
+                  <View style={styles.qmRating}>
+                    <RatingBadge rating={artist.quickMomentsAvgRating} size={12} />
+                    <Text style={styles.qmRatingLabel}>Quick Moments</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.qmCardBlurb}>
+                A short, spontaneous ~15 minute performance — priced by {name.split(" ")[0]}, not negotiable.
+                {artist.quickMomentsPricePerSlot ? ` ₹${artist.quickMomentsPricePerSlot.toLocaleString("en-IN")} / slot.` : ""}
+              </Text>
+              <View style={styles.qmPillWrap}>
+                {QUICK_MOMENT_FORMATS.map((f) => (
+                  <Pressable
+                    key={f.key}
+                    onPress={() => setQmFormat(f.key)}
+                    style={[styles.qmPill, qmFormat === f.key && styles.qmPillActive]}
+                  >
+                    <Text style={styles.qmPillEmoji}>{f.emoji}</Text>
+                    <Text style={[styles.qmPillText, qmFormat === f.key && styles.qmPillTextActive]}>{f.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Btn
+                label="Continue"
+                disabled={!qmFormat}
+                onPress={() => {
+                  if (!qmFormat) return;
+                  router.push({
+                    pathname: "/quick-moments/book",
+                    params: {
+                      artistId: artist.id,
+                      format: qmFormat,
+                      stageName: name,
+                      pricePerSlot: artist.quickMomentsPricePerSlot != null ? String(artist.quickMomentsPricePerSlot) : "",
+                    },
+                  });
+                }}
+                style={styles.formButton}
+              />
+            </GlassCard>
+          ) : null}
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
@@ -304,7 +364,7 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
       if (cancelled) return;
       player.muted = muted;
       player.play();
-    }).catch(() => {});
+    }).catch((err) => captureError(err, "artist-video-load"));
     return () => {
       cancelled = true;
     };
@@ -408,6 +468,18 @@ const styles = StyleSheet.create({
   availabilityDotOn: { backgroundColor: colors.ok },
   availabilityDotOff: { backgroundColor: colors.textMute },
   availabilityText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textDim },
+  qmBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.orange,
+  },
+  qmBadgeText: { fontFamily: fonts.mono, fontSize: 9.5, color: colors.orange, letterSpacing: 0.3 },
   languagesBlock: { marginBottom: spacing.lg, gap: spacing.xs },
   bio: {
     fontFamily: fonts.body,
@@ -510,5 +582,27 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
   },
   escrowText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
+  qmCard: { marginTop: spacing.lg, gap: spacing.sm },
+  qmCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  qmCardEyebrow: { fontFamily: fonts.mono, fontSize: 10, color: colors.orange, letterSpacing: 1, marginBottom: 2 },
+  qmCardTitle: { fontFamily: fonts.displayMedium, fontSize: 17, color: colors.text },
+  qmRating: { alignItems: "flex-end", gap: 2 },
+  qmRatingLabel: { fontFamily: fonts.mono, fontSize: 9, color: colors.textMute },
+  qmCardBlurb: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 18, color: colors.textDim },
+  qmPillWrap: { gap: spacing.xs },
+  qmPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: colors.ink2,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  qmPillActive: { borderColor: colors.pink, backgroundColor: "rgba(236,72,153,0.08)" },
+  qmPillEmoji: { fontSize: 18 },
+  qmPillText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.textDim },
+  qmPillTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
   muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute },
 });

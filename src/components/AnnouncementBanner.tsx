@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import { fetchAnnouncements, type Announcement } from "@/lib/api";
 import { resolveNotificationHref } from "@/lib/notification-links";
 import { dismissAnnouncement, getDismissedAnnouncementIds } from "@/lib/announcements-storage";
+import { captureError } from "@/lib/telemetry";
 import { gradients, fonts, radii, spacing } from "@/theme";
 
 // Admin-controlled home banner (GET /api/mobile/announcements). That
@@ -24,7 +25,7 @@ export function AnnouncementBanner() {
         const next = announcements.find((a) => !dismissedIds.includes(a.id));
         setAnnouncement(next ?? null);
       })
-      .catch(() => {});
+      .catch((err) => captureError(err, "announcements-fetch"));
     return () => {
       cancelled = true;
     };
@@ -40,7 +41,7 @@ export function AnnouncementBanner() {
 
   function handleDismiss() {
     if (!announcement) return;
-    dismissAnnouncement(announcement.id).catch(() => {});
+    dismissAnnouncement(announcement.id).catch((err) => captureError(err, "announcement-dismiss"));
     setAnnouncement(null);
   }
 

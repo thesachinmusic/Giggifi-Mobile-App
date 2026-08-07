@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import * as Location from "expo-location";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import RazorpayCheckout from "react-native-razorpay";
 import { GradientBackground } from "@/components/GradientBackground";
@@ -11,14 +12,18 @@ import { useAuth } from "@/lib/auth-context";
 import {
   fetchBooking,
   fetchBookingPaymentStatus,
+  fetchQuickMomentLocation,
   createRazorpayOrder,
   verifyRazorpayPayment,
   respondToBooking,
   ApiError,
   type BookingDetail,
+  type QuickMomentLocation,
 } from "@/lib/api";
 import { STATUS_LABEL } from "@/lib/booking-status";
 import { HELPLINE_NUMBER } from "@/lib/constants";
+import { QUICK_MOMENT_FORMAT_LABEL } from "@/lib/quick-moments";
+import { haversineKm, formatTimeAgo } from "@/lib/geo";
 import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
 import { clearPendingPayment, getPendingPayment, setPendingPayment, type PendingPayment } from "@/lib/pending-payment-storage";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -28,6 +33,7 @@ import { colors, fonts, radii, spacing } from "@/theme";
 // this screen is open. Once past these, nothing changes fast enough to be
 // worth a background request every 30s.
 const POLLABLE_STATUSES = new Set(["ENQUIRY_SENT", "ENQUIRY_VIEWED", "AWAITING_PAYMENT"]);
+const LOCATION_POLL_MS = 10_000;
 const POLL_INTERVAL_MS = 30_000;
 
 export default function BookingDetailScreen() {
@@ -226,6 +232,10 @@ export default function BookingDetailScreen() {
             {booking.payment ? <SummaryRow icon="shield" label="Payment" value={booking.payment.status} /> : null}
           </GlassCard>
 
+          {booking.format === "QUICK_MOMENT" && booking.viewerRole === "BOOKER" && booking.status !== "AWAITING_PAYMENT" ? (
+            <QuickMomentPanel booking={booking} />
+          ) : null}
+
           {booking.status === "QUOTE_RECEIVED" && booking.viewerRole === "BOOKER" ? (
             <GlassCard style={styles.payCard}>
               <View style={styles.quoteRow}>
@@ -308,6 +318,102 @@ function SummaryRow({ icon, label, value }: { icon: keyof typeof Feather.glyphMa
   );
 }
 
+// Booker-side only — the app is booker-facing (artists manage en-route/
+// arrival/completion from the website dashboard, see quick-moments-client.tsx
+// there), so this only ever displays state, never advances it.
+function QuickMomentPanel({ booking }: { booking: BookingDetail }) {
+  const [location, setLocation] = useState<QuickMomentLocation | null>(null);
+  const [myCoords, setMyCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const tracking = Boolean(booking.enRouteAt) && !booking.arrivedAt;
+
+  // Polling, not a Pusher subscription — see the doc comment on
+  // fetchQuickMomentLocation in lib/api.ts for why.
+  useEffect(() => {
+    if (!tracking) return;
+    let cancelled = false;
+    function poll() {
+      fetchQuickMomentLocation(booking.id)
+        .then((loc) => { if (!cancelled) setLocation(loc); })
+        .catch(() => {
+          // A missed poll just waits for the next tick — no user-facing error.
+        });
+    }
+    poll();
+    const interval = setInterval(poll, LOCATION_POLL_MS);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [tracking, booking.id]);
+
+  // One-shot — only used to turn the artist's last-known point into a
+  // rough "X km away" readout, not a live map (see AGENTS.md-driven research:
+  // expo-maps is alpha and needs an API key this environment doesn't have).
+  useEffect(() => {
+    if (!tracking) return;
+    let cancelled = false;
+    Location.requestForegroundPermissionsAsync()
+      .then(({ status }) => (status === "granted" ? Location.getCurrentPositionAsync({}) : null))
+      .then((pos) => {
+        if (!cancelled && pos) setMyCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [tracking]);
+
+  const distanceKm = tracking && location?.active && location.lat != null && location.lng != null && myCoords
+    ? haversineKm(myCoords.lat, myCoords.lng, location.lat, location.lng)
+    : null;
+
+  const formatLabel = booking.quickMomentFormat ? QUICK_MOMENT_FORMAT_LABEL[booking.quickMomentFormat] : "Quick Moment";
+
+  return (
+    <GlassCard style={styles.qmCard}>
+      <Text style={styles.qmTitle}>{formatLabel}</Text>
+
+      <View style={styles.qmSteps}>
+        <QuickMomentStep label="Booked & paid" done />
+        <QuickMomentStep label="Artist on the way" done={Boolean(booking.enRouteAt)} active={!booking.enRouteAt} />
+        <QuickMomentStep label="Artist arrived" done={Boolean(booking.arrivedAt)} active={Boolean(booking.enRouteAt) && !booking.arrivedAt} />
+        <QuickMomentStep label="Performance completed" done={Boolean(booking.completedAt)} active={Boolean(booking.arrivedAt) && !booking.completedAt} last />
+      </View>
+
+      {tracking ? (
+        <View style={styles.qmTrackingBox}>
+          <ActivityIndicator size="small" color={colors.pink} />
+          <Text style={styles.qmTrackingText}>
+            {distanceKm != null ? `About ${distanceKm < 1 ? "under 1" : distanceKm.toFixed(1)} km away` : "Artist is on the way"}
+            {location?.updatedAt ? ` · updated ${formatTimeAgo(location.updatedAt)}` : ""}
+          </Text>
+        </View>
+      ) : null}
+
+      {booking.arrivalOtpCode && !booking.arrivedAt ? (
+        <OtpCallout label="ARRIVAL CODE" hint="Share this with the artist when they arrive" code={booking.arrivalOtpCode} />
+      ) : null}
+      {booking.completionOtpCode && booking.arrivedAt && !booking.completedAt ? (
+        <OtpCallout label="COMPLETION CODE" hint="Share this once the performance is done" code={booking.completionOtpCode} />
+      ) : null}
+    </GlassCard>
+  );
+}
+
+function QuickMomentStep({ label, done, active, last }: { label: string; done: boolean; active?: boolean; last?: boolean }) {
+  return (
+    <View style={[styles.qmStepRow, last && styles.qmStepRowLast]}>
+      <View style={[styles.qmDot, done ? styles.qmDotDone : active ? styles.qmDotActive : styles.qmDotPending]} />
+      <Text style={[styles.qmStepText, done && styles.qmStepTextDone]}>{label}</Text>
+    </View>
+  );
+}
+
+function OtpCallout({ label, hint, code }: { label: string; hint: string; code: string }) {
+  return (
+    <View style={styles.otpBox}>
+      <Text style={styles.otpLabel}>{label}</Text>
+      <Text style={styles.otpCode}>{code}</Text>
+      <Text style={styles.otpHint}>{hint}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
@@ -350,6 +456,38 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   summaryLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, width: 60 },
   summaryValue: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 13.5, color: colors.text },
+  qmCard: { marginHorizontal: spacing.lg, gap: spacing.md, marginBottom: spacing.lg },
+  qmTitle: { fontFamily: fonts.mono, fontSize: 10, color: colors.orange, letterSpacing: 1 },
+  qmSteps: { gap: 0 },
+  qmStepRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingBottom: spacing.sm },
+  qmStepRowLast: { paddingBottom: 0 },
+  qmDot: { width: 8, height: 8, borderRadius: 4 },
+  qmDotDone: { backgroundColor: colors.ok },
+  qmDotActive: { backgroundColor: colors.pink },
+  qmDotPending: { backgroundColor: colors.line },
+  qmStepText: { fontFamily: fonts.body, fontSize: 13, color: colors.textMute },
+  qmStepTextDone: { color: colors.textDim, fontFamily: fonts.bodyMedium },
+  qmTrackingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: "rgba(236,72,153,0.08)",
+  },
+  qmTrackingText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.text },
+  otpBox: {
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.ink2,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    alignItems: "center",
+    gap: 4,
+  },
+  otpLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 1 },
+  otpCode: { fontFamily: fonts.display, fontSize: 32, color: colors.text, letterSpacing: 4 },
+  otpHint: { fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute, textAlign: "center" },
   helplineCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   helplineRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   helplineTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14.5, color: colors.text },

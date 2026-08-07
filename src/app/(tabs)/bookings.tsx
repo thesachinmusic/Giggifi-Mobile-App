@@ -11,6 +11,7 @@ import { STATUS_LABEL } from "@/lib/booking-status";
 import { CONFIRMED_STATUSES, reconcileEventReminders } from "@/lib/event-reminders";
 import { getOemGuidance, type OemGuidance } from "@/lib/oem-delivery";
 import { hasSeenOemCard, markOemCardSeen } from "@/lib/oem-guidance-storage";
+import { captureError } from "@/lib/telemetry";
 import { colors, fonts, spacing, radii } from "@/theme";
 
 export default function BookingsScreen() {
@@ -29,7 +30,7 @@ export default function BookingsScreen() {
     try {
       const { bookings: results } = await fetchBookings();
       setBookings(results);
-      reconcileEventReminders(results).catch(() => {});
+      reconcileEventReminders(results).catch((err) => captureError(err, "event-reminders-reconcile"));
       maybeShowOemCard(results);
     } catch {
       setError("Couldn't load your bookings.");
@@ -53,7 +54,7 @@ export default function BookingsScreen() {
 
   function dismissOemCard() {
     setOemGuidance(null);
-    markOemCardSeen().catch(() => {});
+    markOemCardSeen().catch((err) => captureError(err, "oem-card-mark-seen"));
   }
 
   // Refreshes every time this tab is focused — e.g. after paying for a

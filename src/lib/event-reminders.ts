@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { readJSON, writeJSON } from "./local-storage";
+import { captureError } from "./telemetry";
 import type { Booking } from "./api";
 
 const REGISTRY_KEY = "giggifi_event_reminders";
@@ -38,7 +39,7 @@ async function cancelEntry(bookingId: string, registry: ReminderRegistry): Promi
   await Promise.all(
     Object.values(entry.identifiers)
       .filter((id): id is string => Boolean(id))
-      .map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})),
+      .map((id) => Notifications.cancelScheduledNotificationAsync(id).catch((err) => captureError(err, "event-reminder-cancel"))),
   );
   delete registry[bookingId];
 }

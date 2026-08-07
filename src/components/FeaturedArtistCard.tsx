@@ -6,6 +6,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { colors, fonts, radii, spacing } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
+import { captureError } from "@/lib/telemetry";
 import type { ArtistSummary } from "@/lib/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -42,10 +43,10 @@ export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
         if (cancelled) return;
         player.muted = muted;
         player.play();
-      }).catch(() => {});
+      }).catch((err) => captureError(err, "featured-video-load"));
     } else {
       player.pause();
-      player.replaceAsync(null).catch(() => {});
+      player.replaceAsync(null).catch((err) => captureError(err, "featured-video-unload"));
     }
     return () => {
       cancelled = true;

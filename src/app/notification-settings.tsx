@@ -16,6 +16,7 @@ import {
 import { CATEGORY_META } from "@/lib/notification-category-meta";
 import { CURRENT_MARKETING_CONSENT_VERSION, MARKETING_CONSENT_TEXT } from "@/lib/marketing-consent";
 import { getLanguagePreference, setLanguagePreference, type Language } from "@/lib/local-preferences-storage";
+import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 const LOCKED_CATEGORIES: NotificationCategory[] = ["BOOKING", "PAYMENT", "EVENT_DAY", "SECURITY", "SUPPORT"];
@@ -40,7 +41,7 @@ export default function NotificationSettingsScreen() {
         setPrefs(preferences);
         setLanguage(lang);
       })
-      .catch(() => {})
+      .catch((err) => captureError(err, "notification-settings-fetch"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -50,7 +51,7 @@ export default function NotificationSettingsScreen() {
     useCallback(() => {
       Notifications.getPermissionsAsync()
         .then(({ status }) => setPermission(status as PermissionStatus))
-        .catch(() => {});
+        .catch((err) => captureError(err, "notification-permission-check-focus"));
     }, []),
   );
 
