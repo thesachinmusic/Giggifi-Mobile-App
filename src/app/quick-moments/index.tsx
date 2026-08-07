@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,40 +13,73 @@ import { fetchQuickMomentsMatch, ApiError, type QuickMomentMatch, type QuickMome
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { colors, fonts, radii, spacing } from "@/theme";
 
+type LocationStatus = "detecting" | "ready" | "denied";
+
 export default function QuickMomentsBrowseScreen() {
   const [format, setFormat] = useState<QuickMomentFormat | null>(null);
   const [budget, setBudget] = useState("");
-  const [locating, setLocating] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<LocationStatus>("detecting");
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<QuickMomentMatch[] | null>(null);
+  const searchedRef = useRef(false);
 
-  async function handleFind() {
-    if (!format) return;
-    setLocating(true);
-    setError("");
+  // Detected the moment the screen opens — no separate "find nearby" step to
+  // ask for permission first. High accuracy so the radius match is real GPS,
+  // not a coarse network-based estimate.
+  async function detectLocation() {
+    setLocationStatus("detecting");
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setError("Location access is needed to find Quick Moments artists near you.");
+        setLocationStatus("denied");
         return;
       }
-      const position = await Location.getCurrentPositionAsync({});
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+      setLocationStatus("ready");
+    } catch {
+      setLocationStatus("denied");
+    }
+  }
+
+  useEffect(() => {
+    void detectLocation();
+  }, []);
+
+  async function runSearch() {
+    if (!format || !coords) return;
+    setSearching(true);
+    setError("");
+    try {
       const { results: matched } = await fetchQuickMomentsMatch({
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
+        lat: coords.lat,
+        lng: coords.lng,
         budgetMax: budget ? Number(budget) : undefined,
       });
       setResults(matched);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't find nearby artists right now.");
     } finally {
-      setLocating(false);
+      setSearching(false);
     }
   }
+
+  // Auto-runs the moment both a format is picked and location resolves — the
+  // "Find nearby artists" button below still works as a manual trigger/retry.
+  useEffect(() => {
+    if (format && coords && !searchedRef.current) {
+      searchedRef.current = true;
+      void runSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [format, coords]);
 
   function reset() {
     setResults(null);
     setError("");
+    searchedRef.current = false;
   }
 
   function openArtist(item: QuickMomentMatch) {
@@ -111,13 +144,26 @@ export default function QuickMomentsBrowseScreen() {
               style={styles.input}
             />
 
+            {locationStatus === "denied" ? (
+              <View style={styles.locationWarning}>
+                <Feather name="map-pin" size={16} color={colors.warn} />
+                <View style={styles.locationWarningBody}>
+                  <Text style={styles.locationWarningTitle}>Turn on location to find artists near you</Text>
+                  <Text style={styles.locationWarningText}>We couldn't get your location. Check your app permissions and try again.</Text>
+                  <Pressable onPress={detectLocation} style={styles.locationRetryButton}>
+                    <Text style={styles.locationRetryText}>Try again</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Btn
-              label="Find nearby artists"
-              onPress={handleFind}
-              disabled={!format}
-              loading={locating}
+              label={searching ? "Finding nearby artists…" : locationStatus === "detecting" ? "Detecting your location…" : "Find nearby artists"}
+              onPress={() => { searchedRef.current = true; void runSearch(); }}
+              disabled={!format || locationStatus !== "ready"}
+              loading={searching || locationStatus === "detecting"}
               style={styles.submitButton}
             />
           </ScrollView>
@@ -229,6 +275,30 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   error: { fontFamily: fonts.body, fontSize: 12.5, color: colors.err, marginTop: spacing.xs },
+  locationWarning: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: "rgba(245,158,11,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.25)",
+    marginTop: spacing.sm,
+  },
+  locationWarningBody: { flex: 1, gap: 4 },
+  locationWarningTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.warn },
+  locationWarningText: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16, color: colors.textDim },
+  locationRetryButton: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: "rgba(245,158,11,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(245,158,11,0.4)",
+  },
+  locationRetryText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.warn },
   submitButton: { marginTop: spacing.lg },
   resultsScroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
   resultsHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
