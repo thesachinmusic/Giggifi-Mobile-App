@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Dimensions, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { duotoneFor } from "@/lib/palette";
+import { captureError } from "@/lib/telemetry";
 import { fetchQuickMomentsMatch, ApiError, type QuickMomentMatch, type QuickMomentFormat } from "@/lib/api";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { colors, fonts, radii, spacing } from "@/theme";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = SCREEN_WIDTH - spacing.lg * 2;
+const CARD_HEIGHT = CARD_WIDTH * 1.15;
 
 type LocationStatus = "detecting" | "ready" | "denied";
 
@@ -82,6 +88,12 @@ export default function QuickMomentsBrowseScreen() {
     searchedRef.current = false;
   }
 
+  const [activeIndex, setActiveIndex] = useState(0);
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 65 }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems[0]?.index != null) setActiveIndex(viewableItems[0].index);
+  }).current;
+
   function openArtist(item: QuickMomentMatch) {
     if (!format) return;
     router.push({
@@ -99,7 +111,7 @@ export default function QuickMomentsBrowseScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
         {results ? (
-          <ScrollView contentContainerStyle={styles.resultsScroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.flex}>
             <View style={styles.resultsHeaderRow}>
               <Text style={styles.resultsTitle}>{results.length} artist{results.length === 1 ? "" : "s"} nearby</Text>
               <Pressable onPress={reset}><Text style={styles.startOver}>Start over</Text></Pressable>
@@ -107,9 +119,23 @@ export default function QuickMomentsBrowseScreen() {
             {results.length === 0 ? (
               <Text style={styles.muted}>No one's offering Quick Moments in your area yet — try a wider budget.</Text>
             ) : (
-              results.map((item) => <MatchCard key={item.id} item={item} onPress={() => openArtist(item)} />)
+              <FlatList
+                data={results}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.resultsScroll}
+                showsVerticalScrollIndicator={false}
+                viewabilityConfig={viewabilityConfig}
+                onViewableItemsChanged={onViewableItemsChanged}
+                initialNumToRender={2}
+                maxToRenderPerBatch={2}
+                windowSize={3}
+                removeClippedSubviews
+                renderItem={({ item, index }) => (
+                  <MatchCard item={item} isActive={index === activeIndex} onPress={() => openArtist(item)} />
+                )}
+              />
             )}
-          </ScrollView>
+          </View>
         ) : (
           <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={styles.eyebrow}>GIGGIFI 20-20</Text>
@@ -177,44 +203,92 @@ function FormLabel({ text }: { text: string }) {
   return <Text style={styles.label}>{text}</Text>;
 }
 
-function MatchCard({ item, onPress }: { item: QuickMomentMatch; onPress: () => void }) {
+// Big, full-width portrait card so a client can actually see the artist's
+// video before picking one — same active-only-plays discipline as
+// FeaturedArtistCard on the home screen (see its comment): only the card
+// currently in view loads real media, everything else stays unloaded so we
+// don't OOM decoding a dozen videos in a scrollable list.
+function MatchCard({ item, isActive, onPress }: { item: QuickMomentMatch; isActive: boolean; onPress: () => void }) {
+  const [muted, setMuted] = useState(true);
+  const videoSource = item.introVideoUrl ?? item.showreelUrl ?? null;
   const name = item.stageName ?? "GiggiFi Artist";
   const initial = name.trim().charAt(0).toUpperCase();
   const [c1, c2] = duotoneFor(item.id);
 
+  const player = useVideoPlayer(null, (instance) => {
+    instance.loop = true;
+    instance.muted = true;
+  });
+
+  useEffect(() => {
+    if (!videoSource) return;
+    let cancelled = false;
+    if (isActive) {
+      player.replaceAsync(videoSource).then(() => {
+        if (cancelled) return;
+        player.muted = muted;
+        player.play();
+      }).catch((err) => captureError(err, "quick-moment-card-video-load"));
+    } else {
+      player.pause();
+      player.replaceAsync(null).catch((err) => captureError(err, "quick-moment-card-video-unload"));
+    }
+    return () => { cancelled = true; };
+  }, [isActive, videoSource, player, muted]);
+
   return (
     <Pressable style={styles.resultCard} onPress={onPress}>
-      <View style={styles.resultImageWrap}>
-        {item.profileImageUrl ? (
-          <Image source={{ uri: item.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        ) : (
-          <LinearGradient colors={[c1, c2]} style={StyleSheet.absoluteFill}>
-            <Text style={styles.resultInitial}>{initial}</Text>
-          </LinearGradient>
-        )}
-      </View>
-      <View style={styles.resultBody}>
+      {videoSource && isActive ? (
+        <VideoView player={player} style={styles.resultVideo} contentFit="cover" nativeControls={false} pointerEvents="none" />
+      ) : item.profileImageUrl ? (
+        <Image source={{ uri: item.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      ) : (
+        <LinearGradient colors={[c1, c2]} style={StyleSheet.absoluteFill}>
+          <Text style={styles.resultInitial}>{initial}</Text>
+        </LinearGradient>
+      )}
+
+      <LinearGradient
+        colors={["transparent", "rgba(12,7,16,0.1)", "rgba(12,7,16,0.94)"]}
+        locations={[0, 0.5, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {videoSource && isActive ? (
+        <Pressable onPress={() => setMuted((v) => !v)} style={styles.resultMuteButton}>
+          <Feather name={muted ? "volume-x" : "volume-2"} size={14} color="#fff" />
+        </Pressable>
+      ) : null}
+
+      {item.performerType ? (
+        <View style={styles.resultTagBadge}>
+          <Text style={styles.resultTagBadgeText}>{item.performerType.toUpperCase()}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.resultInfo}>
         <Text style={styles.resultName} numberOfLines={1}>{name}</Text>
         <View style={styles.resultRow}>
-          {item.performerType ? <Text style={styles.resultTag}>{item.performerType}</Text> : null}
-          {item.city ? (
-            <View style={styles.resultRow}>
-              <Feather name="map-pin" size={11} color={colors.textMute} />
-              <Text style={styles.resultLoc}>{item.city} · {item.distanceKm.toFixed(1)} km</Text>
-            </View>
-          ) : (
-            <Text style={styles.resultLoc}>{item.distanceKm.toFixed(1)} km away</Text>
-          )}
+          <Feather name="map-pin" size={11} color="rgba(255,255,255,0.7)" />
+          <Text style={styles.resultLoc}>{item.city ? `${item.city} · ` : ""}{item.distanceKm.toFixed(1)} km away</Text>
         </View>
-        {item.pricePerSlot ? <Text style={styles.resultPrice}>₹{item.pricePerSlot.toLocaleString("en-IN")} / slot</Text> : null}
+        <View style={styles.resultBottomRow}>
+          {item.pricePerSlot ? (
+            <Text style={styles.resultPrice}>From ₹{item.pricePerSlot.toLocaleString("en-IN")}</Text>
+          ) : <View />}
+          <View style={styles.resultCta}>
+            <Text style={styles.resultCtaText}>Book</Text>
+            <Feather name="chevron-right" size={14} color="#fff" />
+          </View>
+        </View>
       </View>
-      <Feather name="chevron-right" size={18} color={colors.textMute} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  flex: { flex: 1 },
   form: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
   eyebrow: {
     fontFamily: fonts.mono,
@@ -301,27 +375,65 @@ const styles = StyleSheet.create({
   locationRetryText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.warn },
   submitButton: { marginTop: spacing.lg },
   resultsScroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
-  resultsHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
+  resultsHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.lg, paddingTop: spacing.md, marginBottom: spacing.md },
   resultsTitle: { fontFamily: fonts.displayMedium, fontSize: 17, color: colors.text },
   startOver: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.pink },
-  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, marginTop: spacing.lg },
+  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, marginTop: spacing.lg, paddingHorizontal: spacing.lg },
   resultCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radii.lg,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: radii.xl,
+    overflow: "hidden",
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.line,
-    marginBottom: spacing.sm,
+    borderColor: colors.lineStrong,
+    marginBottom: spacing.md,
+    // react-native-web needs an explicit positioned ancestor for
+    // StyleSheet.absoluteFill children (video/image/gradient below) to
+    // actually fill the card — native doesn't need this, but web does.
+    position: "relative",
   },
-  resultImageWrap: { width: 56, height: 56, borderRadius: radii.md, overflow: "hidden" },
-  resultInitial: { flex: 1, textAlign: "center", textAlignVertical: "center", fontFamily: fonts.display, fontSize: 22, color: "rgba(255,255,255,0.2)" },
-  resultBody: { flex: 1, gap: 3 },
-  resultName: { fontFamily: fonts.displayMedium, fontSize: 15, color: colors.text },
+  resultInitial: { flex: 1, textAlign: "center", textAlignVertical: "center", fontFamily: fonts.display, fontSize: 64, color: "rgba(255,255,255,0.18)" },
+  // Explicit pixel width/height rather than StyleSheet.absoluteFill —
+  // expo-video's contentFit="cover" isn't reliably applied on web (confirmed
+  // against the Expo docs), so the video (a replaced element) needs an
+  // explicit box to stretch into rather than relying on inset:0 + cover.
+  resultVideo: { position: "absolute", top: 0, left: 0, width: CARD_WIDTH, height: CARD_HEIGHT },
+  resultMuteButton: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  resultTagBadge: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  resultTagBadgeText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 0.6 },
+  resultInfo: { position: "absolute", left: spacing.md, right: spacing.md, bottom: spacing.md, gap: 3 },
+  resultName: { fontFamily: fonts.display, fontSize: 22, color: "#fff" },
   resultRow: { flexDirection: "row", alignItems: "center", gap: 5, flexWrap: "wrap" },
-  resultTag: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, textTransform: "uppercase" },
-  resultLoc: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute },
-  resultPrice: { fontFamily: fonts.mono, fontSize: 12, color: colors.text, marginTop: 1 },
+  resultLoc: { fontFamily: fonts.body, fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
+  resultBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xs },
+  resultPrice: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#fff" },
+  resultCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.pink,
+  },
+  resultCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: "#fff" },
 });

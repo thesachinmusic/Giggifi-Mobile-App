@@ -108,14 +108,33 @@ export default function HomeScreen() {
           </View>
 
           <Pressable style={styles.qmPromo} onPress={() => router.push("/quick-moments")}>
-            <LinearGradient colors={[colors.orange, colors.magenta]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qmPromoGradient}>
-              <Text style={styles.qmPromoDoodle}>⚡</Text>
-              <View style={styles.qmPromoBody}>
-                <Text style={styles.qmPromoEyebrow}>GIGGIFI 20-20</Text>
-                <Text style={styles.qmPromoTitle}>Quick Moments</Text>
-                <Text style={styles.qmPromoSub}>A spontaneous ~15 min performance, booked in minutes</Text>
+            <LinearGradient colors={[colors.orange, colors.magenta, colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qmPromoGradient}>
+              <View style={styles.qmPromoTopRow}>
+                <View style={styles.qmPromoBadge}>
+                  <Feather name="zap" size={11} color="#fff" />
+                  <Text style={styles.qmPromoBadgeText}>GIGGIFI 20-20</Text>
+                </View>
+                <View style={styles.qmPromoTimer}>
+                  <Feather name="clock" size={10} color="#fff" />
+                  <Text style={styles.qmPromoTimerText}>~15 min</Text>
+                </View>
               </View>
-              <Feather name="chevron-right" size={18} color="#fff" />
+
+              <Text style={styles.qmPromoTitle}>Surprise someone{"\n"}with a live performance</Text>
+              <Text style={styles.qmPromoSub}>
+                Pick a moment, find a nearby artist, and they show up within hours — no weeks of planning.
+              </Text>
+
+              <View style={styles.qmPromoFormats}>
+                <View style={styles.qmPromoFormatChip}><Text style={styles.qmPromoFormatEmoji}>🎂</Text><Text style={styles.qmPromoFormatText}>Birthday</Text></View>
+                <View style={styles.qmPromoFormatChip}><Text style={styles.qmPromoFormatEmoji}>💐</Text><Text style={styles.qmPromoFormatText}>Anniversary</Text></View>
+                <View style={styles.qmPromoFormatChip}><Text style={styles.qmPromoFormatEmoji}>✨</Text><Text style={styles.qmPromoFormatText}>Just Because</Text></View>
+              </View>
+
+              <View style={styles.qmPromoCta}>
+                <Text style={styles.qmPromoCtaText}>Find an artist near you</Text>
+                <Feather name="arrow-right" size={16} color={colors.magenta} />
+              </View>
             </LinearGradient>
           </Pressable>
 
@@ -335,19 +354,55 @@ const styles = StyleSheet.create({
   },
   qmPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
   qmPromoGradient: {
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  qmPromoTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  qmPromoBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    position: "relative",
-    overflow: "hidden",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
-  qmPromoDoodle: { fontSize: 30 },
-  qmPromoBody: { flex: 1, gap: 1 },
-  qmPromoEyebrow: { fontFamily: fonts.mono, fontSize: 9, color: "rgba(255,255,255,0.85)", letterSpacing: 1 },
-  qmPromoTitle: { fontFamily: fonts.displayMedium, fontSize: 16, color: "#fff" },
-  qmPromoSub: { fontFamily: fonts.body, fontSize: 11, lineHeight: 14, color: "rgba(255,255,255,0.85)" },
+  qmPromoBadgeText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 1 },
+  qmPromoTimer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    backgroundColor: "rgba(0,0,0,0.18)",
+  },
+  qmPromoTimerText: { fontFamily: fonts.bodySemiBold, fontSize: 10.5, color: "#fff" },
+  qmPromoTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, color: "#fff", marginTop: 2 },
+  qmPromoSub: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.88)" },
+  qmPromoFormats: { flexDirection: "row", gap: spacing.xs, marginTop: 2 },
+  qmPromoFormatChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  qmPromoFormatEmoji: { fontSize: 13 },
+  qmPromoFormatText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: "#fff" },
+  qmPromoCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: spacing.xs,
+    backgroundColor: "#fff",
+    borderRadius: radii.pill,
+    paddingVertical: 12,
+  },
+  qmPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.magenta },
   reelsPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
   reelsPromoGradient: {
     flexDirection: "row",

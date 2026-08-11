@@ -186,7 +186,11 @@ export default function ArtistDetailScreen() {
             ) : null}
           </View>
 
-          {artist.bio ? <Text style={styles.bio}>{artist.bio}</Text> : null}
+          {/* Bio is intentionally not shown — it's free text an artist
+              writes themselves, and unlike stageName it isn't run through
+              maskName(), so artists sometimes write their real name
+              directly into it, defeating the masking used everywhere
+              else on this screen. */}
 
           <View style={styles.statsRow}>
             {artist.yearsExperience ? <Stat label="YEARS" value={String(artist.yearsExperience)} /> : null}
@@ -481,13 +485,6 @@ const styles = StyleSheet.create({
   },
   qmBadgeText: { fontFamily: fonts.mono, fontSize: 9.5, color: colors.orange, letterSpacing: 0.3 },
   languagesBlock: { marginBottom: spacing.lg, gap: spacing.xs },
-  bio: {
-    fontFamily: fonts.body,
-    fontSize: 14.5,
-    lineHeight: 21,
-    color: colors.textDim,
-    marginBottom: spacing.lg,
-  },
   statsRow: {
     flexDirection: "row",
     gap: spacing.xl,

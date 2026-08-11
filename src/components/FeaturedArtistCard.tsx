@@ -65,7 +65,7 @@ export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
       {videoSource ? (
         <VideoView
           player={player}
-          style={StyleSheet.absoluteFill}
+          style={styles.video}
           contentFit="cover"
           nativeControls={false}
           pointerEvents="none"
@@ -121,7 +121,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.lineStrong,
+    position: "relative",
   },
+  // Explicit pixel width/height rather than StyleSheet.absoluteFill —
+  // expo-video's contentFit="cover" isn't reliably applied on web (confirmed
+  // against the Expo docs), so the video (a replaced element) needs an
+  // explicit box to stretch into rather than relying on inset:0 + cover.
+  video: { position: "absolute", top: 0, left: 0, width: FEATURED_CARD_WIDTH, height: FEATURED_CARD_HEIGHT },
   muteButton: {
     position: "absolute",
     top: 14,

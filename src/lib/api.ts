@@ -54,7 +54,6 @@ export interface ArtistSummary {
   id: string;
   stageName: string | null;
   fullName: null;
-  bio: string | null;
   performerType: string | null;
   otherTypes: string[];
   genres: string[];
@@ -189,6 +188,8 @@ export interface QuickMomentMatch {
   performerType: string | null;
   city: string | null;
   profileImageUrl: string | null;
+  introVideoUrl: string | null;
+  showreelUrl: string | null;
   pricePerSlot: number | null;
   distanceKm: number;
 }
