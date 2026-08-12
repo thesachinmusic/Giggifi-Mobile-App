@@ -8,6 +8,7 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { TimeField } from "@/components/TimeField";
+import { StateCityField } from "@/components/StateCityField";
 import { bookQuickMoment, ApiError, type QuickMomentFormat } from "@/lib/api";
 import { QUICK_MOMENT_FORMAT_LABEL, QUICK_MOMENTS_MIN_LEAD_HOURS } from "@/lib/quick-moments";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -97,14 +98,7 @@ export default function QuickMomentsBookScreen() {
               multiline
             />
 
-            <FormLabel text="CITY" />
-            <TextInput
-              value={eventCity}
-              onChangeText={setEventCity}
-              placeholder="Mumbai"
-              placeholderTextColor={colors.textMute}
-              style={styles.input}
-            />
+            <StateCityField city={eventCity} onChangeCity={setEventCity} cityLabel="CITY" />
 
             <FormLabel text="NOTES (OPTIONAL)" />
             <TextInput

@@ -20,6 +20,10 @@
         "EXPO_PUBLIC_API_URL": "https://giggifi.com"
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://giggifi.com"
+      }
+    }
   }
 }

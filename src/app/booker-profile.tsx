@@ -6,6 +6,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
+import { StateCityField } from "@/components/StateCityField";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, saveBookerProfile, uploadProfilePhoto, updateProfile, ApiError } from "@/lib/api";
 import { captureError } from "@/lib/telemetry";
@@ -126,8 +127,7 @@ export default function BookerProfileScreen() {
               </View>
             </View>
 
-            <FormField label="CITY" value={city} onChangeText={setCity} placeholder="Mumbai" />
-            <FormField label="STATE" value={state} onChangeText={setState} placeholder="Maharashtra" />
+            <StateCityField city={city} onChangeCity={setCity} state={state} onChangeState={setState} />
             <FormField label="ORGANISATION / COMPANY (OPTIONAL)" value={companyName} onChangeText={setCompanyName} placeholder="Your company" />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -350,7 +350,7 @@ function QuickMomentPanel({ booking }: { booking: BookingDetail }) {
     if (!tracking) return;
     let cancelled = false;
     Location.requestForegroundPermissionsAsync()
-      .then(({ status }) => (status === "granted" ? Location.getCurrentPositionAsync({}) : null))
+      .then(({ status }) => (status === "granted" ? Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }) : null))
       .then((pos) => {
         if (!cancelled && pos) setMyCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       })

@@ -10,6 +10,7 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
+import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary, type QuickMomentFormat } from "@/lib/api";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
@@ -244,8 +245,7 @@ export default function ArtistDetailScreen() {
                 <Text style={styles.profileIntro}>One last step — tell us a bit about you and we'll send your enquiry.</Text>
                 <FormField label="FULL NAME" value={profileFullName} onChangeText={setProfileFullName} placeholder="Your name" />
                 <FormField label="EMAIL" value={profileEmail} onChangeText={setProfileEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
-                <FormField label="CITY" value={profileCity} onChangeText={setProfileCity} placeholder="Mumbai" />
-                <FormField label="STATE" value={profileState} onChangeText={setProfileState} placeholder="Maharashtra" />
+                <StateCityField city={profileCity} onChangeCity={setProfileCity} state={profileState} onChangeState={setProfileState} />
                 {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
                 <Btn
                   label="Continue & Send Enquiry"
@@ -261,7 +261,7 @@ export default function ArtistDetailScreen() {
             ) : showForm ? (
               <View style={styles.form}>
                 <FormField label="EVENT TYPE" value={eventType} onChangeText={setEventType} placeholder="Wedding, Birthday, Corporate…" />
-                <FormField label="EVENT CITY" value={eventCity} onChangeText={setEventCity} placeholder="Mumbai" />
+                <StateCityField city={eventCity} onChangeCity={setEventCity} cityLabel="EVENT CITY" />
                 <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
                 <FormField
                   label="YOUR BUDGET (OPTIONAL)"

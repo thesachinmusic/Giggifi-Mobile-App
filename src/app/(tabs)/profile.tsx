@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View, Image } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -99,12 +99,16 @@ export default function ProfileScreen() {
           <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
           <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
           <MenuRow icon="help-circle" label="Help & support" onPress={() => {}} />
-          <MenuRow icon="file-text" label="Terms & Privacy" onPress={() => {}} />
+          <MenuRow icon="file-text" label="Terms & Privacy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
         </View>
 
         <Pressable onPress={handleLogout} style={styles.logout}>
           <Feather name="log-out" size={16} color={colors.err} />
           <Text style={styles.logoutText}>Log out</Text>
+        </Pressable>
+
+        <Pressable onPress={() => router.push("/delete-account")} style={styles.deleteAccount}>
+          <Text style={styles.deleteAccountText}>Delete account</Text>
         </Pressable>
       </SafeAreaView>
     </GradientBackground>
@@ -251,5 +255,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 14,
     color: colors.err,
+  },
+  deleteAccount: {
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingBottom: spacing.xl,
+  },
+  deleteAccountText: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.textMute,
   },
 });

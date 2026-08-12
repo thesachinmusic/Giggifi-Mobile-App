@@ -138,6 +138,16 @@ function RootLayoutContent() {
                     headerBackTitle: "Back",
                   }}
                 />
+                <Stack.Screen
+                  name="delete-account"
+                  options={{
+                    headerShown: true,
+                    headerTitle: "Delete Account",
+                    headerTintColor: colors.text,
+                    headerStyle: { backgroundColor: colors.ink },
+                    headerBackTitle: "Back",
+                  }}
+                />
                 <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
                 <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
                 <Stack.Screen

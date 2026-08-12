@@ -486,6 +486,12 @@ export function unregisterPushToken() {
   return request<{ success: true }>("/api/mobile/push-token", { method: "DELETE" });
 }
 
+// ─── Account deletion ───
+
+export function deleteAccount() {
+  return request<{ ok: true }>("/api/mobile/account/delete", { method: "POST" });
+}
+
 export function saveBookerProfile(input: { fullName: string; email: string; city: string; state: string; companyName?: string }) {
   return request<{ success: true }>("/api/mobile/booker-profile", {
     method: "POST",
