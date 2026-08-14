@@ -14,6 +14,7 @@ import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary, type QuickMomentFormat } from "@/lib/api";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
+import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
 import { duotoneFor } from "@/lib/palette";
 import { useAuth } from "@/lib/auth-context";
 import { usePushPrimer } from "@/lib/use-push-primer";
@@ -35,6 +36,8 @@ export default function ArtistDetailScreen() {
   const [eventCity, setEventCity] = useState("");
   const [eventDate, setEventDate] = useState<Date | null>(null);
   const [budgetAmount, setBudgetAmount] = useState("");
+  const [duration, setDuration] = useState<number | null>(null);
+  const [bookingMode, setBookingMode] = useState<"ENQUIRY" | "QUICK_BOOKING">("ENQUIRY");
   const [specialRequests, setSpecialRequests] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -86,13 +89,18 @@ export default function ArtistDetailScreen() {
     setSubmitting(true);
     setFormError("");
     try {
+      const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
+      const priceForDuration = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
       await sendEnquiry({
         artistId: artist.id,
         eventType,
         eventCity,
         eventDate: eventDate.toISOString(),
         specialRequests: specialRequests || undefined,
-        budgetAmount: budgetAmount ? Number(budgetAmount) : undefined,
+        duration: effectiveDuration,
+        mode: bookingMode,
+        budgetAmount: bookingMode === "ENQUIRY" && budgetAmount ? Number(budgetAmount) : undefined,
+        quotedPrice: bookingMode === "QUICK_BOOKING" ? priceForDuration ?? undefined : undefined,
       });
       setSent(true);
       // If the primer sheet didn't present (already granted, or denied and
@@ -155,6 +163,9 @@ export default function ArtistDetailScreen() {
   const initial = name.trim().charAt(0).toUpperCase();
   const [c1, c2] = duotoneFor(artist.id);
   const chips = [...artist.genres, ...artist.eventTypes].slice(0, 8);
+  const solo = isSoloPerformerType(artist.performerType);
+  const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
+  const adjustedPrice = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
 
   return (
     <GradientBackground>
@@ -225,8 +236,8 @@ export default function ArtistDetailScreen() {
           <GlassCard style={styles.priceCard}>
             <View style={styles.priceRow}>
               <View>
-                <Text style={styles.priceLabel}>STARTING AT</Text>
-                <Text style={styles.price}>{artist.ratePerEvent ? `₹${artist.ratePerEvent.toLocaleString("en-IN")}` : "On request"}</Text>
+                <Text style={styles.priceLabel}>{solo && duration != null ? `FOR ${effectiveDuration} MINS` : "STARTING AT"}</Text>
+                <Text style={styles.price}>{adjustedPrice ? `₹${adjustedPrice.toLocaleString("en-IN")}` : "On request"}</Text>
               </View>
               {artist.priceNegotiable ? (
                 <View style={styles.negotiableBadge}>
@@ -234,6 +245,25 @@ export default function ArtistDetailScreen() {
                 </View>
               ) : null}
             </View>
+
+            {solo ? (
+              <View style={styles.durationRow}>
+                {DURATION_OPTIONS.map((d) => (
+                  <Pressable
+                    key={d}
+                    onPress={() => setDuration(d)}
+                    style={[styles.durationPill, effectiveDuration === d && styles.durationPillActive]}
+                  >
+                    <Text style={[styles.durationPillText, effectiveDuration === d && styles.durationPillTextActive]}>
+                      {d === FULL_SHOW_MINUTES ? "Full Show" : `${d} min`}
+                    </Text>
+                    <Text style={[styles.durationPillSub, effectiveDuration === d && styles.durationPillTextActive]}>
+                      {Math.round((DURATION_MULTIPLIERS[d] ?? 1) * 100)}% price
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
 
             {sent ? (
               <View style={styles.sentBox}>
@@ -260,20 +290,44 @@ export default function ArtistDetailScreen() {
               </View>
             ) : showForm ? (
               <View style={styles.form}>
+                <View style={styles.modeToggle}>
+                  <Pressable
+                    style={[styles.modeTab, bookingMode === "QUICK_BOOKING" && styles.modeTabActive]}
+                    onPress={() => setBookingMode("QUICK_BOOKING")}
+                  >
+                    <Text style={[styles.modeTabText, bookingMode === "QUICK_BOOKING" && styles.modeTabTextActive]}>
+                      Book Now{adjustedPrice ? ` — ₹${adjustedPrice.toLocaleString("en-IN")}` : ""}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modeTab, bookingMode === "ENQUIRY" && styles.modeTabActive]}
+                    onPress={() => setBookingMode("ENQUIRY")}
+                  >
+                    <Text style={[styles.modeTabText, bookingMode === "ENQUIRY" && styles.modeTabTextActive]}>Send My Offer</Text>
+                  </Pressable>
+                </View>
+
                 <FormField label="EVENT TYPE" value={eventType} onChangeText={setEventType} placeholder="Wedding, Birthday, Corporate…" />
                 <StateCityField city={eventCity} onChangeCity={setEventCity} cityLabel="EVENT CITY" />
                 <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
-                <FormField
-                  label="YOUR BUDGET (OPTIONAL)"
-                  value={budgetAmount}
-                  onChangeText={(v) => setBudgetAmount(v.replace(/[^0-9]/g, ""))}
-                  placeholder={artist.ratePerEvent ? `Artist's rate: ₹${artist.ratePerEvent.toLocaleString("en-IN")}` : "e.g. 12000"}
-                  keyboardType="number-pad"
-                />
+                {bookingMode === "ENQUIRY" ? (
+                  <FormField
+                    label="YOUR BUDGET (OPTIONAL)"
+                    value={budgetAmount}
+                    onChangeText={(v) => setBudgetAmount(v.replace(/[^0-9]/g, ""))}
+                    placeholder={adjustedPrice ? `Artist's rate: ₹${adjustedPrice.toLocaleString("en-IN")}` : "e.g. 12000"}
+                    keyboardType="number-pad"
+                  />
+                ) : (
+                  <Text style={styles.bookNowNote}>
+                    You'll pay the listed price — ₹{adjustedPrice?.toLocaleString("en-IN") ?? "—"}
+                    {solo ? ` for ${effectiveDuration} mins` : ""}.
+                  </Text>
+                )}
                 <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
                 {formError ? <Text style={styles.error}>{formError}</Text> : null}
                 <Btn
-                  label="Send Enquiry"
+                  label={bookingMode === "QUICK_BOOKING" ? "Book Now" : "Send Enquiry"}
                   onPress={handleSubmitEnquiry}
                   disabled={!eventType || !eventCity || !eventDate}
                   loading={submitting}
@@ -546,6 +600,60 @@ const styles = StyleSheet.create({
   },
   formButton: {},
   form: { gap: spacing.sm },
+  durationRow: { flexDirection: "row", gap: spacing.sm },
+  durationPill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.ink2,
+  },
+  durationPillActive: { borderColor: colors.pink, backgroundColor: "rgba(236,72,153,0.08)" },
+  durationPillText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.textDim,
+  },
+  durationPillSub: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textMute,
+    marginTop: 2,
+  },
+  durationPillTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
+  modeToggle: {
+    flexDirection: "row",
+    padding: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink2,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  modeTab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radii.pill,
+    alignItems: "center",
+  },
+  modeTabActive: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+  },
+  modeTabText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.textMute,
+  },
+  modeTabTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
+  bookNowNote: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textDim,
+  },
   field: { gap: 4 },
   fieldLabel: {
     fontFamily: fonts.mono,

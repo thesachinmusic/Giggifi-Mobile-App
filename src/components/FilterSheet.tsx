@@ -3,7 +3,9 @@ import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-nati
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 import { LinearGradient } from "expo-linear-gradient";
-import { DEFAULT_FILTERS, type FilterState } from "@/lib/sort-filter";
+import { DEFAULT_FILTERS, type FilterState, type GenderFilter } from "@/lib/sort-filter";
+
+const GENDER_OPTIONS: GenderFilter[] = ["Any", "Male", "Female"];
 
 interface Props {
   value: FilterState;
@@ -11,7 +13,7 @@ interface Props {
 }
 
 export const FilterSheet = forwardRef<BottomSheetModal, Props>(function FilterSheet({ value, onApply }, ref) {
-  const snapPoints = useMemo(() => ["55%"], []);
+  const snapPoints = useMemo(() => ["62%"], []);
   const [draft, setDraft] = useState<FilterState>(value);
 
   useEffect(() => {
@@ -65,6 +67,19 @@ export const FilterSheet = forwardRef<BottomSheetModal, Props>(function FilterSh
             onValueChange={(v) => setDraft((d) => ({ ...d, negotiableOnly: v }))}
             trackColor={{ true: colors.purple, false: colors.line }}
           />
+        </View>
+
+        <Text style={styles.label}>ARTIST GENDER</Text>
+        <View style={styles.genderRow}>
+          {GENDER_OPTIONS.map((g) => (
+            <Pressable
+              key={g}
+              onPress={() => setDraft((d) => ({ ...d, gender: g }))}
+              style={[styles.genderPill, draft.gender === g && styles.genderPillActive]}
+            >
+              <Text style={[styles.genderPillText, draft.gender === g && styles.genderPillTextActive]}>{g}</Text>
+            </Pressable>
+          ))}
         </View>
 
         <View style={styles.actions}>
@@ -132,6 +147,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textDim,
   },
+  genderRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+  genderPill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.ink,
+  },
+  genderPillActive: { borderColor: colors.pink, backgroundColor: "rgba(236,72,153,0.08)" },
+  genderPillText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.textDim,
+  },
+  genderPillTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
   actions: {
     flexDirection: "row",
     gap: spacing.sm,

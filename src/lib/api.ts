@@ -61,6 +61,7 @@ export interface ArtistSummary {
   languages: string[];
   city: string | null;
   state: string | null;
+  gender?: string | null;
   ratePerEvent: number | null;
   profileImageUrl: string | null;
   introVideoUrl: string | null;
@@ -513,6 +514,8 @@ export function sendEnquiry(input: {
   duration?: number;
   specialRequests?: string;
   budgetAmount?: number;
+  mode?: "ENQUIRY" | "QUICK_BOOKING";
+  quotedPrice?: number;
 }) {
   return request<{ success: true; bookingId: string }>("/api/mobile/bookings", {
     method: "POST",

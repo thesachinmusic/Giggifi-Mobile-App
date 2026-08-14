@@ -12,11 +12,14 @@ export const SORT_OPTIONS: { key: SortOption; label: string }[] = [
   { key: "experience", label: "Most Experienced" },
 ];
 
+export type GenderFilter = "Any" | "Male" | "Female";
+
 export interface FilterState {
   minPrice: string;
   maxPrice: string;
   travelReady: boolean;
   negotiableOnly: boolean;
+  gender: GenderFilter;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -24,6 +27,7 @@ export const DEFAULT_FILTERS: FilterState = {
   maxPrice: "",
   travelReady: false,
   negotiableOnly: false,
+  gender: "Any",
 };
 
 export function countActiveFilters(filters: FilterState) {
@@ -32,6 +36,7 @@ export function countActiveFilters(filters: FilterState) {
   if (filters.maxPrice) count += 1;
   if (filters.travelReady) count += 1;
   if (filters.negotiableOnly) count += 1;
+  if (filters.gender !== "Any") count += 1;
   return count;
 }
 
@@ -56,6 +61,9 @@ export function applySortAndFilters<T extends Listing>(items: T[], sort: SortOpt
   }
   if (filters.negotiableOnly) {
     result = result.filter((a) => a.priceNegotiable);
+  }
+  if (filters.gender !== "Any") {
+    result = result.filter((a) => "gender" in a && a.gender === filters.gender);
   }
 
   const sorted = [...result];
