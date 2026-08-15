@@ -16,7 +16,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/lib/auth-context";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import { fetchArtists, fetchFeatured, type ArtistSummary } from "@/lib/api";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 function shuffle<T>(items: T[]): T[] {
   const copy = [...items];
@@ -102,6 +102,21 @@ export default function HomeScreen() {
           <View style={styles.searchWrap}>
             <SearchBarStatic label="Search artists, DJs, bands…" onPress={() => router.push("/(tabs)/browse")} />
           </View>
+
+          <Pressable style={styles.planPromo} onPress={() => router.push("/plan-my-event")}>
+            <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.planPromoGradient}>
+              <View style={styles.planPromoBadge}>
+                <Feather name="compass" size={11} color="#fff" />
+                <Text style={styles.planPromoBadgeText}>PLAN MY EVENT</Text>
+              </View>
+              <Text style={styles.planPromoTitle}>Get matched to real artists{"\n"}in minutes</Text>
+              <Text style={styles.planPromoSub}>Type, budget, duration — see real prices and videos before you commit.</Text>
+              <View style={styles.planPromoCta}>
+                <Text style={styles.planPromoCtaText}>Start planning</Text>
+                <Feather name="arrow-right" size={16} color={colors.purple} />
+              </View>
+            </LinearGradient>
+          </Pressable>
 
           <View style={styles.section}>
             <BannerCarousel />
@@ -352,6 +367,20 @@ const styles = StyleSheet.create({
     color: colors.textMute,
     textAlign: "center",
   },
+  planPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
+  planPromoGradient: { padding: spacing.lg, gap: spacing.sm },
+  planPromoBadge: {
+    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill, backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  planPromoBadgeText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 1 },
+  planPromoTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, color: "#fff", marginTop: 2 },
+  planPromoSub: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.88)" },
+  planPromoCta: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: spacing.xs,
+    backgroundColor: "#fff", borderRadius: radii.pill, paddingVertical: 12,
+  },
+  planPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple },
   qmPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
   qmPromoGradient: {
     padding: spacing.lg,

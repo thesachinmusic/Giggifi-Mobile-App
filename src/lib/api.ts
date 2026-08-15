@@ -322,6 +322,64 @@ export function fetchMatch(input: {
   });
 }
 
+// ─── Plan My Event (guided wizard match — same endpoint the website's
+// /quick-booking wizard uses; no /api/mobile prefix needed, request() takes
+// any path). Names come back UNMASKED — callers must run maskName() before
+// display, see src/lib/format.ts. ───
+
+export interface MatchedArtist {
+  id: string;
+  fullName: string | null;
+  stageName: string | null;
+  bio: string | null;
+  performerType: string | null;
+  city: string | null;
+  languages: string[] | null;
+  profileImageUrl: string | null;
+  introVideoUrl: string | null;
+  ratePerEvent: number | null;
+  priceNegotiable: boolean;
+  availability: boolean;
+  kycStatus: string | null;
+  yearsExperience: number | null;
+  budgetLabel: string;
+}
+
+export function matchQuickBooking(input: {
+  artistType: string;
+  city?: string;
+  budgetKey: "under-25k" | "25k-50k" | "50k-1l" | "1l-3l" | "3l-plus";
+  gender?: "Male" | "Female";
+}) {
+  return request<{ artists: MatchedArtist[]; total: number; genderRelaxed?: boolean }>("/api/quick-booking/match", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface PlacePrediction {
+  place_id: string;
+  main_text: string;
+  secondary_text: string;
+}
+
+export interface PlaceDetails {
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+export function placesAutocomplete(input: string) {
+  return request<PlacePrediction[]>(`/api/places/autocomplete?input=${encodeURIComponent(input)}`);
+}
+
+export function placesDetails(placeId: string) {
+  return request<PlaceDetails>(`/api/places/details?place_id=${encodeURIComponent(placeId)}`);
+}
+
 // ─── Saved artists ───
 
 export function fetchSavedArtistIds() {
@@ -509,6 +567,7 @@ export function sendEnquiry(input: {
   eventName?: string;
   eventType: string;
   eventDate?: string;
+  eventStartTime?: string;
   eventCity: string;
   audienceSize?: number;
   duration?: number;
@@ -516,6 +575,9 @@ export function sendEnquiry(input: {
   budgetAmount?: number;
   mode?: "ENQUIRY" | "QUICK_BOOKING";
   quotedPrice?: number;
+  venueName?: string;
+  venueAddress?: string;
+  languagePref?: string[];
 }) {
   return request<{ success: true; bookingId: string }>("/api/mobile/bookings", {
     method: "POST",
