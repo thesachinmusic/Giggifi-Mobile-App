@@ -1,18 +1,44 @@
-import { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
 import { OemDeliveryCard } from "@/components/OemDeliveryCard";
+import { Skeleton } from "@/components/Skeleton";
+import { StatusBadge } from "@/components/StatusBadge";
 import { fetchBookings, type Booking } from "@/lib/api";
-import { STATUS_LABEL } from "@/lib/booking-status";
 import { CONFIRMED_STATUSES, reconcileEventReminders } from "@/lib/event-reminders";
+import { hapticSelect } from "@/lib/haptics";
 import { getOemGuidance, type OemGuidance } from "@/lib/oem-delivery";
 import { hasSeenOemCard, markOemCardSeen } from "@/lib/oem-guidance-storage";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, spacing, radii } from "@/theme";
+
+type BookingFilter = "all" | "upcoming" | "completed" | "cancelled";
+
+const FILTER_TABS: { key: BookingFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "upcoming", label: "Upcoming" },
+  { key: "completed", label: "Completed" },
+  { key: "cancelled", label: "Cancelled" },
+];
+
+const UPCOMING_STATUSES = new Set([
+  "ENQUIRY_SENT", "ENQUIRY_VIEWED", "QUOTE_RECEIVED", "QUOTE_ACCEPTED",
+  "AWAITING_PAYMENT", "PAYMENT_HELD", "EVENT_UPCOMING", "PAYOUT_PROCESSING",
+]);
+const COMPLETED_STATUSES = new Set(["EVENT_COMPLETED", "PAYOUT_RELEASED", "RESOLVED"]);
+const CANCELLED_STATUSES = new Set(["CANCELLED_BY_ARTIST", "CANCELLED_BY_BOOKER", "DISPUTED"]);
+
+function matchesFilter(status: string, filter: BookingFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "upcoming") return UPCOMING_STATUSES.has(status);
+  if (filter === "completed") return COMPLETED_STATUSES.has(status);
+  return CANCELLED_STATUSES.has(status);
+}
 
 export default function BookingsScreen() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -20,6 +46,7 @@ export default function BookingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [oemGuidance, setOemGuidance] = useState<OemGuidance | null>(null);
+  const [filter, setFilter] = useState<BookingFilter>("all");
 
   // setLoading(false) only ever fires here, never reset to true afterwards —
   // so the first call (on initial mount, since useFocusEffect below fires
@@ -71,6 +98,8 @@ export default function BookingsScreen() {
     setRefreshing(false);
   }
 
+  const visibleBookings = useMemo(() => bookings.filter((b) => matchesFilter(b.status, filter)), [bookings, filter]);
+
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -82,8 +111,33 @@ export default function BookingsScreen() {
           </View>
         ) : null}
 
+        {!loading && !(error && bookings.length === 0) ? (
+          <View style={styles.filterRow}>
+            {FILTER_TABS.map((tab) => (
+              <Pressable
+                key={tab.key}
+                onPress={() => { hapticSelect(); setFilter(tab.key); }}
+                style={[styles.filterTab, filter === tab.key && styles.filterTabActive]}
+              >
+                <Text style={[styles.filterTabText, filter === tab.key && styles.filterTabTextActive]}>{tab.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
         {loading ? (
-          <ActivityIndicator color={colors.pink} style={styles.loader} />
+          <View style={styles.list}>
+            {[0, 1, 2].map((i) => (
+              <GlassCard key={i} style={styles.card}>
+                <View style={styles.row}>
+                  <Skeleton width="55%" height={16} />
+                  <Skeleton width={70} height={20} borderRadius={radii.pill} />
+                </View>
+                <Skeleton width="40%" height={12} />
+                <Skeleton width="35%" height={12} />
+              </GlassCard>
+            ))}
+          </View>
         ) : error && bookings.length === 0 ? (
           // Only block on error before any data has loaded — a later
           // background refresh failure (focus, pull-to-refresh) shouldn't
@@ -99,12 +153,29 @@ export default function BookingsScreen() {
           </ScrollView>
         ) : (
           <FlatList
-            data={bookings}
+            data={visibleBookings}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            ListEmptyComponent={<Text style={styles.muted}>No bookings yet — go book an artist from Browse.</Text>}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Feather name={bookings.length === 0 ? "calendar" : "filter"} size={28} color={colors.textMute} />
+                <Text style={styles.muted}>
+                  {bookings.length === 0 ? "No bookings yet." : `No ${filter} bookings.`}
+                </Text>
+                {bookings.length === 0 ? (
+                  <Pressable style={styles.emptyCta} onPress={() => router.push("/(tabs)/browse")}>
+                    <Feather name="search" size={13} color={colors.pink} />
+                    <Text style={styles.emptyCtaText}>Browse artists</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable style={styles.emptyCta} onPress={() => setFilter("all")}>
+                    <Text style={styles.emptyCtaText}>Show all bookings</Text>
+                  </Pressable>
+                )}
+              </View>
+            }
             renderItem={({ item }) => {
               const otherParty = item.artist?.stageName ?? item.booker?.fullName ?? "GiggiFi";
               return (
@@ -112,11 +183,15 @@ export default function BookingsScreen() {
                   <GlassCard style={styles.card}>
                     <View style={styles.row}>
                       <Text style={styles.eventName} numberOfLines={1}>{item.eventName}</Text>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{STATUS_LABEL[item.status] ?? item.status}</Text>
-                      </View>
+                      <StatusBadge status={item.status} />
                     </View>
                     <Text style={styles.meta}>{otherParty} · {item.eventCity}</Text>
+                    <View style={styles.dateRow}>
+                      <Feather name="calendar" size={11} color={colors.textMute} />
+                      <Text style={styles.dateText}>
+                        {new Date(item.eventDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </Text>
+                    </View>
                     {item.totalAmount ? (
                       <Text style={styles.amount}>₹{item.totalAmount.toLocaleString("en-IN")}</Text>
                     ) : null}
@@ -141,7 +216,27 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   oemCardWrap: { paddingHorizontal: spacing.lg },
-  loader: { marginTop: spacing.xl },
+  filterRow: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  filterTab: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.ink2,
+  },
+  filterTabActive: { borderColor: colors.pink, backgroundColor: "rgba(236,72,153,0.1)" },
+  filterTabText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12.5,
+    color: colors.textMute,
+  },
+  filterTabTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
   errorScroll: { flexGrow: 1, alignItems: "center", paddingTop: spacing.xl },
   retryButton: {
     marginTop: spacing.md,
@@ -165,20 +260,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(168,85,247,0.15)",
-  },
-  badgeText: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.text,
-  },
   meta: {
     fontFamily: fonts.body,
     fontSize: 13,
+    color: colors.textMute,
+  },
+  dateRow: { flexDirection: "row", alignItems: "center", gap: 5 },
+  dateText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
     color: colors.textMute,
   },
   amount: {
@@ -192,5 +282,21 @@ const styles = StyleSheet.create({
     color: colors.textMute,
     paddingHorizontal: spacing.lg,
     marginTop: spacing.lg,
+  },
+  emptyState: { alignItems: "center", gap: spacing.md, paddingTop: spacing.xl },
+  emptyCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  emptyCtaText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    color: colors.pink,
   },
 });

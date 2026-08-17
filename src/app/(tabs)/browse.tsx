@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -9,11 +9,13 @@ import { CategoryPill } from "@/components/CategoryPill";
 import { ArtistCard } from "@/components/ArtistCard";
 import { SortSheet } from "@/components/SortSheet";
 import { FilterSheet } from "@/components/FilterSheet";
+import { Skeleton } from "@/components/Skeleton";
 import { fetchArtists, fetchVendors, type ArtistSummary, type VendorSummary } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
 import { colors, fonts, radii, spacing } from "@/theme";
 import { applySortAndFilters, countActiveFilters, DEFAULT_FILTERS, SORT_OPTIONS, type FilterState, type SortOption } from "@/lib/sort-filter";
+import { hapticSelect } from "@/lib/haptics";
 
 const ALL = "All";
 type Vertical = "artist" | "vendor";
@@ -146,7 +148,14 @@ export default function BrowseScreen() {
         </View>
 
         {loading ? (
-          <ActivityIndicator color={colors.pink} style={styles.loader} />
+          <View style={styles.grid}>
+            {[0, 1, 2].map((row) => (
+              <View key={row} style={styles.skeletonRow}>
+                <SkeletonCard />
+                <SkeletonCard />
+              </View>
+            ))}
+          </View>
         ) : error ? (
           <ScrollView
             contentContainerStyle={styles.errorScroll}
@@ -191,8 +200,23 @@ export default function BrowseScreen() {
       </SafeAreaView>
 
       <SortSheet ref={sortSheetRef} value={sort} onChange={(value) => { setSort(value); sortSheetRef.current?.dismiss(); }} />
-      <FilterSheet ref={filterSheetRef} value={filters} vertical={vertical} onApply={(value) => { setFilters(value); filterSheetRef.current?.dismiss(); }} />
+      <FilterSheet
+        ref={filterSheetRef}
+        value={filters}
+        vertical={vertical}
+        onApply={(value) => { hapticSelect(); setFilters(value); filterSheetRef.current?.dismiss(); }}
+      />
     </GradientBackground>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <View style={styles.skeletonCard}>
+      <Skeleton height={160} borderRadius={radii.xl} />
+      <Skeleton height={14} width="70%" style={styles.skeletonLine} />
+      <Skeleton height={11} width="40%" style={styles.skeletonLineSm} />
+    </View>
   );
 }
 
@@ -251,13 +275,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    minHeight: 48,
     marginHorizontal: spacing.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: 12,
     backgroundColor: colors.ink2,
     borderWidth: 1,
     borderColor: colors.line,
-    borderRadius: 14,
+    borderRadius: radii.pill,
     marginBottom: spacing.md,
   },
   searchInput: {
@@ -311,7 +335,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMute,
   },
-  loader: { marginTop: spacing.xl },
   errorScroll: { flexGrow: 1, alignItems: "center", paddingTop: spacing.xl },
   retryButton: {
     marginTop: spacing.md,
@@ -328,6 +351,10 @@ const styles = StyleSheet.create({
   },
   grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   gridRow: { gap: spacing.sm },
+  skeletonRow: { flexDirection: "row", gap: spacing.sm },
+  skeletonCard: { flex: 1 },
+  skeletonLine: { marginTop: 8 },
+  skeletonLineSm: { marginTop: 6 },
   muted: {
     fontFamily: fonts.body,
     fontSize: 14,

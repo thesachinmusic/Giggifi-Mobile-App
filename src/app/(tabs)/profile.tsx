@@ -15,15 +15,20 @@ const PROFILE_FIELDS = 5; // fullName, email, city, state, photo (companyName is
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const [bookerProfile, setBookerProfile] = useState<BookerProfile | null | undefined>(undefined);
+  const [profileFetchError, setProfileFetchError] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.role === "ARTIST") return;
-      fetchMyProfile()
-        .then(({ bookerProfile: result }) => setBookerProfile(result))
-        .catch(() => setBookerProfile(null));
-    }, [user?.role]),
-  );
+  const loadProfile = useCallback(() => {
+    if (user?.role === "ARTIST") return;
+    setProfileFetchError(false);
+    fetchMyProfile()
+      .then(({ bookerProfile: result }) => setBookerProfile(result))
+      // Leaving bookerProfile as undefined (not null) on failure — null means
+      // "confirmed no profile exists," which would wrongly show the
+      // Complete-your-profile nudge to someone who already has one.
+      .catch(() => setProfileFetchError(true));
+  }, [user?.role]);
+
+  useFocusEffect(useCallback(() => { loadProfile(); }, [loadProfile]));
 
   function handleLogout() {
     Alert.alert("Log out?", "You'll need to verify your phone number again to sign back in.", [
@@ -81,7 +86,20 @@ export default function ProfileScreen() {
             </View>
           </GlassCard>
 
-          {showBookerProfileCard ? (
+          {user?.role !== "ARTIST" && profileFetchError ? (
+            <GlassCard style={styles.completeCard}>
+              <View style={[styles.completeIcon, styles.errorIcon]}>
+                <Feather name="alert-circle" size={18} color={colors.err} />
+              </View>
+              <View style={styles.completeTextWrap}>
+                <Text style={styles.completeTitle}>Couldn&apos;t load your profile</Text>
+                <Text style={styles.completeSub}>Check your connection and try again.</Text>
+              </View>
+              <Pressable onPress={loadProfile} hitSlop={10} accessibilityRole="button" accessibilityLabel="Retry">
+                <Feather name="refresh-cw" size={16} color={colors.textMute} />
+              </Pressable>
+            </GlassCard>
+          ) : showBookerProfileCard ? (
             !bookerProfile ? (
               <Pressable onPress={() => router.push("/booker-profile")}>
                 <GlassCard style={styles.completeCard}>
@@ -217,6 +235,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  errorIcon: { backgroundColor: "rgba(239,68,68,0.15)" },
   completeTextWrap: { flex: 1, gap: 2 },
   completeTitle: {
     fontFamily: fonts.bodySemiBold,

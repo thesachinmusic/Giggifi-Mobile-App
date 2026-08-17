@@ -44,6 +44,8 @@ export const INDIA_STATES: Record<string, string[]> = {
 
 export const INDIA_STATE_NAMES = Object.keys(INDIA_STATES);
 
+export const ALL_CITIES = Array.from(new Set(Object.values(INDIA_STATES).flat())).sort();
+
 export function findStateForCity(city: string): string | null {
   const target = city.trim().toLowerCase();
   for (const [state, cities] of Object.entries(INDIA_STATES)) {

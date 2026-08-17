@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -12,25 +12,38 @@ import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
+import { ReviewsList } from "@/components/ReviewsList";
+import { Skeleton } from "@/components/Skeleton";
 import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary, type QuickMomentFormat } from "@/lib/api";
 import { isValidEmail } from "@/lib/format";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
 import { duotoneFor } from "@/lib/palette";
 import { useAuth } from "@/lib/auth-context";
+import { useSavedArtists } from "@/lib/saved-artists-context";
 import { usePushPrimer } from "@/lib/use-push-primer";
 import { PushPrimerSheet } from "@/components/PushPrimerSheet";
 import { useOffersOptIn } from "@/lib/use-offers-optin";
 import { OffersOptInSheet } from "@/components/OffersOptInSheet";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, gradients, radii, spacing } from "@/theme";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { refreshSession } = useAuth();
+  const insets = useSafeAreaInsets();
   const [artist, setArtist] = useState<ArtistSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Tracks the price card's scroll offset (bodyY + its own y within body)
+  // so the sticky CTA can jump straight to the booking form instead of
+  // just toggling it open somewhere off-screen.
+  const scrollRef = useRef<ScrollView>(null);
+  const [bodyY, setBodyY] = useState(0);
+  const [priceCardY, setPriceCardY] = useState(0);
 
   const [showForm, setShowForm] = useState(false);
   const [eventType, setEventType] = useState("");
@@ -142,12 +155,25 @@ export default function ArtistDetailScreen() {
     }
   }
 
+  // The sticky CTA collapses into this same inline form rather than opening
+  // a separate flow — it just also makes sure the form is actually visible.
+  function handleStickyPress() {
+    setShowForm(true);
+    scrollRef.current?.scrollTo({ y: Math.max(bodyY + priceCardY - spacing.md, 0), animated: true });
+  }
+
   if (loading) {
     return (
       <GradientBackground>
-        <SafeAreaView style={styles.centered}>
-          <ActivityIndicator color={colors.pink} />
-        </SafeAreaView>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <Skeleton height={SCREEN_WIDTH} borderRadius={0} />
+          <View style={styles.body}>
+            <Skeleton width={120} height={12} style={styles.skeletonTagline} />
+            <Skeleton width="60%" height={30} style={styles.skeletonName} />
+            <Skeleton width={100} height={14} style={styles.skeletonLoc} />
+            <Skeleton height={140} borderRadius={radii.xl} style={styles.skeletonPriceCard} />
+          </View>
+        </ScrollView>
       </GradientBackground>
     );
   }
@@ -173,10 +199,15 @@ export default function ArtistDetailScreen() {
   return (
     <GradientBackground>
       <KeyboardAvoidingView style={styles.scrollFlex} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
-      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scrollFlex}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <ArtistHero artist={artist} c1={c1} c2={c2} initial={initial} />
 
-        <View style={styles.body}>
+        <View style={styles.body} onLayout={(e) => setBodyY(e.nativeEvent.layout.y)}>
           {artist.performerType ? <Text style={styles.tagline}>{artist.performerType.toUpperCase()}</Text> : null}
           <View style={styles.nameRow}>
             <Text style={styles.name}>{name}</Text>
@@ -236,6 +267,7 @@ export default function ArtistDetailScreen() {
             </View>
           ) : null}
 
+          <View onLayout={(e) => setPriceCardY(e.nativeEvent.layout.y)}>
           <GlassCard style={styles.priceCard}>
             <View style={styles.priceRow}>
               <View>
@@ -356,6 +388,7 @@ export default function ArtistDetailScreen() {
               <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
             </View>
           </GlassCard>
+          </View>
 
           {artist.quickMomentsEnabled ? (
             <GlassCard style={styles.qmCard}>
@@ -406,9 +439,25 @@ export default function ArtistDetailScreen() {
               />
             </GlassCard>
           ) : null}
+
+          <ReviewsList reviews={artist.recentReviews ?? []} />
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      {!sent ? (
+        <View style={[styles.stickyBar, { paddingBottom: insets.bottom + spacing.sm }]}>
+          <View style={styles.stickyPriceWrap}>
+            <Text style={styles.stickyPriceLabel}>{solo ? "FROM" : "STARTING AT"}</Text>
+            <Text style={styles.stickyPrice}>{adjustedPrice ? `₹${adjustedPrice.toLocaleString("en-IN")}` : "On request"}</Text>
+          </View>
+          <Pressable style={styles.stickyButtonWrap} onPress={handleStickyPress}>
+            <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.3 }} style={styles.stickyButton}>
+              <Text style={styles.stickyButtonText}>Send Enquiry</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      ) : null}
 
       <PushPrimerSheet ref={pushSheetRef} onEnable={handlePushEnable} onNotNow={handlePushNotNow} onClosed={handlePushClosed} />
       <OffersOptInSheet ref={offersSheetRef} onAccept={handleOffersAccept} onDecline={handleOffersDecline} onClosed={handleOffersClosed} />
@@ -418,7 +467,20 @@ export default function ArtistDetailScreen() {
 
 function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: string; c2: string; initial: string }) {
   const [muted, setMuted] = useState(true);
+  const { isSaved, toggle } = useSavedArtists();
+  const saved = isSaved(artist.id);
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
+
+  async function handleShare() {
+    try {
+      await Share.share({
+        message: `Check out ${artist.stageName ?? "this artist"} on GiggiFi: https://giggifi.com/discover/artist/${artist.id}`,
+        url: `https://giggifi.com/discover/artist/${artist.id}`,
+      });
+    } catch (err) {
+      captureError(err, "artist-share");
+    }
+  }
 
   const player = useVideoPlayer(null, (instance) => {
     instance.loop = true;
@@ -471,6 +533,28 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
           <Text style={styles.heroInitial}>{initial}</Text>
         </LinearGradient>
       )}
+
+      <View style={styles.heroActions}>
+        <Pressable
+          onPress={() => toggle(artist.id)}
+          style={styles.heroActionButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
+        >
+          <Feather name="heart" size={16} color={saved ? colors.pink : "#fff"} />
+        </Pressable>
+        <Pressable
+          onPress={handleShare}
+          style={styles.heroActionButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Share artist"
+        >
+          <Feather name="share-2" size={16} color="#fff" />
+        </Pressable>
+      </View>
+
       {videoSource ? (
         <Pressable
           onPress={() => setMuted((v) => !v)}
@@ -537,6 +621,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  heroActions: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: "row",
+    gap: 8,
+  },
+  heroActionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stickyBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    backgroundColor: colors.ink,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  stickyPriceWrap: { flex: 1 },
+  stickyPriceLabel: { fontFamily: fonts.mono, fontSize: 9, color: colors.textMute, letterSpacing: 0.5 },
+  stickyPrice: { fontFamily: fonts.display, fontSize: 19, color: colors.text },
+  stickyButtonWrap: { flexShrink: 0 },
+  stickyButton: { paddingHorizontal: 24, paddingVertical: 13, borderRadius: radii.lg, alignItems: "center", justifyContent: "center" },
+  stickyButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#fff" },
+  skeletonTagline: { marginBottom: spacing.sm },
+  skeletonName: { marginBottom: spacing.sm },
+  skeletonLoc: { marginBottom: spacing.lg },
+  skeletonPriceCard: { marginTop: spacing.md },
   body: { padding: spacing.lg, marginTop: -radii.xl, backgroundColor: colors.ink, borderTopLeftRadius: radii.xl * 1.5, borderTopRightRadius: radii.xl * 1.5 },
   tagline: {
     fontFamily: fonts.mono,

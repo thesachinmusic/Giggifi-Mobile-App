@@ -4,20 +4,27 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { colors, fonts, radii, spacing } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
+import { DURATION_MULTIPLIERS, DURATION_OPTIONS, isSoloPerformerType } from "@/lib/duration-pricing";
 import { RatingBadge } from "@/components/RatingBadge";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import type { ArtistSummary, VendorSummary } from "@/lib/api";
+
+const MIN_DURATION_MULTIPLIER = DURATION_MULTIPLIERS[DURATION_OPTIONS[0]] ?? 1;
 
 interface ListingCardProps {
   artist?: ArtistSummary;
   vendor?: VendorSummary;
   onPress: () => void;
   width?: number;
+  // Home-only: this artist isn't local to the viewer's chosen city but is
+  // travel-ready, surfaced below local results by rankByHomeCity — see
+  // lib/home-ranking.ts. Never set from Browse, which keeps its own filter.
+  travelBadge?: boolean;
 }
 
 // Renders either an artist or a vendor summary through one visual language —
 // pass exactly one of `artist` / `vendor`.
-export function ArtistCard({ artist, vendor, onPress, width }: ListingCardProps) {
+export function ArtistCard({ artist, vendor, onPress, width, travelBadge }: ListingCardProps) {
   const { isSaved, toggle } = useSavedArtists();
   const id = artist?.id ?? vendor!.id;
   const name = artist ? (artist.stageName ?? "GiggiFi Artist") : (vendor!.businessName ?? "GiggiFi Vendor");
@@ -30,6 +37,12 @@ export function ArtistCard({ artist, vendor, onPress, width }: ListingCardProps)
   const initial = name.trim().charAt(0).toUpperCase();
   const [c1, c2] = duotoneFor(id);
   const saved = artist ? isSaved(artist.id) : false;
+  // ratePerEvent is the full-show rate; the detail screen lets solo acts
+  // book a shorter, cheaper slot. Showing that same raw number here without
+  // context reads as a higher price than what's actually bookable, so solo
+  // acts get the true minimum ("From ₹X") instead.
+  const solo = artist ? isSoloPerformerType(artist.performerType) : false;
+  const displayPrice = solo && price ? Math.round(price * MIN_DURATION_MULTIPLIER) : price;
 
   return (
     <Pressable onPress={onPress} style={[styles.card, width ? { width } : styles.cardFlex]}>
@@ -75,8 +88,16 @@ export function ArtistCard({ artist, vendor, onPress, width }: ListingCardProps)
             <Text style={styles.loc} numberOfLines={1}>{city}</Text>
           </View>
         ) : null}
-        {price ? (
-          <Text style={styles.price}>₹{price.toLocaleString("en-IN")} <Text style={styles.priceUnit}>/ event</Text></Text>
+        {travelBadge ? (
+          <View style={styles.travelBadge}>
+            <Feather name="navigation" size={9} color={colors.purple} />
+            <Text style={styles.travelBadgeText} numberOfLines={1}>Travels to your city</Text>
+          </View>
+        ) : null}
+        {displayPrice ? (
+          <Text style={styles.price}>
+            {solo ? "From " : ""}₹{displayPrice.toLocaleString("en-IN")} <Text style={styles.priceUnit}>/ event</Text>
+          </Text>
         ) : null}
       </View>
     </Pressable>
@@ -178,6 +199,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 12,
     color: colors.textMute,
+  },
+  travelBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  travelBadgeText: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: colors.purple,
   },
   price: {
     marginTop: 4,

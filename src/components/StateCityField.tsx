@@ -2,11 +2,9 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Location from "expo-location";
 import { Feather } from "@expo/vector-icons";
-import { INDIA_STATES, INDIA_STATE_NAMES, findStateForCity } from "@/lib/india-locations";
+import { ALL_CITIES, INDIA_STATES, INDIA_STATE_NAMES, findStateForCity } from "@/lib/india-locations";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
-
-const ALL_CITIES = Array.from(new Set(Object.values(INDIA_STATES).flat())).sort();
 
 interface Props {
   city: string;

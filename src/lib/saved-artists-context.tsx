@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "./auth-context";
 import { fetchSavedArtistIds, saveArtist, unsaveArtist } from "./api";
+import { hapticImpact } from "./haptics";
 import { captureError } from "./telemetry";
 
 interface SavedArtistsContextValue {
@@ -26,6 +27,7 @@ export function SavedArtistsProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const toggle = useCallback(async (artistId: string) => {
+    hapticImpact();
     const wasSaved = savedIds.has(artistId);
     setSavedIds((prev) => {
       const next = new Set(prev);

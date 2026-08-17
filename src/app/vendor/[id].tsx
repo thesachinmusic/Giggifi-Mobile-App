@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useEffect, useRef, useState } from "react";
+import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -11,16 +11,25 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { RatingBadge } from "@/components/RatingBadge";
+import { ReviewsList } from "@/components/ReviewsList";
+import { Skeleton } from "@/components/Skeleton";
 import { fetchVendor, sendVendorEnquiry, ApiError, type VendorSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, gradients, radii, spacing } from "@/theme";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [vendor, setVendor] = useState<VendorSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const scrollRef = useRef<ScrollView>(null);
+  const [bodyY, setBodyY] = useState(0);
+  const [priceCardY, setPriceCardY] = useState(0);
 
   const [showForm, setShowForm] = useState(false);
   const [eventType, setEventType] = useState("");
@@ -30,6 +39,11 @@ export default function VendorDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [formError, setFormError] = useState("");
+
+  function handleStickyPress() {
+    setShowForm(true);
+    scrollRef.current?.scrollTo({ y: Math.max(bodyY + priceCardY - spacing.md, 0), animated: true });
+  }
 
   useEffect(() => {
     fetchVendor(id)
@@ -64,9 +78,15 @@ export default function VendorDetailScreen() {
   if (loading) {
     return (
       <GradientBackground>
-        <SafeAreaView style={styles.centered}>
-          <ActivityIndicator color={colors.pink} />
-        </SafeAreaView>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <Skeleton height={SCREEN_WIDTH} borderRadius={0} />
+          <View style={styles.body}>
+            <Skeleton width={120} height={12} style={styles.skeletonTagline} />
+            <Skeleton width="60%" height={30} style={styles.skeletonName} />
+            <Skeleton width={100} height={14} style={styles.skeletonLoc} />
+            <Skeleton height={140} borderRadius={radii.xl} style={styles.skeletonPriceCard} />
+          </View>
+        </ScrollView>
       </GradientBackground>
     );
   }
@@ -89,10 +109,10 @@ export default function VendorDetailScreen() {
   return (
     <GradientBackground>
       <KeyboardAvoidingView style={styles.scrollFlex} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
-      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} style={styles.scrollFlex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <VendorHero vendor={vendor} c1={c1} c2={c2} initial={initial} />
 
-        <View style={styles.body}>
+        <View style={styles.body} onLayout={(e) => setBodyY(e.nativeEvent.layout.y)}>
           {vendor.category ? <Text style={styles.tagline}>{vendor.category.toUpperCase()}</Text> : null}
           <View style={styles.nameRow}>
             <Text style={styles.name}>{name}</Text>
@@ -135,6 +155,7 @@ export default function VendorDetailScreen() {
             </View>
           ) : null}
 
+          <View onLayout={(e) => setPriceCardY(e.nativeEvent.layout.y)}>
           <GlassCard style={styles.priceCard}>
             <View style={styles.priceRow}>
               <View>
@@ -177,9 +198,26 @@ export default function VendorDetailScreen() {
               <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
             </View>
           </GlassCard>
+          </View>
+
+          <ReviewsList reviews={vendor.recentReviews ?? []} />
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+
+      {!sent ? (
+        <View style={[styles.stickyBar, { paddingBottom: insets.bottom + spacing.sm }]}>
+          <View style={styles.stickyPriceWrap}>
+            <Text style={styles.stickyPriceLabel}>STARTING AT</Text>
+            <Text style={styles.stickyPrice}>{vendor.startingPrice ? `₹${vendor.startingPrice.toLocaleString("en-IN")}` : "On request"}</Text>
+          </View>
+          <Pressable style={styles.stickyButtonWrap} onPress={handleStickyPress}>
+            <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.3 }} style={styles.stickyButton}>
+              <Text style={styles.stickyButtonText}>Send Enquiry</Text>
+            </LinearGradient>
+          </Pressable>
+        </View>
+      ) : null}
     </GradientBackground>
   );
 }
@@ -289,6 +327,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  stickyBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    backgroundColor: colors.ink,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  stickyPriceWrap: { flex: 1 },
+  stickyPriceLabel: { fontFamily: fonts.mono, fontSize: 9, color: colors.textMute, letterSpacing: 0.5 },
+  stickyPrice: { fontFamily: fonts.display, fontSize: 19, color: colors.text },
+  stickyButtonWrap: { flexShrink: 0 },
+  stickyButton: { paddingHorizontal: 24, paddingVertical: 13, borderRadius: radii.lg, alignItems: "center", justifyContent: "center" },
+  stickyButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#fff" },
+  skeletonTagline: { marginBottom: spacing.sm },
+  skeletonName: { marginBottom: spacing.sm },
+  skeletonLoc: { marginBottom: spacing.lg },
+  skeletonPriceCard: { marginTop: spacing.md },
   galleryBlock: { marginBottom: spacing.lg, gap: spacing.xs },
   galleryRow: { gap: spacing.sm },
   galleryPhoto: { width: 120, height: 150, borderRadius: radii.md, backgroundColor: colors.surface },

@@ -84,7 +84,7 @@ export default function DeleteAccountScreen() {
               <Text style={styles.confirmText}>
                 You&apos;ll be signed out immediately and won&apos;t be able to log back into this account.
               </Text>
-              <Btn label="Yes, permanently delete my account" onPress={handleConfirm} loading={deleting} />
+              <Btn label="Yes, permanently delete my account" onPress={handleConfirm} loading={deleting} variant="destructive" />
               {!deleting ? (
                 <Text style={styles.cancelLink} onPress={() => setConfirming(false)}>Cancel</Text>
               ) : null}

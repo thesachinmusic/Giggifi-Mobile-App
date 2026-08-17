@@ -3,6 +3,7 @@ import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
 import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { SearchBarStatic } from "@/components/SearchBar";
@@ -13,18 +14,49 @@ import { FeaturedArtistCard, FEATURED_CARD_WIDTH } from "@/components/FeaturedAr
 import { ArtistCard } from "@/components/ArtistCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { NotificationBell } from "@/components/NotificationBell";
+import { HomeCityControl } from "@/components/HomeCityControl";
+import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import { fetchArtists, fetchFeatured, type ArtistSummary } from "@/lib/api";
+import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
+import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
+import { captureError } from "@/lib/telemetry";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
-function shuffle<T>(items: T[]): T[] {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+// Deterministic PRNG (mulberry32-style LCG) seeded from a plain integer —
+// same seed always produces the same shuffle order.
+function seededRandom(seed: number) {
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// YYYYMMDD hashed to an int — same all day, changes at midnight local time.
+function todaySeed(): number {
+  const d = new Date();
+  const key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  let hash = 0;
+  const str = String(key);
+  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(hash) || 1;
+}
+
+// Sorted by id first so the shuffle is stable even if the API returns the
+// same set of artists in a different order across requests — otherwise a
+// fixed seed applied to a different starting order still yields a different
+// result, defeating the "stops reshuffling on refresh" point of this.
+function shuffle<T extends { id: string }>(items: T[]): T[] {
+  const sorted = [...items].sort((a, b) => a.id.localeCompare(b.id));
+  const rand = seededRandom(todaySeed());
+  for (let i = sorted.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
   }
-  return copy;
+  return sorted;
 }
 
 export default function HomeScreen() {
@@ -34,10 +66,13 @@ export default function HomeScreen() {
   const [featured, setFeatured] = useState<ArtistSummary[]>([]);
   const [trending, setTrending] = useState<ArtistSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFeaturedIndex, setActiveFeaturedIndex] = useState(0);
+  const [homeCity, setHomeCityState] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(false);
     try {
       const [{ artists: results }, { artists: featuredResults }, { artists: trendingResults }] = await Promise.all([
         fetchArtists({}),
@@ -47,11 +82,13 @@ export default function HomeScreen() {
       setArtists(results);
       setFeatured(featuredResults);
       // No one has racked up real bookings yet, so a "trending" sort is flat —
-      // shuffle instead of showing the same static order every time. Swap this
-      // for the real sort once booking volume makes it meaningful.
+      // shuffle instead of showing the same static order every time. Seeded
+      // by the date so it holds steady across pull-to-refresh and only
+      // rotates once a day. Swap this for the real sort once booking volume
+      // makes it meaningful.
       setTrending(shuffle(trendingResults).slice(0, 10));
     } catch {
-      // Home rails fail silently — Browse is the source of truth for errors.
+      setError(true);
     }
   }, []);
 
@@ -59,13 +96,51 @@ export default function HomeScreen() {
     load().finally(() => setLoading(false));
   }, [load]);
 
+  // Persisted city takes priority; otherwise detect silently only if
+  // location permission was already granted elsewhere (Quick Moments) — no
+  // surprise permission prompt on first Home load. The picker's own "use my
+  // location" button (tap-triggered) can always prompt directly.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const stored = await getHomeCity();
+      if (stored) {
+        if (!cancelled) setHomeCityState(stored);
+        return;
+      }
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      try {
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        const [address] = await Location.reverseGeocodeAsync({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        const geoCity = address?.city ?? address?.subregion ?? null;
+        if (geoCity && !cancelled) {
+          setHomeCityState(geoCity);
+          setHomeCity(geoCity).catch((err) => captureError(err, "home-city-persist"));
+        }
+      } catch {
+        // Silent — city control just stays unset, user can pick manually.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  function handleCityChange(city: string) {
+    setHomeCityState(city);
+    setHomeCity(city).catch((err) => captureError(err, "home-city-persist"));
+  }
+
   async function onRefresh() {
     setRefreshing(true);
     await load();
     setRefreshing(false);
   }
 
-  const popular = useMemo(() => artists.slice(0, 12), [artists]);
+  const rankedArtists = useMemo(() => rankByHomeCity(artists, homeCity), [artists, homeCity]);
+  const popular = useMemo(() => rankedArtists.slice(0, 12), [rankedArtists]);
   const saved = useMemo(() => artists.filter((a) => savedIds.has(a.id)), [artists, savedIds]);
 
   const [activeTrendingIndex, setActiveTrendingIndex] = useState(0);
@@ -95,6 +170,9 @@ export default function HomeScreen() {
               <NotificationBell />
             </View>
             <Text style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who&apos;s the act tonight?</Text>
+            <View style={styles.cityControlWrap}>
+              <HomeCityControl city={homeCity} onChange={handleCityChange} />
+            </View>
           </View>
 
           <AnnouncementBanner />
@@ -180,7 +258,37 @@ export default function HomeScreen() {
           ) : null}
 
           {loading ? (
-            <Text style={styles.muted}>Loading artists…</Text>
+            <>
+              <View style={styles.section}>
+                <SectionHeader title="Featured Artists" sub="Watch before you book" />
+                <View style={[styles.featuredRow, styles.skeletonRow]}>
+                  <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
+                  <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
+                </View>
+              </View>
+              <View style={styles.section}>
+                <SectionHeader title="Popular right now" />
+                <View style={[styles.artistRow, styles.skeletonRow]}>
+                  {[0, 1, 2].map((i) => (
+                    <View key={i} style={styles.skeletonCard}>
+                      <Skeleton height={168 * (4 / 3)} borderRadius={radii.xl} />
+                      <Skeleton height={14} width="70%" style={styles.skeletonLine} />
+                      <Skeleton height={11} width="40%" style={styles.skeletonLineSm} />
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </>
+          ) : error ? (
+            <View style={styles.section}>
+              <Text style={styles.muted}>Couldn&apos;t load artists — check your connection.</Text>
+              <Pressable
+                style={styles.retryButton}
+                onPress={() => { setLoading(true); load().finally(() => setLoading(false)); }}
+              >
+                <Text style={styles.retryButtonText}>Try again</Text>
+              </Pressable>
+            </View>
           ) : (
             <>
               {featured.length > 0 ? (
@@ -214,7 +322,10 @@ export default function HomeScreen() {
               <View style={styles.section}>
                 <SectionHeader title="Popular right now" onSeeAll={() => router.push("/(tabs)/browse")} />
                 {popular.length === 0 ? (
-                  <Text style={styles.muted}>No artists live yet — check back soon.</Text>
+                  <View style={styles.railEmpty}>
+                    <Feather name="music" size={22} color={colors.textMute} />
+                    <Text style={styles.muted}>No artists live yet — check back soon.</Text>
+                  </View>
                 ) : (
                   <FlatList
                     data={popular}
@@ -223,7 +334,12 @@ export default function HomeScreen() {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.artistRow}
                     renderItem={({ item }) => (
-                      <ArtistCard artist={item} width={168} onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })} />
+                      <ArtistCard
+                        artist={item}
+                        width={168}
+                        travelBadge={travelsToYourCity(item, homeCity)}
+                        onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
+                      />
                     )}
                   />
                 )}
@@ -246,7 +362,7 @@ export default function HomeScreen() {
               {trending.length > 0 ? (
                 <View style={styles.section}>
                   <SectionHeader
-                    title="Trending now"
+                    title="Fresh picks for you"
                     sub="Handpicked for you — watch before you book"
                     onSeeAll={() => router.push({ pathname: "/(tabs)/browse" })}
                   />
@@ -325,6 +441,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     color: colors.text,
   },
+  cityControlWrap: { marginTop: spacing.sm },
   searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
   section: { marginBottom: spacing.xl },
   featuredRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
@@ -335,6 +452,26 @@ const styles = StyleSheet.create({
     color: colors.textMute,
     paddingHorizontal: spacing.lg,
   },
+  railEmpty: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.md },
+  retryButton: {
+    alignSelf: "flex-start",
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
+  skeletonRow: { flexDirection: "row", gap: spacing.sm },
+  skeletonCard: { width: 168 },
+  skeletonLine: { marginTop: 8 },
+  skeletonLineSm: { marginTop: 6 },
   trustRow: {
     flexDirection: "row",
     gap: spacing.sm,

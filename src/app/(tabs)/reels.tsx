@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, type ViewToken } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View, type ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -7,6 +7,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { RatingBadge } from "@/components/RatingBadge";
+import { Skeleton } from "@/components/Skeleton";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import { duotoneFor } from "@/lib/palette";
 import { fetchArtists, type ArtistSummary } from "@/lib/api";
@@ -26,6 +27,7 @@ function isMusicAct(artist: ArtistSummary): boolean {
 export default function ReelsScreen() {
   const [reels, setReels] = useState<ArtistSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [filter, setFilter] = useState<ReelFilter>("all");
   const [activeIndex, setActiveIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -43,12 +45,21 @@ export default function ReelsScreen() {
     }, []),
   );
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     fetchArtists({})
       .then(({ artists }) => setReels(artists.filter((a) => a.introVideoUrl || a.showreelUrl)))
-      .catch((err) => captureError(err, "reels-fetch"))
+      .catch((err) => {
+        captureError(err, "reels-fetch");
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filteredReels = useMemo(() => {
     if (filter === "all") return reels;
@@ -69,8 +80,20 @@ export default function ReelsScreen() {
   return (
     <View style={styles.root} onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}>
       {loading ? (
+        <View style={styles.skeletonCard}>
+          <Skeleton style={StyleSheet.absoluteFill} borderRadius={0} />
+          <View style={styles.skeletonInfo}>
+            <Skeleton width={140} height={22} style={styles.skeletonName} />
+            <Skeleton width={90} height={13} />
+          </View>
+        </View>
+      ) : error ? (
         <SafeAreaView style={styles.centered}>
-          <ActivityIndicator color={colors.pink} />
+          <Feather name="wifi-off" size={28} color={colors.textMute} />
+          <Text style={styles.emptyText}>Couldn&apos;t load reels — check your connection.</Text>
+          <Pressable style={styles.retryButton} onPress={load}>
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </Pressable>
         </SafeAreaView>
       ) : reels.length === 0 ? (
         <SafeAreaView style={styles.centered}>
@@ -246,7 +269,23 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: spacing.xl },
+  skeletonCard: { flex: 1, position: "relative" },
+  skeletonInfo: { position: "absolute", left: spacing.lg, bottom: spacing.xl, gap: 8 },
+  skeletonName: { marginBottom: 2 },
   emptyText: { fontFamily: fonts.body, fontSize: 13.5, color: colors.textMute, textAlign: "center" },
+  retryButton: {
+    marginTop: spacing.xs,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
   card: { width: "100%", position: "relative", backgroundColor: colors.ink },
   overlay: { flex: 1, justifyContent: "space-between" },
   topRow: {

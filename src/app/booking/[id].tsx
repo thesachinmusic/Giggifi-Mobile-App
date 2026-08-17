@@ -8,6 +8,8 @@ import RazorpayCheckout from "react-native-razorpay";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
+import { Skeleton } from "@/components/Skeleton";
+import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth-context";
 import {
   fetchBooking,
@@ -20,8 +22,9 @@ import {
   type BookingDetail,
   type QuickMomentLocation,
 } from "@/lib/api";
-import { STATUS_LABEL } from "@/lib/booking-status";
+import { PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
 import { HELPLINE_NUMBER } from "@/lib/constants";
+import { hapticSuccess } from "@/lib/haptics";
 import { QUICK_MOMENT_FORMAT_LABEL } from "@/lib/quick-moments";
 import { haversineKm, formatTimeAgo } from "@/lib/geo";
 import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
@@ -152,6 +155,7 @@ export default function BookingDetailScreen() {
         razorpay_payment_id: razorpayResult.razorpay_payment_id,
         razorpay_signature: razorpayResult.razorpay_signature,
       });
+      hapticSuccess();
       await load();
     } catch {
       const stuck: PendingPayment = {
@@ -166,6 +170,7 @@ export default function BookingDetailScreen() {
       // cheap, and resolves the common transient-network case right away.
       const { resolved } = await recoverPendingPayment();
       if (resolved) {
+        hapticSuccess();
         setPendingPaymentState(null);
         await load();
       }
@@ -197,8 +202,16 @@ export default function BookingDetailScreen() {
   if (loading) {
     return (
       <GradientBackground>
-        <SafeAreaView style={styles.centered}>
-          <ActivityIndicator color={colors.pink} />
+        <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+          <View style={styles.header}>
+            <Skeleton width="60%" height={24} />
+            <Skeleton width={70} height={22} borderRadius={radii.pill} />
+          </View>
+          <GlassCard style={styles.summaryCard}>
+            <Skeleton height={16} width="80%" />
+            <Skeleton height={16} width="60%" />
+            <Skeleton height={16} width="70%" />
+          </GlassCard>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -225,9 +238,7 @@ export default function BookingDetailScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <Text style={styles.eventName} numberOfLines={1}>{booking.eventName}</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{STATUS_LABEL[booking.status] ?? booking.status}</Text>
-            </View>
+            <StatusBadge status={booking.status} />
           </View>
 
           <GlassCard style={styles.summaryCard}>
@@ -236,7 +247,9 @@ export default function BookingDetailScreen() {
             <SummaryRow icon="calendar" label="Date" value={new Date(booking.eventDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} />
             {booking.venueName ? <SummaryRow icon="home" label="Venue" value={booking.venueName} /> : null}
             {booking.totalAmount ? <SummaryRow icon="credit-card" label="Total" value={`₹${booking.totalAmount.toLocaleString("en-IN")}`} /> : null}
-            {booking.payment ? <SummaryRow icon="shield" label="Payment" value={booking.payment.status} /> : null}
+            {booking.payment ? (
+              <SummaryRow icon="shield" label="Payment" value={PAYMENT_STATUS_LABEL[booking.payment.status] ?? booking.payment.status} />
+            ) : null}
           </GlassCard>
 
           {booking.format === "QUICK_MOMENT" && booking.viewerRole === "BOOKER" && booking.status !== "AWAITING_PAYMENT" ? (
@@ -436,8 +449,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   eventName: { flex: 1, fontFamily: fonts.display, fontSize: 22, color: colors.text },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.pill, backgroundColor: "rgba(168,85,247,0.15)" },
-  badgeText: { fontFamily: fonts.mono, fontSize: 10, color: colors.text },
   summaryCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   payCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   payRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
