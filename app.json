@@ -35,9 +35,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#0c0710",
+          "image": "./assets/images/giggifi-logo-cropped.png",
+          "imageWidth": 280
         }
       ],
       "expo-secure-store",
