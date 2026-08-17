@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View, Image } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -7,9 +7,10 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, type BookerProfile } from "@/lib/api";
+import { HELPLINE_NUMBER } from "@/lib/constants";
 import { colors, fonts, spacing, radii } from "@/theme";
 
-const PROFILE_FIELDS = 6; // fullName, email, city, state, companyName, photo
+const PROFILE_FIELDS = 5; // fullName, email, city, state, photo (companyName is optional, excluded)
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -29,10 +30,18 @@ export default function ProfileScreen() {
     router.replace("/(auth)/login");
   }
 
+  function handleHelpAndSupport() {
+    Alert.alert("Need help?", "Reach the GiggiFi helpline directly.", [
+      { text: "Call", onPress: () => Linking.openURL(`tel:${HELPLINE_NUMBER}`) },
+      { text: "WhatsApp", onPress: () => Linking.openURL(`https://wa.me/91${HELPLINE_NUMBER}`) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
   const initial = (user?.name ?? user?.phone ?? "G").trim().charAt(0).toUpperCase();
 
   const filledCount = bookerProfile
-    ? [bookerProfile.fullName, bookerProfile.email, bookerProfile.city, bookerProfile.state, bookerProfile.companyName, user?.image].filter(Boolean).length
+    ? [bookerProfile.fullName, bookerProfile.email, bookerProfile.city, bookerProfile.state, user?.image].filter(Boolean).length
     : 0;
   const completionPct = bookerProfile ? Math.round((filledCount / PROFILE_FIELDS) * 100) : 0;
   const showBookerProfileCard = user?.role !== "ARTIST" && bookerProfile !== undefined;
@@ -40,76 +49,78 @@ export default function ProfileScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <Text style={styles.title}>Profile</Text>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <Text style={styles.title}>Profile</Text>
 
-        <GlassCard style={styles.userCard}>
-          {user?.image ? (
-            <Image source={{ uri: user.image }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initial}</Text>
-            </View>
-          )}
-          <View style={styles.userInfo}>
-            <Text style={styles.name}>{bookerProfile?.fullName ?? user?.name ?? "GiggiFi user"}</Text>
-            {user?.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
-            {(bookerProfile?.email ?? user?.email) ? <Text style={styles.meta}>{bookerProfile?.email ?? user?.email}</Text> : null}
-            {user?.role ? (
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>{user.role === "ARTIST" ? "ARTIST" : "CLIENT"}</Text>
+          <GlassCard style={styles.userCard}>
+            {user?.image ? (
+              <Image source={{ uri: user.image }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initial}</Text>
               </View>
-            ) : null}
-          </View>
-        </GlassCard>
+            )}
+            <View style={styles.userInfo}>
+              <Text style={styles.name}>{bookerProfile?.fullName ?? user?.name ?? "GiggiFi user"}</Text>
+              {user?.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
+              {(bookerProfile?.email ?? user?.email) ? <Text style={styles.meta}>{bookerProfile?.email ?? user?.email}</Text> : null}
+              {user?.role ? (
+                <View style={styles.roleBadge}>
+                  <Text style={styles.roleText}>{user.role === "ARTIST" ? "ARTIST" : "CLIENT"}</Text>
+                </View>
+              ) : null}
+            </View>
+          </GlassCard>
 
-        {showBookerProfileCard ? (
-          !bookerProfile ? (
-            <Pressable onPress={() => router.push("/booker-profile")}>
-              <GlassCard style={styles.completeCard}>
-                <View style={styles.completeIcon}>
-                  <Feather name="user-plus" size={18} color={colors.orange} />
-                </View>
-                <View style={styles.completeTextWrap}>
-                  <Text style={styles.completeTitle}>Complete your profile</Text>
-                  <Text style={styles.completeSub}>Add your details to book artists faster.</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.textMute} />
-              </GlassCard>
-            </Pressable>
-          ) : completionPct < 100 ? (
-            <Pressable onPress={() => router.push("/booker-profile")}>
-              <GlassCard style={styles.completeCard}>
-                <View style={styles.progressRing}>
-                  <Text style={styles.progressRingText}>{completionPct}%</Text>
-                </View>
-                <View style={styles.completeTextWrap}>
-                  <Text style={styles.completeTitle}>Profile {completionPct}% complete</Text>
-                  <Text style={styles.completeSub}>Finish your profile for a smoother booking experience.</Text>
-                </View>
-                <Feather name="chevron-right" size={18} color={colors.textMute} />
-              </GlassCard>
-            </Pressable>
-          ) : null
-        ) : null}
-
-        <View style={styles.menu}>
-          {showBookerProfileCard && bookerProfile && completionPct === 100 ? (
-            <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
+          {showBookerProfileCard ? (
+            !bookerProfile ? (
+              <Pressable onPress={() => router.push("/booker-profile")}>
+                <GlassCard style={styles.completeCard}>
+                  <View style={styles.completeIcon}>
+                    <Feather name="user-plus" size={18} color={colors.orange} />
+                  </View>
+                  <View style={styles.completeTextWrap}>
+                    <Text style={styles.completeTitle}>Complete your profile</Text>
+                    <Text style={styles.completeSub}>Add your details to book artists faster.</Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={colors.textMute} />
+                </GlassCard>
+              </Pressable>
+            ) : completionPct < 100 ? (
+              <Pressable onPress={() => router.push("/booker-profile")}>
+                <GlassCard style={styles.completeCard}>
+                  <View style={styles.progressRing}>
+                    <Text style={styles.progressRingText}>{completionPct}%</Text>
+                  </View>
+                  <View style={styles.completeTextWrap}>
+                    <Text style={styles.completeTitle}>Profile {completionPct}% complete</Text>
+                    <Text style={styles.completeSub}>Finish your profile for a smoother booking experience.</Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={colors.textMute} />
+                </GlassCard>
+              </Pressable>
+            ) : null
           ) : null}
-          <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
-          <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
-          <MenuRow icon="help-circle" label="Help & support" onPress={() => {}} />
-          <MenuRow icon="file-text" label="Terms & Privacy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
-        </View>
 
-        <Pressable onPress={handleLogout} style={styles.logout}>
-          <Feather name="log-out" size={16} color={colors.err} />
-          <Text style={styles.logoutText}>Log out</Text>
-        </Pressable>
+          <View style={styles.menu}>
+            {showBookerProfileCard && bookerProfile ? (
+              <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
+            ) : null}
+            <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
+            <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
+            <MenuRow icon="help-circle" label="Help & support" onPress={handleHelpAndSupport} />
+            <MenuRow icon="file-text" label="Terms & Privacy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
+          </View>
 
-        <Pressable onPress={() => router.push("/delete-account")} style={styles.deleteAccount}>
-          <Text style={styles.deleteAccountText}>Delete account</Text>
-        </Pressable>
+          <Pressable onPress={handleLogout} style={styles.logout}>
+            <Feather name="log-out" size={16} color={colors.err} />
+            <Text style={styles.logoutText}>Log out</Text>
+          </Pressable>
+
+          <Pressable onPress={() => router.push("/delete-account")} style={styles.deleteAccount}>
+            <Text style={styles.deleteAccountText}>Delete account</Text>
+          </Pressable>
+        </ScrollView>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -128,7 +139,8 @@ function MenuRow({ icon, label, onPress }: { icon: keyof typeof Feather.glyphMap
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, paddingHorizontal: spacing.lg },
+  safe: { flex: 1 },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   title: {
     fontFamily: fonts.display,
     fontSize: 26,

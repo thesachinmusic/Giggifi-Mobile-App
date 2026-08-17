@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -215,7 +215,7 @@ export default function BookingDetailScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <Text style={styles.eventName} numberOfLines={1}>{booking.eventName}</Text>
             <View style={styles.badge}>
@@ -302,7 +302,7 @@ export default function BookingDetailScreen() {
               <Text style={styles.helplineButtonText}>Call {HELPLINE_NUMBER}</Text>
             </Pressable>
           </GlassCard>
-        </KeyboardAvoidingView>
+        </ScrollView>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -417,6 +417,7 @@ function OtpCallout({ label, hint, code }: { label: string; hint: string; code: 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
+  scroll: { paddingBottom: spacing.xxl },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: {
     flexDirection: "row",

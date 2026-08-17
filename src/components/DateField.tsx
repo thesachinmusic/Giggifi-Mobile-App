@@ -11,11 +11,13 @@ interface Props {
   minimumDate?: Date;
 }
 
-const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-export function DateField({ label, value, onChange, minimumDate = tomorrow }: Props) {
+export function DateField({ label, value, onChange, minimumDate }: Props) {
+  // Computed per render, not at module load — a module-level tomorrow would
+  // go stale in an app left open overnight and start accepting past dates.
+  const defaultMinimumDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const effectiveMinimumDate = minimumDate ?? defaultMinimumDate;
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value ?? minimumDate);
+  const [draft, setDraft] = useState(value ?? effectiveMinimumDate);
 
   function handleChange(event: DateTimePickerEvent, date?: Date) {
     if (Platform.OS === "android") {
@@ -27,7 +29,7 @@ export function DateField({ label, value, onChange, minimumDate = tomorrow }: Pr
   }
 
   function openPicker() {
-    setDraft(value ?? minimumDate);
+    setDraft(value ?? effectiveMinimumDate);
     setOpen(true);
   }
 
@@ -42,14 +44,14 @@ export function DateField({ label, value, onChange, minimumDate = tomorrow }: Pr
       </Pressable>
 
       {open && Platform.OS === "android" ? (
-        <DateTimePicker value={draft} mode="date" minimumDate={minimumDate} onChange={handleChange} />
+        <DateTimePicker value={draft} mode="date" minimumDate={effectiveMinimumDate} onChange={handleChange} />
       ) : null}
 
       {Platform.OS === "ios" ? (
         <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-              <DateTimePicker value={draft} mode="date" display="inline" minimumDate={minimumDate} onChange={handleChange} themeVariant="dark" />
+              <DateTimePicker value={draft} mode="date" display="inline" minimumDate={effectiveMinimumDate} onChange={handleChange} themeVariant="dark" />
               <Pressable
                 style={styles.doneButton}
                 onPress={() => {

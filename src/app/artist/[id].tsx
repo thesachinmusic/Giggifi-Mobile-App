@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
@@ -41,6 +41,7 @@ export default function ArtistDetailScreen() {
   const [specialRequests, setSpecialRequests] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [sentBookingId, setSentBookingId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
 
   const {
@@ -91,7 +92,7 @@ export default function ArtistDetailScreen() {
     try {
       const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
       const priceForDuration = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
-      await sendEnquiry({
+      const { bookingId } = await sendEnquiry({
         artistId: artist.id,
         eventType,
         eventCity,
@@ -102,6 +103,7 @@ export default function ArtistDetailScreen() {
         budgetAmount: bookingMode === "ENQUIRY" && budgetAmount ? Number(budgetAmount) : undefined,
         quotedPrice: bookingMode === "QUICK_BOOKING" ? priceForDuration ?? undefined : undefined,
       });
+      setSentBookingId(bookingId);
       setSent(true);
       // If the primer sheet didn't present (already granted, or denied and
       // can't ask again), there's nothing for its onClosed chain to fire —
@@ -266,9 +268,18 @@ export default function ArtistDetailScreen() {
             ) : null}
 
             {sent ? (
-              <View style={styles.sentBox}>
-                <Feather name="check-circle" size={18} color={colors.ok} />
-                <Text style={styles.sentText}>Enquiry sent — {name.split(" ")[0]} will respond soon.</Text>
+              <View style={styles.form}>
+                <View style={styles.sentBox}>
+                  <Feather name="check-circle" size={18} color={colors.ok} />
+                  <Text style={styles.sentText}>Enquiry sent — {name.split(" ")[0]} will respond soon.</Text>
+                </View>
+                {sentBookingId ? (
+                  <Btn
+                    label="View booking"
+                    onPress={() => router.push({ pathname: "/booking/[id]", params: { id: sentBookingId } })}
+                    style={styles.formButton}
+                  />
+                ) : null}
               </View>
             ) : needsBookerProfile ? (
               <View style={styles.form}>
@@ -431,6 +442,19 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   useEffect(() => {
     if (videoSource) player.muted = muted;
   }, [muted, player, videoSource]);
+
+  // This screen stays reachable via back-navigation without unmounting
+  // immediately, so leaving it (e.g. to the enquiry flow, or back to Home)
+  // would otherwise leave the hero video's audio playing underneath.
+  useFocusEffect(
+    useCallback(() => {
+      if (videoSource) {
+        player.muted = muted;
+        player.play();
+      }
+      return () => player.pause();
+    }, [videoSource, muted, player]),
+  );
 
   return (
     <View style={styles.hero} pointerEvents="box-none">

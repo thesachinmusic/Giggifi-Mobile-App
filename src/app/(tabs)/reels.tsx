@@ -5,7 +5,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { RatingBadge } from "@/components/RatingBadge";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import { duotoneFor } from "@/lib/palette";
@@ -29,7 +29,19 @@ export default function ReelsScreen() {
   const [filter, setFilter] = useState<ReelFilter>("all");
   const [activeIndex, setActiveIndex] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
+  const [focused, setFocused] = useState(true);
   const listRef = useRef<FlatList<ArtistSummary>>(null);
+
+  // Tab screens stay mounted after their first visit, so switching to
+  // another tab wouldn't otherwise stop a playing reel's audio. Combined
+  // with activeIndex below, this makes every card's isActive false on blur,
+  // which ReelCard's existing effect already treats as "pause and unload".
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
 
   useEffect(() => {
     fetchArtists({})
@@ -89,7 +101,7 @@ export default function ReelsScreen() {
                 windowSize={3}
                 removeClippedSubviews
                 renderItem={({ item, index }) => (
-                  <ReelCard artist={item} height={containerHeight} isActive={index === activeIndex} />
+                  <ReelCard artist={item} height={containerHeight} isActive={index === activeIndex && focused} />
                 )}
               />
             )

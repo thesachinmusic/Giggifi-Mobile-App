@@ -10,9 +10,10 @@ const GENDER_OPTIONS: GenderFilter[] = ["Any", "Male", "Female"];
 interface Props {
   value: FilterState;
   onApply: (value: FilterState) => void;
+  vertical: "artist" | "vendor";
 }
 
-export const FilterSheet = forwardRef<BottomSheetModal, Props>(function FilterSheet({ value, onApply }, ref) {
+export const FilterSheet = forwardRef<BottomSheetModal, Props>(function FilterSheet({ value, onApply, vertical }, ref) {
   const snapPoints = useMemo(() => ["62%"], []);
   const [draft, setDraft] = useState<FilterState>(value);
 
@@ -53,7 +54,7 @@ export const FilterSheet = forwardRef<BottomSheetModal, Props>(function FilterSh
         </View>
 
         <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>Travel-ready artists only</Text>
+          <Text style={styles.toggleLabel}>{vertical === "artist" ? "Travel-ready artists only" : "Travel-ready vendors only"}</Text>
           <Switch
             value={draft.travelReady}
             onValueChange={(v) => setDraft((d) => ({ ...d, travelReady: v }))}
@@ -69,18 +70,22 @@ export const FilterSheet = forwardRef<BottomSheetModal, Props>(function FilterSh
           />
         </View>
 
-        <Text style={styles.label}>ARTIST GENDER</Text>
-        <View style={styles.genderRow}>
-          {GENDER_OPTIONS.map((g) => (
-            <Pressable
-              key={g}
-              onPress={() => setDraft((d) => ({ ...d, gender: g }))}
-              style={[styles.genderPill, draft.gender === g && styles.genderPillActive]}
-            >
-              <Text style={[styles.genderPillText, draft.gender === g && styles.genderPillTextActive]}>{g}</Text>
-            </Pressable>
-          ))}
-        </View>
+        {vertical === "artist" ? (
+          <>
+            <Text style={styles.label}>ARTIST GENDER</Text>
+            <View style={styles.genderRow}>
+              {GENDER_OPTIONS.map((g) => (
+                <Pressable
+                  key={g}
+                  onPress={() => setDraft((d) => ({ ...d, gender: g }))}
+                  style={[styles.genderPill, draft.gender === g && styles.genderPillActive]}
+                >
+                  <Text style={[styles.genderPillText, draft.gender === g && styles.genderPillTextActive]}>{g}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : null}
 
         <View style={styles.actions}>
           <Pressable

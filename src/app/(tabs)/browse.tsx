@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -72,6 +72,10 @@ export default function BrowseScreen() {
     if (next === vertical) return;
     setVertical(next);
     setCategory(ALL);
+    // Gender only applies to artists — a stale selection carried over from
+    // the Artists tab would otherwise silently zero out every vendor, since
+    // VendorSummary has no gender field for applySortAndFilters to match.
+    if (next === "vendor") setFilters((f) => ({ ...f, gender: "Any" }));
   }
 
   const visibleArtists = useMemo(() => applySortAndFilters(artists, sort, filters), [artists, sort, filters]);
@@ -144,7 +148,15 @@ export default function BrowseScreen() {
         {loading ? (
           <ActivityIndicator color={colors.pink} style={styles.loader} />
         ) : error ? (
-          <Text style={styles.muted}>{error}</Text>
+          <ScrollView
+            contentContainerStyle={styles.errorScroll}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(vertical, category, search)} tintColor={colors.pink} />}
+          >
+            <Text style={styles.muted}>{error}</Text>
+            <Pressable style={styles.retryButton} onPress={() => load(vertical, category, search)}>
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </Pressable>
+          </ScrollView>
         ) : vertical === "artist" ? (
           <FlatList
             data={visibleArtists}
@@ -179,7 +191,7 @@ export default function BrowseScreen() {
       </SafeAreaView>
 
       <SortSheet ref={sortSheetRef} value={sort} onChange={(value) => { setSort(value); sortSheetRef.current?.dismiss(); }} />
-      <FilterSheet ref={filterSheetRef} value={filters} onApply={(value) => { setFilters(value); filterSheetRef.current?.dismiss(); }} />
+      <FilterSheet ref={filterSheetRef} value={filters} vertical={vertical} onApply={(value) => { setFilters(value); filterSheetRef.current?.dismiss(); }} />
     </GradientBackground>
   );
 }
@@ -300,6 +312,20 @@ const styles = StyleSheet.create({
     color: colors.textMute,
   },
   loader: { marginTop: spacing.xl },
+  errorScroll: { flexGrow: 1, alignItems: "center", paddingTop: spacing.xl },
+  retryButton: {
+    marginTop: spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
   grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   gridRow: { gap: spacing.sm },
   muted: {

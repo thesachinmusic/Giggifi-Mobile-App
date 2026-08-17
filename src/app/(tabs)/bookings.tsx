@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 import { router, useFocusEffect } from "expo-router";
@@ -88,7 +88,15 @@ export default function BookingsScreen() {
           // Only block on error before any data has loaded — a later
           // background refresh failure (focus, pull-to-refresh) shouldn't
           // blank out an already-populated list.
-          <Text style={styles.muted}>{error}</Text>
+          <ScrollView
+            contentContainerStyle={styles.errorScroll}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.pink} />}
+          >
+            <Text style={styles.muted}>{error}</Text>
+            <Pressable style={styles.retryButton} onPress={handleRefresh}>
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </Pressable>
+          </ScrollView>
         ) : (
           <FlatList
             data={bookings}
@@ -134,6 +142,20 @@ const styles = StyleSheet.create({
   },
   oemCardWrap: { paddingHorizontal: spacing.lg },
   loader: { marginTop: spacing.xl },
+  errorScroll: { flexGrow: 1, alignItems: "center", paddingTop: spacing.xl },
+  retryButton: {
+    marginTop: spacing.md,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
   list: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
   card: { gap: 6 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
