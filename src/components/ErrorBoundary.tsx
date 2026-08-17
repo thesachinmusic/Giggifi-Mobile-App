@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import * as Updates from "expo-updates";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -27,12 +28,12 @@ export class ErrorBoundary extends Component<Props, State> {
     captureError(error, "render-error-boundary");
   }
 
-  // "Restart" remounts the child tree fresh (state clears, providers re-run
-  // their initial effects) rather than relaunching the native process —
-  // this app has no expo-updates/EAS Update configured, so there's no
-  // Updates.reloadAsync() to call for a true reload.
+  // Prefer a true native reload via EAS Update — it clears whatever bad
+  // in-memory state triggered the error, not just React's tree. Falls back
+  // to a plain remount when reloadAsync rejects (Expo Go, dev builds, or
+  // expo-updates otherwise disabled), where it's the only option anyway.
   handleRestart = (): void => {
-    this.setState({ hasError: false });
+    Updates.reloadAsync().catch(() => this.setState({ hasError: false }));
   };
 
   render() {
