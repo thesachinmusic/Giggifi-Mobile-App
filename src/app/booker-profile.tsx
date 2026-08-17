@@ -9,6 +9,7 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { StateCityField } from "@/components/StateCityField";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, saveBookerProfile, uploadProfilePhoto, updateProfile, ApiError } from "@/lib/api";
+import { isValidEmail } from "@/lib/format";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -62,7 +63,7 @@ export default function BookerProfileScreen() {
   }
 
   async function handleSave() {
-    if (!fullName || !email || !city || !state) return;
+    if (!fullName || !isValidEmail(email) || !city || !state) return;
     setSaving(true);
     setError("");
     try {
@@ -84,7 +85,7 @@ export default function BookerProfileScreen() {
     }
   }
 
-  const canSave = Boolean(fullName && email && city && state) && !saving;
+  const canSave = Boolean(fullName && isValidEmail(email) && city && state) && !saving;
   const avatarUri = photoUri ?? user?.image ?? null;
   const initial = (fullName || user?.name || user?.phone || "G").trim().charAt(0).toUpperCase();
 
@@ -103,7 +104,12 @@ export default function BookerProfileScreen() {
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex} keyboardVerticalOffset={24}>
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <Pressable onPress={handlePickPhoto} style={styles.avatarWrap}>
+            <Pressable
+              onPress={handlePickPhoto}
+              style={styles.avatarWrap}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+            >
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
               ) : (
@@ -118,6 +124,7 @@ export default function BookerProfileScreen() {
 
             <FormField label="FULL NAME" value={fullName} onChangeText={setFullName} placeholder="Your name" />
             <FormField label="EMAIL" value={email} onChangeText={setEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
+            {email && !isValidEmail(email) ? <Text style={styles.emailError}>Enter a valid email address.</Text> : null}
 
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>MOBILE NUMBER</Text>
@@ -212,5 +219,6 @@ const styles = StyleSheet.create({
   },
   readOnlyText: { fontFamily: fonts.body, fontSize: 14, color: colors.textDim },
   error: { fontFamily: fonts.body, fontSize: 12.5, color: colors.err },
+  emailError: { fontFamily: fonts.body, fontSize: 12, color: colors.err, marginTop: -10 },
   saveButton: { marginTop: spacing.sm },
 });

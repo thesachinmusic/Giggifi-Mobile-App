@@ -83,7 +83,13 @@ export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
       />
 
       {videoSource ? (
-        <Pressable onPress={() => setMuted((value) => !value)} style={styles.muteButton}>
+        <Pressable
+          onPress={() => setMuted((value) => !value)}
+          style={styles.muteButton}
+          hitSlop={9}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+        >
           <Feather name={muted ? "volume-x" : "volume-2"} size={13} color="#fff" />
         </Pressable>
       ) : null}

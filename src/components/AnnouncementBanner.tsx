@@ -53,7 +53,13 @@ export function AnnouncementBanner() {
             <Text style={styles.title} numberOfLines={1}>{announcement.title}</Text>
             <Text style={styles.body} numberOfLines={2}>{announcement.body}</Text>
           </View>
-          <Pressable hitSlop={10} onPress={handleDismiss} style={styles.dismiss}>
+          <Pressable
+            hitSlop={13}
+            onPress={handleDismiss}
+            style={styles.dismiss}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss"
+          >
             <Feather name="x" size={14} color="#fff" />
           </Pressable>
         </LinearGradient>

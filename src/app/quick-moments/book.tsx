@@ -85,7 +85,7 @@ export default function QuickMomentsBookScreen() {
               <TimeField label="TIME" hour={hour} onChange={setHour} />
             </View>
             {!leadTimeOk ? (
-              <Text style={styles.hint}>Quick Moments need at least {QUICK_MOMENTS_MIN_LEAD_HOURS} hours' notice — pick a later time.</Text>
+              <Text style={styles.hint}>Quick Moments need at least {QUICK_MOMENTS_MIN_LEAD_HOURS} hours&apos; notice — pick a later time.</Text>
             ) : null}
 
             <FormLabel text="VENUE ADDRESS" />
@@ -122,7 +122,7 @@ export default function QuickMomentsBookScreen() {
 
             <View style={styles.escrow}>
               <Feather name="shield" size={16} color={colors.purple} />
-              <Text style={styles.escrowText}>Payment is held securely until the artist confirms they've arrived and performed.</Text>
+              <Text style={styles.escrowText}>Payment is held securely until the artist confirms they&apos;ve arrived and performed.</Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

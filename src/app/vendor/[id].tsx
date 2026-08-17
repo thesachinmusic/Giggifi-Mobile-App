@@ -224,7 +224,13 @@ function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: st
         </LinearGradient>
       )}
       {videoSource ? (
-        <Pressable onPress={() => setMuted((v) => !v)} style={styles.heroMuteButton}>
+        <Pressable
+          onPress={() => setMuted((v) => !v)}
+          style={styles.heroMuteButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+        >
           <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
         </Pressable>
       ) : null}

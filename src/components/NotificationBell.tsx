@@ -8,7 +8,13 @@ export function NotificationBell() {
   const { unreadCount } = useNotifications();
 
   return (
-    <Pressable style={styles.button} onPress={() => router.push("/notifications")}>
+    <Pressable
+      style={styles.button}
+      onPress={() => router.push("/notifications")}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+    >
       <Feather name="bell" size={18} color={colors.text} />
       {unreadCount > 0 ? (
         <View style={styles.dot}>

@@ -13,6 +13,7 @@ import { DateField } from "@/components/DateField";
 import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary, type QuickMomentFormat } from "@/lib/api";
+import { isValidEmail } from "@/lib/format";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
 import { duotoneFor } from "@/lib/palette";
@@ -126,7 +127,7 @@ export default function ArtistDetailScreen() {
   }
 
   async function handleCompleteProfileAndSubmit() {
-    if (!profileFullName || !profileEmail || !profileCity || !profileState) return;
+    if (!profileFullName || !isValidEmail(profileEmail) || !profileCity || !profileState) return;
     setProfileSubmitting(true);
     setProfileError("");
     try {
@@ -283,15 +284,16 @@ export default function ArtistDetailScreen() {
               </View>
             ) : needsBookerProfile ? (
               <View style={styles.form}>
-                <Text style={styles.profileIntro}>One last step — tell us a bit about you and we'll send your enquiry.</Text>
+                <Text style={styles.profileIntro}>One last step — tell us a bit about you and we&apos;ll send your enquiry.</Text>
                 <FormField label="FULL NAME" value={profileFullName} onChangeText={setProfileFullName} placeholder="Your name" />
                 <FormField label="EMAIL" value={profileEmail} onChangeText={setProfileEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
+                {profileEmail && !isValidEmail(profileEmail) ? <Text style={styles.emailError}>Enter a valid email address.</Text> : null}
                 <StateCityField city={profileCity} onChangeCity={setProfileCity} state={profileState} onChangeState={setProfileState} />
                 {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
                 <Btn
                   label="Continue & Send Enquiry"
                   onPress={handleCompleteProfileAndSubmit}
-                  disabled={!profileFullName || !profileEmail || !profileCity || !profileState}
+                  disabled={!profileFullName || !isValidEmail(profileEmail) || !profileCity || !profileState}
                   loading={profileSubmitting || submitting}
                   style={styles.formButton}
                 />
@@ -331,7 +333,7 @@ export default function ArtistDetailScreen() {
                   />
                 ) : (
                   <Text style={styles.bookNowNote}>
-                    You'll pay the listed price — ₹{adjustedPrice?.toLocaleString("en-IN") ?? "—"}
+                    You&apos;ll pay the listed price — ₹{adjustedPrice?.toLocaleString("en-IN") ?? "—"}
                     {solo ? ` for ${effectiveDuration} mins` : ""}.
                   </Text>
                 )}
@@ -470,7 +472,13 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
         </LinearGradient>
       )}
       {videoSource ? (
-        <Pressable onPress={() => setMuted((v) => !v)} style={styles.heroMuteButton}>
+        <Pressable
+          onPress={() => setMuted((v) => !v)}
+          style={styles.heroMuteButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+        >
           <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
         </Pressable>
       ) : null}
@@ -700,6 +708,7 @@ const styles = StyleSheet.create({
   profileIntro: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textDim },
   profileBack: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textMute, textAlign: "center", marginTop: 2 },
   error: { fontFamily: fonts.body, fontSize: 12.5, color: colors.err },
+  emailError: { fontFamily: fonts.body, fontSize: 12, color: colors.err, marginTop: -6 },
   sentBox: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   sentText: { flex: 1, fontFamily: fonts.body, fontSize: 13.5, color: colors.text },
   escrow: {

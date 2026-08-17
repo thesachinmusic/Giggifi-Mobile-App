@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function OtpInput({ value, onChange }: Props) {
-  const inputs = useRef<Array<TextInput | null>>([]);
+  const inputs = useRef<(TextInput | null)[]>([]);
   const digits = value.padEnd(LENGTH, " ").split("");
 
   function handleChange(text: string, index: number) {

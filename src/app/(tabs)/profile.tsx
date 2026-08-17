@@ -25,9 +25,18 @@ export default function ProfileScreen() {
     }, [user?.role]),
   );
 
-  async function handleLogout() {
-    await logout();
-    router.replace("/(auth)/login");
+  function handleLogout() {
+    Alert.alert("Log out?", "You'll need to verify your phone number again to sign back in.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log out",
+        style: "destructive",
+        onPress: async () => {
+          await logout();
+          router.replace("/(auth)/login");
+        },
+      },
+    ]);
   }
 
   function handleHelpAndSupport() {

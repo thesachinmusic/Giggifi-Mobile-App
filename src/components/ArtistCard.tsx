@@ -54,9 +54,11 @@ export function ArtistCard({ artist, vendor, onPress, width }: ListingCardProps)
         ) : null}
         {artist ? (
           <Pressable
-            hitSlop={8}
+            hitSlop={11}
             style={styles.saveButton}
             onPress={(e) => { e.stopPropagation(); toggle(artist.id); }}
+            accessibilityRole="button"
+            accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
           >
             <Feather name="heart" size={14} color={saved ? colors.pink : "#fff"} />
           </Pressable>

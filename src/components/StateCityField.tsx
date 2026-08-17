@@ -147,14 +147,19 @@ export function StateCityField({ city, onChangeCity, state, onChangeState, cityL
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHeader}>
               {hasState && step === "city" ? (
-                <Pressable onPress={() => { setStep("state"); setQuery(""); }} hitSlop={8}>
+                <Pressable
+                  onPress={() => { setStep("state"); setQuery(""); }}
+                  hitSlop={15}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to state selection"
+                >
                   <Feather name="chevron-left" size={18} color={colors.textDim} />
                 </Pressable>
               ) : <View style={{ width: 18 }} />}
               <Text style={styles.sheetTitle}>
                 {step === "state" ? "Select state" : hasState ? `Select city in ${draftState}` : "Select city"}
               </Text>
-              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+              <Pressable onPress={() => setOpen(false)} hitSlop={15} accessibilityRole="button" accessibilityLabel="Close">
                 <Feather name="x" size={18} color={colors.textDim} />
               </Pressable>
             </View>

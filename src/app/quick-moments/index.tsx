@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Dimensions, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewToken } from "react-native";
+import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -117,7 +117,7 @@ export default function QuickMomentsBrowseScreen() {
               <Pressable onPress={reset}><Text style={styles.startOver}>Start over</Text></Pressable>
             </View>
             {results.length === 0 ? (
-              <Text style={styles.muted}>No one's offering Quick Moments in your area yet — try a wider budget.</Text>
+              <Text style={styles.muted}>No one&apos;s offering Quick Moments in your area yet — try a wider budget.</Text>
             ) : (
               <FlatList
                 data={results}
@@ -141,7 +141,7 @@ export default function QuickMomentsBrowseScreen() {
             <Text style={styles.eyebrow}>GIGGIFI 20-20</Text>
             <Text style={styles.title}>Quick Moments</Text>
             <Text style={styles.subtitle}>
-              A spontaneous ~15 minute performance, priced by the artist. Book with at least 2 hours' notice.
+              A spontaneous ~15 minute performance, priced by the artist. Book with at least 2 hours&apos; notice.
             </Text>
 
             <FormLabel text="PICK A MOMENT" />
@@ -175,7 +175,7 @@ export default function QuickMomentsBrowseScreen() {
                 <Feather name="map-pin" size={16} color={colors.warn} />
                 <View style={styles.locationWarningBody}>
                   <Text style={styles.locationWarningTitle}>Turn on location to find artists near you</Text>
-                  <Text style={styles.locationWarningText}>We couldn't get your location. Check your app permissions and try again.</Text>
+                  <Text style={styles.locationWarningText}>We couldn&apos;t get your location. Check your app permissions and try again.</Text>
                   <Pressable onPress={detectLocation} style={styles.locationRetryButton}>
                     <Text style={styles.locationRetryText}>Try again</Text>
                   </Pressable>
@@ -255,7 +255,13 @@ function MatchCard({ item, isActive, onPress }: { item: QuickMomentMatch; isActi
       />
 
       {videoSource && isActive ? (
-        <Pressable onPress={() => setMuted((v) => !v)} style={styles.resultMuteButton}>
+        <Pressable
+          onPress={() => setMuted((v) => !v)}
+          style={styles.resultMuteButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+        >
           <Feather name={muted ? "volume-x" : "volume-2"} size={14} color="#fff" />
         </Pressable>
       ) : null}

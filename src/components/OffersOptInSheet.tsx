@@ -32,7 +32,7 @@ export const OffersOptInSheet = forwardRef<BottomSheetModal, Props>(function Off
         </View>
         <Text style={styles.title}>Never miss a deal</Text>
         <Text style={styles.body}>
-          Want to hear about new artists in your city, price drops on artists you've saved, and festive offers?
+          Want to hear about new artists in your city, price drops on artists you&apos;ve saved, and festive offers?
         </Text>
 
         <View style={styles.actions}>

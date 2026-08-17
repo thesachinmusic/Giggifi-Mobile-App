@@ -46,7 +46,6 @@ export function PlacesAutocompleteField({ label, placeholder, value, onChangeTex
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   async function pick(prediction: PlacePrediction) {

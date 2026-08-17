@@ -148,7 +148,7 @@ export default function NotificationSettingsScreen() {
 
           <SectionTitle>Quiet hours</SectionTitle>
           <GlassCard style={styles.card}>
-            <Text style={styles.cardSub}>We won't send non-urgent notifications during these hours.</Text>
+            <Text style={styles.cardSub}>We won&apos;t send non-urgent notifications during these hours.</Text>
             <View style={styles.quietHoursRow}>
               <TimeField label="From" hour={prefs.quietHoursStart} onChange={(h) => changeQuietHours("quietHoursStart", h)} />
               <TimeField label="To" hour={prefs.quietHoursEnd} onChange={(h) => changeQuietHours("quietHoursEnd", h)} />

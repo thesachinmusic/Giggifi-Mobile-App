@@ -1,3 +1,12 @@
+// Deliberately permissive (no lookahead/full RFC 5322) — this only needs to
+// catch the "abc" / "abc@" typos that currently reach the server and bounce
+// back as a generic error after the user has filled in a whole form.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidEmail(email: string): boolean {
+  return EMAIL_PATTERN.test(email.trim());
+}
+
 // Mirrors lib/format.ts's maskName() on the website. /api/quick-booking/match
 // returns raw, unmasked artist names (the website only masks client-side
 // before display) — this must be applied everywhere a matched artist's name

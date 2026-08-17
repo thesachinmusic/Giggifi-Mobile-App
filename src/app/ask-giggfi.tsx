@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -78,7 +78,13 @@ export default function AskGiggFiScreen() {
             <Text style={styles.eyebrow}>ASK GIGGIFI</Text>
             <Text style={styles.title}>What are you planning?</Text>
           </View>
-          <Pressable onPress={() => router.back()} style={styles.closeButton}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.closeButton}
+            hitSlop={7}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          >
             <Feather name="x" size={18} color={colors.text} />
           </Pressable>
         </View>

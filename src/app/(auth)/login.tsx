@@ -67,7 +67,7 @@ export default function LoginScreen() {
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <GradientButton label="Continue" onPress={handleContinue} disabled={!canSubmit} loading={loading} style={styles.button} />
-            <Text style={styles.terms}>By continuing, you agree to GiggiFi's Terms & Privacy Policy.</Text>
+            <Text style={styles.terms}>By continuing, you agree to GiggiFi&apos;s Terms & Privacy Policy.</Text>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>

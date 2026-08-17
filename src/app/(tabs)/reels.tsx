@@ -186,7 +186,13 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
         <View style={styles.topRow}>
           <View />
           {videoSource ? (
-            <Pressable onPress={() => setMuted((v) => !v)} style={styles.muteButton}>
+            <Pressable
+              onPress={() => setMuted((v) => !v)}
+              style={styles.muteButton}
+              hitSlop={9}
+              accessibilityRole="button"
+              accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+            >
               <Feather name={muted ? "volume-x" : "volume-2"} size={14} color="#fff" />
             </Pressable>
           ) : null}
@@ -212,10 +218,22 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
           </View>
 
           <View style={styles.actionRail}>
-            <Pressable style={styles.actionButton} onPress={() => toggle(artist.id)}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => toggle(artist.id)}
+              hitSlop={2}
+              accessibilityRole="button"
+              accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
+            >
               <Feather name="heart" size={22} color={saved ? colors.pink : "#fff"} />
             </Pressable>
-            <Pressable style={styles.actionButton} onPress={() => router.push({ pathname: "/artist/[id]", params: { id: artist.id } })}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => router.push({ pathname: "/artist/[id]", params: { id: artist.id } })}
+              hitSlop={2}
+              accessibilityRole="button"
+              accessibilityLabel="View artist profile"
+            >
               <Feather name="user" size={20} color="#fff" />
             </Pressable>
           </View>

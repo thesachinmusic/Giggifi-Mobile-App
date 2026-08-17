@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -187,6 +187,13 @@ export default function BookingDetailScreen() {
     }
   }
 
+  function handleDeclineQuote() {
+    Alert.alert("Decline this quote?", "This permanently cancels the booking — you can't undo this.", [
+      { text: "Keep booking", style: "cancel" },
+      { text: "Decline", style: "destructive", onPress: () => handleRespond("cancel_by_booker") },
+    ]);
+  }
+
   if (loading) {
     return (
       <GradientBackground>
@@ -248,7 +255,7 @@ export default function BookingDetailScreen() {
               <View style={styles.quoteActions}>
                 <Pressable
                   style={styles.declineButton}
-                  onPress={() => handleRespond("cancel_by_booker")}
+                  onPress={handleDeclineQuote}
                   disabled={responding !== null}
                 >
                   {responding === "decline" ? <ActivityIndicator size="small" color={colors.textDim} /> : <Text style={styles.declineButtonText}>Decline</Text>}
@@ -269,7 +276,7 @@ export default function BookingDetailScreen() {
               <View style={styles.recoveryRow}>
                 <ActivityIndicator size="small" color={colors.ok} />
                 <Text style={styles.recoveryText}>
-                  Payment received. We're confirming your booking — this usually takes under a minute.
+                  Payment received. We&apos;re confirming your booking — this usually takes under a minute.
                 </Text>
               </View>
             </GlassCard>
@@ -295,7 +302,7 @@ export default function BookingDetailScreen() {
               <Text style={styles.helplineTitle}>Need help with this booking?</Text>
             </View>
             <Text style={styles.helplineBody}>
-              For your safety, GiggiFi handles all communication between clients and artists. For any queries, contact our helpline — don't try to reach the artist directly.
+              For your safety, GiggiFi handles all communication between clients and artists. For any queries, contact our helpline — don&apos;t try to reach the artist directly.
             </Text>
             <Pressable style={styles.helplineButton} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)}>
               <Feather name="phone" size={15} color="#fff" />

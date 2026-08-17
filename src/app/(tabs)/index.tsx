@@ -94,7 +94,7 @@ export default function HomeScreen() {
               <Text style={styles.eyebrow}>GIGGIFI</Text>
               <NotificationBell />
             </View>
-            <Text style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who's the act tonight?</Text>
+            <Text style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who&apos;s the act tonight?</Text>
           </View>
 
           <AnnouncementBanner />

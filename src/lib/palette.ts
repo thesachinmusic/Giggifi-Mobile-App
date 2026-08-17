@@ -1,6 +1,6 @@
 // Deterministic per-artist duotone, standing in for a photo when there isn't
 // one — same idea as the website's .img-ph gradient placeholder.
-const DUOTONES: Array<[string, string]> = [
+const DUOTONES: [string, string][] = [
   ["#3a1d3e", "#5a2540"],
   ["#1c1020", "#2a1a30"],
   ["#251229", "#3a1010"],

@@ -68,7 +68,13 @@ export default function NotificationsScreen() {
                 <Text style={styles.markAllText}>Mark all read</Text>
               </Pressable>
             ) : null}
-            <Pressable onPress={() => router.back()} style={styles.closeButton}>
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.closeButton}
+              hitSlop={7}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
               <Feather name="x" size={18} color={colors.text} />
             </Pressable>
           </View>

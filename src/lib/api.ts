@@ -1,6 +1,10 @@
-import { getStoredToken } from "./auth-storage";
+import { router } from "expo-router";
+import { clearStoredToken, getStoredToken } from "./auth-storage";
+import { emitSessionExpired } from "./session-events";
+import { showToast } from "./toast-host";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://giggifi.com";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export class ApiError extends Error {
   status: number;
@@ -10,20 +14,53 @@ export class ApiError extends Error {
   }
 }
 
+// A distinct subclass (not a bare ApiError) so callers that care can tell
+// "server said no" apart from "never reached the server" — status 0 keeps
+// it compatible with existing `instanceof ApiError` fallback handling.
+export class NetworkError extends ApiError {
+  constructor() {
+    super(0, "Couldn't reach GiggiFi — check your internet connection and try again.");
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}, withAuth = true): Promise<T> {
   const token = withAuth ? await getStoredToken() : null;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    // Covers both a hung request past REQUEST_TIMEOUT_MS (abort) and a
+    // flat-out unreachable host — neither is a "server said no", so it
+    // shouldn't be reported as one.
+    throw new NetworkError();
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
+    // A real 401 on an authenticated request means the token itself is
+    // dead — every screen would otherwise show its own generic error while
+    // silently stuck logged-in-but-broken. sendOtp/verifyOtp (withAuth:
+    // false) are excluded since a wrong OTP isn't a session expiring.
+    if (response.status === 401 && withAuth) {
+      await clearStoredToken();
+      emitSessionExpired();
+      showToast({ title: "Session expired", body: "Please sign in again.", category: "SECURITY" });
+      router.replace("/(auth)/login");
+    }
     throw new ApiError(response.status, body.error ?? "Something went wrong.");
   }
   return body as T;

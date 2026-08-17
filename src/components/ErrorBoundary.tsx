@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.body}>We've been notified and are looking into it.</Text>
+          <Text style={styles.body}>We&apos;ve been notified and are looking into it.</Text>
           <Pressable style={styles.button} onPress={this.handleRestart}>
             <Text style={styles.buttonText}>Restart</Text>
           </Pressable>

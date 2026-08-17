@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated, Image, StyleSheet, Text } from "react-native";
+import { Animated, Image, StyleSheet } from "react-native";
 import { colors, fonts } from "@/theme";
 
 // Brief in-app intro shown once per cold start, right after the native splash

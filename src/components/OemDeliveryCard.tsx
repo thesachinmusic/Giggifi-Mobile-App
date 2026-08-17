@@ -14,8 +14,8 @@ export function OemDeliveryCard({ guidance, onDismiss }: Props) {
     <GlassCard style={styles.card}>
       <View style={styles.header}>
         <Feather name="battery-charging" size={16} color={colors.orange} />
-        <Text style={styles.title}>Don't miss your booking updates</Text>
-        <Pressable hitSlop={8} onPress={onDismiss}>
+        <Text style={styles.title}>Don&apos;t miss your booking updates</Text>
+        <Pressable hitSlop={16} onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Dismiss">
           <Feather name="x" size={16} color={colors.textMute} />
         </Pressable>
       </View>

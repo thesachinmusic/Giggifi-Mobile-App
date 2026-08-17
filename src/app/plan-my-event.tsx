@@ -33,13 +33,11 @@ import {
   type MatchedArtist,
   type PlaceDetails,
 } from "@/lib/api";
-import { maskName } from "@/lib/format";
+import { isValidEmail, maskName } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 import { captureError } from "@/lib/telemetry";
 import { DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ARTIST_TYPES = [
   { label: "Singer", emoji: "🎤" },
@@ -211,7 +209,13 @@ function PreviewModal({
                   <Text style={styles.modalInitial}>{name[0]}</Text>
                 </LinearGradient>
               )}
-              <Pressable onPress={onClose} style={styles.modalCloseButton}>
+              <Pressable
+                onPress={onClose}
+                style={styles.modalCloseButton}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
                 <Feather name="x" size={16} color="#fff" />
               </Pressable>
             </View>
@@ -413,7 +417,7 @@ export default function PlanMyEventScreen() {
   }
 
   async function handleCompleteProfileAndSubmit() {
-    if (!profileFullName || !profileEmail || !profileCity || !profileState) return;
+    if (!profileFullName || !isValidEmail(profileEmail) || !profileCity || !profileState) return;
     setProfileSubmitting(true);
     setProfileError("");
     try {
@@ -516,7 +520,13 @@ export default function PlanMyEventScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backButton}>
+          <Pressable
+            onPress={handleBack}
+            style={styles.backButton}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Feather name="arrow-left" size={16} color={colors.textDim} />
           </Pressable>
           <View style={styles.headerTextWrap}>
@@ -547,7 +557,7 @@ export default function PlanMyEventScreen() {
             {outerStep === 0 && innerStep === 1 ? (
               <View>
                 <Text style={styles.stepTitle}>Artist preference</Text>
-                <Text style={styles.stepSub}>Optional — we'll match you regardless if you have no preference.</Text>
+                <Text style={styles.stepSub}>Optional — we&apos;ll match you regardless if you have no preference.</Text>
                 <View style={styles.chipColumn}>
                   {GENDER_OPTIONS.map((g) => (
                     <WizardChip key={g} label={g} selected={genderPref === g} onPress={() => setGenderPref(g)} />
@@ -572,7 +582,7 @@ export default function PlanMyEventScreen() {
                   <>
                     <Text style={styles.stepTitle}>Full performance booking</Text>
                     <Text style={styles.stepSub}>
-                      {artistType || "This act"} is booked for the complete show ({FULL_SHOW_MINUTES} mins) — the full group performs regardless of set length, so there's no shorter option here.
+                      {artistType || "This act"} is booked for the complete show ({FULL_SHOW_MINUTES} mins) — the full group performs regardless of set length, so there&apos;s no shorter option here.
                     </Text>
                     <View style={styles.infoCard}>
                       <Text style={styles.infoCardTitle}>Full Show</Text>
@@ -585,8 +595,8 @@ export default function PlanMyEventScreen() {
 
             {outerStep === 0 && innerStep === 3 ? (
               <View>
-                <Text style={styles.stepTitle}>What's your budget?</Text>
-                <Text style={styles.stepSub}>A rough range to start with — you'll see each artist's real price next.</Text>
+                <Text style={styles.stepTitle}>What&apos;s your budget?</Text>
+                <Text style={styles.stepSub}>A rough range to start with — you&apos;ll see each artist&apos;s real price next.</Text>
                 <View style={styles.chipColumn}>
                   {BUDGETS.map((b) => (
                     <WizardChip key={b.key} label={b.label} selected={budgetKey === b.key} onPress={() => setBudgetKey(b.key)} />
@@ -766,16 +776,17 @@ export default function PlanMyEventScreen() {
 
                 {needsBookerProfile ? (
                   <View style={styles.profileForm}>
-                    <Text style={styles.profileIntro}>One last step — tell us a bit about you and we'll send your request.</Text>
+                    <Text style={styles.profileIntro}>One last step — tell us a bit about you and we&apos;ll send your request.</Text>
                     <FormField label="FULL NAME" value={profileFullName} onChangeText={setProfileFullName} placeholder="Your name" />
                     <FormField label="EMAIL" value={profileEmail} onChangeText={setProfileEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
+                    {profileEmail && !isValidEmail(profileEmail) ? <Text style={styles.emailError}>Enter a valid email address.</Text> : null}
                     <FormField label="CITY" value={profileCity} onChangeText={setProfileCity} placeholder="Your city" />
                     <FormField label="STATE" value={profileState} onChangeText={setProfileState} placeholder="Your state" />
                     {profileError ? <Text style={styles.offerError}>{profileError}</Text> : null}
                     <GradientButton
                       label="Continue & Send"
                       onPress={handleCompleteProfileAndSubmit}
-                      disabled={!profileFullName || !profileEmail || !profileCity || !profileState}
+                      disabled={!profileFullName || !isValidEmail(profileEmail) || !profileCity || !profileState}
                       loading={profileSubmitting}
                     />
                     <Pressable onPress={() => setNeedsBookerProfile(false)}>
@@ -989,6 +1000,7 @@ const styles = StyleSheet.create({
   },
   offerHint: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute, marginTop: 6 },
   offerError: { fontFamily: fonts.body, fontSize: 12, color: colors.err, marginTop: 6 },
+  emailError: { fontFamily: fonts.body, fontSize: 12, color: colors.err, marginTop: -6 },
 
   summaryCard: { marginBottom: spacing.lg, gap: 6 },
   summaryTitle: { fontFamily: fonts.mono, fontSize: 10.5, color: colors.textMute, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: spacing.xs },
