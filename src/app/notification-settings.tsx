@@ -31,19 +31,29 @@ type PermissionStatus = "granted" | "denied" | "undetermined";
 
 export default function NotificationSettingsScreen() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [permission, setPermission] = useState<PermissionStatus>("undetermined");
   const [language, setLanguage] = useState<Language>("en");
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     Promise.all([fetchNotificationPreferences(), getLanguagePreference()])
       .then(([preferences, lang]) => {
         setPrefs(preferences);
         setLanguage(lang);
       })
-      .catch((err) => captureError(err, "notification-settings-fetch"))
+      .catch((err) => {
+        captureError(err, "notification-settings-fetch");
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Re-check every time this screen regains focus — the user may have just
   // come back from the OS Settings app after enabling notifications there.
@@ -85,11 +95,26 @@ export default function NotificationSettingsScreen() {
     await setLanguagePreference(next);
   }
 
-  if (loading || !prefs) {
+  if (loading) {
     return (
       <GradientBackground>
         <SafeAreaView style={styles.safe} edges={["bottom"]}>
           <ActivityIndicator color={colors.pink} style={styles.loader} />
+        </SafeAreaView>
+      </GradientBackground>
+    );
+  }
+
+  if (error || !prefs) {
+    return (
+      <GradientBackground>
+        <SafeAreaView style={styles.safe} edges={["bottom"]}>
+          <View style={styles.loader}>
+            <Text style={styles.muted}>Couldn&apos;t load notification settings.</Text>
+            <Pressable style={styles.retryButton} onPress={load}>
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </Pressable>
+          </View>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -181,7 +206,20 @@ function SectionTitle({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  loader: { flex: 1, alignItems: "center", justifyContent: "center" },
+  loader: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.xl },
+  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, textAlign: "center" },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xs },
   permissionCard: {
     flexDirection: "row",

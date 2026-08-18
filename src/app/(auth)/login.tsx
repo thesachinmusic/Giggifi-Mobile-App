@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
@@ -39,36 +39,38 @@ export default function LoginScreen() {
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
           style={styles.flex}
         >
-          <View style={styles.brand}>
-            <Image source={require("@/assets/images/giggifi-logo-cropped.png")} style={styles.logo} resizeMode="contain" />
-          </View>
-
-          <View style={styles.pitch}>
-            <Text style={styles.eyebrow}>BOOK VERIFIED ARTISTS</Text>
-            <Text style={styles.headline}>
-              Find your{"\n"}perfect <Text style={styles.headlineAccent}>artist</Text>.
-            </Text>
-            <Text style={styles.sub}>Singers, DJs, bands, dancers and more — booked and paid for, safely, in minutes.</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.label}>PHONE NUMBER</Text>
-            <View style={styles.inputRow}>
-              <Text style={styles.prefix}>+91</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="98765 43210"
-                placeholderTextColor={colors.textMute}
-                keyboardType="number-pad"
-                maxLength={10}
-                style={styles.input}
-              />
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.brand}>
+              <Image source={require("@/assets/images/giggifi-logo-cropped.png")} style={styles.logo} resizeMode="contain" />
             </View>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <GradientButton label="Continue" onPress={handleContinue} disabled={!canSubmit} loading={loading} style={styles.button} />
-            <Text style={styles.terms}>By continuing, you agree to GiggiFi&apos;s Terms & Privacy Policy.</Text>
-          </View>
+
+            <View style={styles.pitch}>
+              <Text style={styles.eyebrow}>BOOK VERIFIED ARTISTS</Text>
+              <Text style={styles.headline}>
+                Find your{"\n"}perfect <Text style={styles.headlineAccent}>artist</Text>.
+              </Text>
+              <Text style={styles.sub}>Singers, DJs, bands, dancers and more — booked and paid for, safely, in minutes.</Text>
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.label}>PHONE NUMBER</Text>
+              <View style={styles.inputRow}>
+                <Text style={styles.prefix}>+91</Text>
+                <TextInput
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="98765 43210"
+                  placeholderTextColor={colors.textMute}
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  style={styles.input}
+                />
+              </View>
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <GradientButton label="Continue" onPress={handleContinue} disabled={!canSubmit} loading={loading} style={styles.button} />
+              <Text style={styles.terms}>By continuing, you agree to GiggiFi&apos;s Terms & Privacy Policy.</Text>
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
@@ -78,6 +80,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1, paddingHorizontal: spacing.lg },
+  // flexGrow (not just flex) so the card's marginTop: "auto" below still
+  // pins it to the bottom when everything fits — and so the container can
+  // actually shrink to make room for the keyboard, scrolling instead of
+  // clipping when it doesn't fit (small devices, keyboard open).
+  scroll: { flexGrow: 1 },
   brand: { paddingTop: spacing.lg, alignItems: "flex-start" },
   logo: { height: 68, aspectRatio: 2.43 },
   pitch: { marginTop: spacing.xxl, marginBottom: spacing.xl },

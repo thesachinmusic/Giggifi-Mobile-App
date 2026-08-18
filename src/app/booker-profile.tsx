@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -25,8 +25,15 @@ export default function BookerProfileScreen() {
   const [photoMime, setPhotoMime] = useState("image/jpeg");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Distinct from `error` above (which covers photo-permission and save
+  // failures) — a failed initial fetch would otherwise silently render a
+  // blank form indistinguishable from a genuinely new profile, and someone
+  // who already has one wouldn't know their existing details didn't load.
+  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
+  const loadProfile = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
     fetchMyProfile()
       .then(({ bookerProfile }) => {
         if (bookerProfile) {
@@ -39,9 +46,16 @@ export default function BookerProfileScreen() {
           setEmail(user?.email ?? "");
         }
       })
-      .catch((err) => captureError(err, "booker-profile-fetch"))
+      .catch((err) => {
+        captureError(err, "booker-profile-fetch");
+        setLoadError(true);
+      })
       .finally(() => setLoading(false));
   }, [user?.email]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   async function handlePickPhoto() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -104,6 +118,19 @@ export default function BookerProfileScreen() {
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex} keyboardVerticalOffset={24}>
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            {loadError ? (
+              <View style={styles.loadErrorBanner}>
+                <Feather name="alert-triangle" size={14} color={colors.orange} />
+                <Text style={styles.loadErrorText}>
+                  Couldn&apos;t load your existing details — this form is starting blank. If you already have a
+                  profile, check your connection and retry before saving.
+                </Text>
+                <Pressable onPress={loadProfile} hitSlop={8} accessibilityRole="button" accessibilityLabel="Retry">
+                  <Feather name="refresh-cw" size={16} color={colors.textMute} />
+                </Pressable>
+              </View>
+            ) : null}
+
             <Pressable
               onPress={handlePickPhoto}
               style={styles.avatarWrap}
@@ -164,6 +191,17 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1 },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
+  loadErrorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: "rgba(255,138,61,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,138,61,0.3)",
+  },
+  loadErrorText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 16, color: colors.textDim },
   avatarWrap: { alignSelf: "center", marginBottom: spacing.sm },
   avatar: {
     width: 84,

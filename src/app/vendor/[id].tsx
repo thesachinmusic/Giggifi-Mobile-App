@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -71,7 +71,9 @@ export default function VendorDetailScreen() {
     setShowForm(true);
   }
 
-  useEffect(() => {
+  const loadVendor = useCallback(() => {
+    setLoading(true);
+    setError("");
     fetchVendor(id)
       .then(({ vendor: result }) => {
         setVendor(result);
@@ -80,6 +82,10 @@ export default function VendorDetailScreen() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this vendor."))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    loadVendor();
+  }, [loadVendor]);
 
   async function handleSubmitEnquiry() {
     if (!vendor || !eventType || !eventCity || !description) return;
@@ -122,6 +128,9 @@ export default function VendorDetailScreen() {
       <GradientBackground>
         <SafeAreaView style={styles.centered}>
           <Text style={styles.muted}>{error || "Vendor not found."}</Text>
+          <Pressable style={styles.retryButton} onPress={loadVendor}>
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </Pressable>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -337,7 +346,7 @@ function FormField({
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.xl },
   scrollFlex: { flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
   hero: { aspectRatio: 1, position: "relative" },
@@ -499,5 +508,17 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
   },
   escrowText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
-  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute },
+  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, textAlign: "center" },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
 });

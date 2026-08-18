@@ -136,7 +136,9 @@ export default function ProfileScreen() {
             <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
             <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
             <MenuRow icon="help-circle" label="Help & support" onPress={handleHelpAndSupport} />
-            <MenuRow icon="file-text" label="Terms & Privacy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
+            <MenuRow icon="file-text" label="Terms of Service" onPress={() => Linking.openURL("https://giggifi.com/terms")} />
+            <MenuRow icon="shield" label="Privacy Policy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
+            <MenuRow icon="rotate-ccw" label="Refund Policy" onPress={() => Linking.openURL("https://giggifi.com/refund")} />
           </View>
 
           <Pressable onPress={handleLogout} style={styles.logout}>

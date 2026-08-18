@@ -225,6 +225,9 @@ export default function BookingDetailScreen() {
       <GradientBackground>
         <SafeAreaView style={styles.centered}>
           <Text style={styles.muted}>{error || "Booking not found."}</Text>
+          <Pressable style={styles.retryButton} onPress={load}>
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </Pressable>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -438,7 +441,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -521,5 +524,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.purple,
   },
   helplineButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#fff" },
-  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, paddingHorizontal: spacing.lg },
+  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, paddingHorizontal: spacing.lg, textAlign: "center" },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
 });

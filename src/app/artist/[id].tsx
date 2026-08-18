@@ -95,7 +95,9 @@ export default function ArtistDetailScreen() {
   const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [profileError, setProfileError] = useState("");
 
-  useEffect(() => {
+  const loadArtist = useCallback(() => {
+    setLoading(true);
+    setError("");
     fetchArtist(id)
       .then(({ artist: result }) => {
         setArtist(result);
@@ -104,6 +106,10 @@ export default function ArtistDetailScreen() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this artist."))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    loadArtist();
+  }, [loadArtist]);
 
   async function handleSubmitEnquiry() {
     if (!artist || !eventType || !eventCity || !eventDate) return;
@@ -207,6 +213,9 @@ export default function ArtistDetailScreen() {
       <GradientBackground>
         <SafeAreaView style={styles.centered}>
           <Text style={styles.muted}>{error || "Artist not found."}</Text>
+          <Pressable style={styles.retryButton} onPress={loadArtist}>
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </Pressable>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -629,7 +638,7 @@ function FormField({
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.xl },
   scrollFlex: { flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
   hero: { aspectRatio: 1, position: "relative" },
@@ -892,5 +901,17 @@ const styles = StyleSheet.create({
   qmPillEmoji: { fontSize: 18 },
   qmPillText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.textDim },
   qmPillTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
-  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute },
+  muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, textAlign: "center" },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.pink,
+  },
+  retryButtonText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    color: colors.pink,
+  },
 });
