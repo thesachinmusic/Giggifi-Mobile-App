@@ -26,8 +26,19 @@ export class NetworkError extends ApiError {
 async function request<T>(path: string, options: RequestInit = {}, withAuth = true): Promise<T> {
   const token = withAuth ? await getStoredToken() : null;
 
+  // Our own controller drives the actual fetch (so the 15s timeout always
+  // applies), but a caller-supplied signal — e.g. browse.tsx cancelling a
+  // stale search when the user types again — aborts it too. Listening
+  // rather than passing the external signal straight to fetch keeps a
+  // single source of truth for why the request ended.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const externalSignal = options.signal;
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", onExternalAbort);
+  }
 
   let response: Response;
   try {
@@ -41,12 +52,16 @@ async function request<T>(path: string, options: RequestInit = {}, withAuth = tr
       },
     });
   } catch {
-    // Covers both a hung request past REQUEST_TIMEOUT_MS (abort) and a
-    // flat-out unreachable host — neither is a "server said no", so it
-    // shouldn't be reported as one.
+    // Covers a hung request past REQUEST_TIMEOUT_MS, a flat-out unreachable
+    // host, and a caller-triggered cancellation — none of these are "server
+    // said no", so none should be reported as one. Callers that care about
+    // telling a real cancellation apart from a real network failure check
+    // their own AbortController's `.aborted` in the catch, since every case
+    // here throws the same NetworkError.
     throw new NetworkError();
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
   }
 
   const body = await response.json().catch(() => ({}));
@@ -293,14 +308,17 @@ export function fetchSession() {
 
 // ─── Artists ───
 
-export function fetchArtists(params: { category?: string; city?: string; search?: string; sort?: "recommended" | "trending" | "rating" } = {}) {
+export function fetchArtists(
+  params: { category?: string; city?: string; search?: string; sort?: "recommended" | "trending" | "rating" } = {},
+  signal?: AbortSignal,
+) {
   const query = new URLSearchParams();
   if (params.category && params.category !== "All") query.set("category", params.category);
   if (params.city) query.set("city", params.city);
   if (params.search) query.set("search", params.search);
   if (params.sort) query.set("sort", params.sort);
   const qs = query.toString();
-  return request<{ artists: ArtistSummary[]; total: number }>(`/api/mobile/artists${qs ? `?${qs}` : ""}`);
+  return request<{ artists: ArtistSummary[]; total: number }>(`/api/mobile/artists${qs ? `?${qs}` : ""}`, { signal });
 }
 
 export function fetchArtist(id: string) {
@@ -313,14 +331,17 @@ export function fetchFeatured() {
 
 // ─── Vendors ───
 
-export function fetchVendors(params: { category?: string; city?: string; search?: string; sort?: "recommended" | "rating" } = {}) {
+export function fetchVendors(
+  params: { category?: string; city?: string; search?: string; sort?: "recommended" | "rating" } = {},
+  signal?: AbortSignal,
+) {
   const query = new URLSearchParams();
   if (params.category && params.category !== "All") query.set("category", params.category);
   if (params.city) query.set("city", params.city);
   if (params.search) query.set("search", params.search);
   if (params.sort) query.set("sort", params.sort);
   const qs = query.toString();
-  return request<{ vendors: VendorSummary[]; total: number }>(`/api/mobile/vendors${qs ? `?${qs}` : ""}`);
+  return request<{ vendors: VendorSummary[]; total: number }>(`/api/mobile/vendors${qs ? `?${qs}` : ""}`, { signal });
 }
 
 export function fetchVendor(id: string) {

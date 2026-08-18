@@ -16,8 +16,11 @@ import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
 import { colors, fonts, radii, spacing } from "@/theme";
 import { applySortAndFilters, countActiveFilters, DEFAULT_FILTERS, SORT_OPTIONS, type FilterState, type SortOption } from "@/lib/sort-filter";
 import { hapticSelect } from "@/lib/haptics";
+import { addRecentSearch, clearRecentSearches, getRecentSearches } from "@/lib/recent-searches-storage";
+import { captureError } from "@/lib/telemetry";
 
 const ALL = "All";
+const SEARCH_DEBOUNCE_MS = 400;
 type Vertical = "artist" | "vendor";
 
 export default function BrowseScreen() {
@@ -31,27 +34,62 @@ export default function BrowseScreen() {
   const [error, setError] = useState("");
   const [sort, setSort] = useState<SortOption>("recommended");
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const sortSheetRef = useRef<BottomSheetModal>(null);
   const filterSheetRef = useRef<BottomSheetModal>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstSearchRun = useRef(true);
+  // Set when something else (a recent-search chip) already triggered the
+  // search for this exact `search` value — otherwise the debounce effect
+  // below would also fire 400ms later for the same value, a redundant
+  // duplicate request.
+  const skipNextDebounceRef = useRef(false);
 
   const categoryList = vertical === "artist" ? CATEGORIES : VENDOR_CATEGORIES;
 
+  useEffect(() => {
+    getRecentSearches().then(setRecentSearches).catch((err) => captureError(err, "recent-searches-load"));
+  }, []);
+
+  function recordSearch(term: string) {
+    const trimmed = term.trim();
+    if (!trimmed) return;
+    addRecentSearch(trimmed).then(setRecentSearches).catch((err) => captureError(err, "recent-search-save"));
+  }
+
+  function handleClearRecentSearches() {
+    setRecentSearches([]);
+    clearRecentSearches().catch((err) => captureError(err, "recent-searches-clear"));
+  }
+
+  // A newer search should always win over a slower older one, whether that's
+  // debounce superseding debounce or a manual submit superseding a pending
+  // debounce — cancelling the previous in-flight request (rather than just
+  // letting both race) means a stale response can never overwrite a fresher one.
   const load = useCallback(async (v: Vertical, cat: string, q: string) => {
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
     setLoading(true);
     setError("");
     try {
       if (v === "artist") {
-        const { artists: results } = await fetchArtists({ category: cat, search: q });
+        const { artists: results } = await fetchArtists({ category: cat, search: q }, controller.signal);
         setArtists(results);
       } else {
-        const { vendors: results } = await fetchVendors({ category: cat, search: q });
+        const { vendors: results } = await fetchVendors({ category: cat, search: q }, controller.signal);
         setVendors(results);
       }
     } catch {
+      // A cancellation (superseded by a newer search) isn't a real failure —
+      // only report an error if this request is still the current one.
+      if (controller.signal.aborted && searchAbortRef.current !== controller) return;
       setError(`Couldn't load ${v === "artist" ? "artists" : "vendors"}. Pull down to try again.`);
     } finally {
-      setLoading(false);
+      if (searchAbortRef.current === controller) setLoading(false);
     }
   }, []);
 
@@ -69,6 +107,27 @@ export default function BrowseScreen() {
     load(vertical, category, search);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vertical, category]);
+
+  // Debounces typing only — the vertical/category effect above already
+  // fires immediately on a tap, and this would otherwise also fire once on
+  // mount with the same empty search that effect already just loaded.
+  useEffect(() => {
+    if (isFirstSearchRun.current) {
+      isFirstSearchRun.current = false;
+      return;
+    }
+    if (skipNextDebounceRef.current) {
+      skipNextDebounceRef.current = false;
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      load(vertical, category, search);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   function switchVertical(next: Vertical) {
     if (next === vertical) return;
@@ -105,13 +164,55 @@ export default function BrowseScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            onSubmitEditing={() => load(vertical, category, search)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => {
+              setSearchFocused(false);
+              recordSearch(search);
+            }}
+            onSubmitEditing={() => {
+              if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+              recordSearch(search);
+              load(vertical, category, search);
+            }}
             placeholder={vertical === "artist" ? "Search by name, city, genre…" : "Search by business, city, category…"}
             placeholderTextColor={colors.textMute}
             style={styles.searchInput}
             returnKeyType="search"
           />
         </View>
+
+        {searchFocused && !search && recentSearches.length > 0 ? (
+          <View style={styles.recentRow}>
+            <FlatList
+              data={recentSearches}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item}
+              contentContainerStyle={styles.recentChipRow}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.recentChip}
+                  onPress={() => {
+                    skipNextDebounceRef.current = true;
+                    setSearch(item);
+                    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                    recordSearch(item);
+                    load(vertical, category, item);
+                  }}
+                >
+                  <Feather name="clock" size={11} color={colors.textMute} />
+                  <Text style={styles.recentChipText}>{item}</Text>
+                </Pressable>
+              )}
+              ListFooterComponent={
+                <Pressable style={styles.recentClear} onPress={handleClearRecentSearches} hitSlop={8}>
+                  <Text style={styles.recentClearText}>Clear</Text>
+                </Pressable>
+              }
+            />
+          </View>
+        ) : null}
 
         <FlatList
           data={[ALL, ...categoryList.map((c) => c.label)]}
@@ -292,6 +393,33 @@ const styles = StyleSheet.create({
   },
   categoryList: { flexGrow: 0, flexShrink: 0, height: 46, marginBottom: spacing.md },
   categoryRow: { paddingHorizontal: spacing.lg, gap: spacing.xs, alignItems: "center" },
+  recentRow: { marginBottom: spacing.md },
+  recentChipRow: { paddingHorizontal: spacing.lg, gap: spacing.xs, alignItems: "center" },
+  recentChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.ink2,
+  },
+  recentChipText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12.5,
+    color: colors.textDim,
+  },
+  recentClear: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  recentClearText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12.5,
+    color: colors.pink,
+  },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
