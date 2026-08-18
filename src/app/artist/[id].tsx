@@ -44,6 +44,12 @@ export default function ArtistDetailScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const [bodyY, setBodyY] = useState(0);
   const [priceCardY, setPriceCardY] = useState(0);
+  // Set when the sticky CTA opens the form from its collapsed state — the
+  // form doesn't exist in the tree yet at that point, so the ScrollView's
+  // content isn't tall enough for scrollTo's target to land correctly.
+  // Cleared (and the scroll actually fired) from the form container's own
+  // onLayout, once its rendered height is part of the scrollable content.
+  const pendingScrollRef = useRef(false);
 
   const [showForm, setShowForm] = useState(false);
   const [eventType, setEventType] = useState("");
@@ -155,11 +161,29 @@ export default function ArtistDetailScreen() {
     }
   }
 
+  // bodyY only ever reads 0 before its onLayout has fired at all — the hero
+  // above it is always taller than 0, so a real post-layout value never
+  // legitimately lands on exactly 0. Scrolling to a stale/unmeasured target
+  // would land at the very top of the screen, which is worse than not
+  // scrolling, so skip it entirely rather than guess.
+  function scrollToPriceCard() {
+    if (bodyY === 0) return;
+    scrollRef.current?.scrollTo({ y: Math.max(bodyY + priceCardY - spacing.md, 0), animated: true });
+  }
+
   // The sticky CTA collapses into this same inline form rather than opening
   // a separate flow — it just also makes sure the form is actually visible.
+  // If the form (or the profile-collection sub-form) is already open, its
+  // layout is already accounted for in the ScrollView's content, so scroll
+  // immediately; otherwise defer until the form container's onLayout fires,
+  // once expanding it has actually grown the scrollable content.
   function handleStickyPress() {
+    if (showForm || needsBookerProfile) {
+      scrollToPriceCard();
+      return;
+    }
+    pendingScrollRef.current = true;
     setShowForm(true);
-    scrollRef.current?.scrollTo({ y: Math.max(bodyY + priceCardY - spacing.md, 0), animated: true });
   }
 
   if (loading) {
@@ -334,7 +358,14 @@ export default function ArtistDetailScreen() {
                 </Pressable>
               </View>
             ) : showForm ? (
-              <View style={styles.form}>
+              <View
+                style={styles.form}
+                onLayout={() => {
+                  if (!pendingScrollRef.current) return;
+                  pendingScrollRef.current = false;
+                  scrollToPriceCard();
+                }}
+              >
                 <View style={styles.modeToggle}>
                   <Pressable
                     style={[styles.modeTab, bookingMode === "QUICK_BOOKING" && styles.modeTabActive]}
