@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
@@ -68,7 +68,27 @@ export default function LoginScreen() {
               </View>
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <GradientButton label="Continue" onPress={handleContinue} disabled={!canSubmit} loading={loading} style={styles.button} />
-              <Text style={styles.terms}>By continuing, you agree to GiggiFi&apos;s Terms & Privacy Policy.</Text>
+              <Text style={styles.terms}>
+                By continuing, you agree to GiggiFi&apos;s{" "}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL("https://giggifi.com/terms")}
+                  accessibilityRole="link"
+                  accessibilityLabel="Terms of Service"
+                >
+                  Terms
+                </Text>{" "}
+                &{" "}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL("https://giggifi.com/privacy")}
+                  accessibilityRole="link"
+                  accessibilityLabel="Privacy Policy"
+                >
+                  Privacy Policy
+                </Text>
+                .
+              </Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -155,5 +175,9 @@ const styles = StyleSheet.create({
     color: colors.textMute,
     textAlign: "center",
     lineHeight: 16,
+  },
+  termsLink: {
+    color: colors.orange,
+    textDecorationLine: "underline",
   },
 });
