@@ -420,7 +420,7 @@ export default function ArtistDetailScreen() {
                 />
               </View>
             ) : (
-              <Btn label="Send Enquiry" onPress={() => setShowForm(true)} style={styles.formButton} />
+              <Btn label="Enquire Now" onPress={() => setShowForm(true)} style={styles.formButton} />
             )}
 
             <View style={styles.escrow}>
@@ -493,7 +493,7 @@ export default function ArtistDetailScreen() {
           </View>
           <Pressable style={styles.stickyButtonWrap} onPress={handleStickyPress}>
             <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.3 }} style={styles.stickyButton}>
-              <Text style={styles.stickyButtonText}>Send Enquiry</Text>
+              <Text style={styles.stickyButtonText}>Enquire Now</Text>
             </LinearGradient>
           </Pressable>
         </View>
