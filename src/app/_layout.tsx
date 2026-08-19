@@ -139,6 +139,16 @@ function RootLayoutContent() {
                   }}
                 />
                 <Stack.Screen
+                  name="saved"
+                  options={{
+                    headerShown: true,
+                    headerTitle: "Saved Artists",
+                    headerTintColor: colors.text,
+                    headerStyle: { backgroundColor: colors.ink },
+                    headerBackTitle: "Back",
+                  }}
+                />
+                <Stack.Screen
                   name="delete-account"
                   options={{
                     headerShown: true,

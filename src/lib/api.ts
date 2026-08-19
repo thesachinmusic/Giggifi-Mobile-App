@@ -444,6 +444,10 @@ export function fetchSavedArtistIds() {
   return request<{ artistIds: string[] }>("/api/mobile/saved-artists");
 }
 
+export function fetchSavedArtists() {
+  return request<{ artistIds: string[]; artists: ArtistSummary[] }>("/api/mobile/saved-artists?expand=1");
+}
+
 export function saveArtist(artistId: string) {
   return request<{ success: true }>("/api/mobile/saved-artists", {
     method: "POST",

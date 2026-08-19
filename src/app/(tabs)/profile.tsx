@@ -134,6 +134,7 @@ export default function ProfileScreen() {
               <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
             ) : null}
             <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
+            <MenuRow icon="heart" label="Saved artists" onPress={() => router.push("/saved")} />
             <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
             <MenuRow icon="help-circle" label="Help & support" onPress={handleHelpAndSupport} />
             <MenuRow icon="file-text" label="Terms of Service" onPress={() => Linking.openURL("https://giggifi.com/terms")} />

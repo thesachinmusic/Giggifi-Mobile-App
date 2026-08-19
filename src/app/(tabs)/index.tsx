@@ -17,8 +17,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { HomeCityControl } from "@/components/HomeCityControl";
 import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
-import { useSavedArtists } from "@/lib/saved-artists-context";
-import { fetchArtists, fetchFeatured, type ArtistSummary } from "@/lib/api";
+import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
 import { captureError } from "@/lib/telemetry";
@@ -61,10 +60,10 @@ function shuffle<T extends { id: string }>(items: T[]): T[] {
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { savedIds } = useSavedArtists();
   const [artists, setArtists] = useState<ArtistSummary[]>([]);
   const [featured, setFeatured] = useState<ArtistSummary[]>([]);
   const [trending, setTrending] = useState<ArtistSummary[]>([]);
+  const [saved, setSaved] = useState<ArtistSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -92,9 +91,30 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // Independent of the paginated `artists` fetch above — filtering that
+  // array (the old approach) only ever showed a saved artist who happened to
+  // be in this page's first batch, so anyone saved from Reels or a deeper
+  // Browse page silently vanished from this rail.
+  const loadSaved = useCallback(async () => {
+    if (!user) {
+      setSaved([]);
+      return;
+    }
+    try {
+      const { artists: results } = await fetchSavedArtists();
+      setSaved(results);
+    } catch (err) {
+      captureError(err, "home-saved-artists-fetch");
+    }
+  }, [user]);
+
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, [load]);
+
+  useEffect(() => {
+    loadSaved();
+  }, [loadSaved]);
 
   // Persisted city takes priority; otherwise detect silently only if
   // location permission was already granted elsewhere (Quick Moments) — no
@@ -135,13 +155,12 @@ export default function HomeScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await load();
+    await Promise.all([load(), loadSaved()]);
     setRefreshing(false);
   }
 
   const rankedArtists = useMemo(() => rankByHomeCity(artists, homeCity), [artists, homeCity]);
   const popular = useMemo(() => rankedArtists.slice(0, 12), [rankedArtists]);
-  const saved = useMemo(() => artists.filter((a) => savedIds.has(a.id)), [artists, savedIds]);
 
   const [activeTrendingIndex, setActiveTrendingIndex] = useState(0);
 
