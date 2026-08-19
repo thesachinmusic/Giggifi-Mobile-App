@@ -11,6 +11,11 @@ const expoConfig = require("eslint-config-expo/flat");
 // actually transforming production builds — decided during the Aug 2026
 // audit rather than speculatively refactoring ~20 files.
 module.exports = defineConfig([
-  globalIgnores(["dist/*", ".expo/*", "expo-env.d.ts"]),
+  // ios/ and android/ are `expo prebuild` output — gitignored, regenerated
+  // on demand, and not app source. Anyone who runs prebuild locally
+  // otherwise picks up lint findings from vendored third-party code inside
+  // native dependencies (e.g. a minified .js file bundled inside the
+  // Razorpay CocoaPods framework), which was never meant to be linted.
+  globalIgnores(["dist/*", ".expo/*", "expo-env.d.ts", "ios/*", "android/*"]),
   expoConfig,
 ]);

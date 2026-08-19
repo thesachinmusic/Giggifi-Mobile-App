@@ -12,7 +12,8 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -39,7 +40,12 @@
           "imageWidth": 220
         }
       ],
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-font",
       "@react-native-community/datetimepicker",
       "expo-video",
@@ -53,13 +59,18 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "GiggiFi uses your photos to set your profile picture."
+          "photosPermission": "GiggiFi uses your photos to set your profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "GiggiFi uses your location to find Quick Moments artists near you."
+          "locationWhenInUsePermission": "GiggiFi uses your location to find Quick Moments artists near you.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false
         }
       ],
       [
