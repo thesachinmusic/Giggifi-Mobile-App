@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -10,18 +10,35 @@ import { ArtistCard } from "@/components/ArtistCard";
 import { SortSheet } from "@/components/SortSheet";
 import { FilterSheet } from "@/components/FilterSheet";
 import { Skeleton } from "@/components/Skeleton";
-import { fetchArtists, fetchVendors, type ArtistSummary, type VendorSummary } from "@/lib/api";
+import { fetchArtists, fetchVendors, type ArtistSummary, type ListingParams, type VendorSummary } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
 import { colors, fonts, radii, spacing } from "@/theme";
-import { applySortAndFilters, countActiveFilters, DEFAULT_FILTERS, SORT_OPTIONS, type FilterState, type SortOption } from "@/lib/sort-filter";
+import { countActiveFilters, DEFAULT_FILTERS, SORT_OPTIONS, type FilterState, type SortOption } from "@/lib/sort-filter";
 import { hapticSelect } from "@/lib/haptics";
 import { addRecentSearch, clearRecentSearches, getRecentSearches } from "@/lib/recent-searches-storage";
 import { captureError } from "@/lib/telemetry";
 
 const ALL = "All";
 const SEARCH_DEBOUNCE_MS = 400;
+const PAGE_LIMIT = 20;
 type Vertical = "artist" | "vendor";
+
+// Server-side sort/filter query params shared by fetchArtists and
+// fetchVendors — sort and filters now decide the full ordered/filtered set
+// (not just the current page), so applySortAndFilters (still in
+// lib/sort-filter.ts for any purely local, unpaginated use) is deliberately
+// not used here anymore: re-sorting only the loaded page would be wrong the
+// moment a second page exists.
+function filterQueryParams(filters: FilterState): Partial<ListingParams> {
+  return {
+    minPrice: filters.minPrice || undefined,
+    maxPrice: filters.maxPrice || undefined,
+    travelReady: filters.travelReady || undefined,
+    negotiableOnly: filters.negotiableOnly || undefined,
+    gender: filters.gender !== "Any" ? filters.gender : undefined,
+  };
+}
 
 export default function BrowseScreen() {
   const params = useLocalSearchParams<{ category?: string; vertical?: Vertical }>();
@@ -30,7 +47,10 @@ export default function BrowseScreen() {
   const [search, setSearch] = useState("");
   const [artists, setArtists] = useState<ArtistSummary[]>([]);
   const [vendors, setVendors] = useState<VendorSummary[]>([]);
+  const [artistCursor, setArtistCursor] = useState<string | null>(null);
+  const [vendorCursor, setVendorCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [sort, setSort] = useState<SortOption>("recommended");
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
@@ -42,6 +62,9 @@ export default function BrowseScreen() {
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstSearchRun = useRef(true);
+  // Synchronous guard — onEndReached can fire again before the loadingMore
+  // state update from the previous call has actually re-rendered.
+  const loadingMoreRef = useRef(false);
   // Set when something else (a recent-search chip) already triggered the
   // search for this exact `search` value — otherwise the debounce effect
   // below would also fire 400ms later for the same value, a redundant
@@ -69,19 +92,30 @@ export default function BrowseScreen() {
   // debounce superseding debounce or a manual submit superseding a pending
   // debounce — cancelling the previous in-flight request (rather than just
   // letting both race) means a stale response can never overwrite a fresher one.
-  const load = useCallback(async (v: Vertical, cat: string, q: string) => {
+  // Always fetches page 1 (no cursor) — sort/filter/search/category/vertical
+  // changes all replace the loaded set from scratch, never append.
+  const load = useCallback(async (v: Vertical, cat: string, q: string, sortValue: SortOption, filterValue: FilterState) => {
     searchAbortRef.current?.abort();
     const controller = new AbortController();
     searchAbortRef.current = controller;
     setLoading(true);
     setError("");
+    const extra = filterQueryParams(filterValue);
     try {
       if (v === "artist") {
-        const { artists: results } = await fetchArtists({ category: cat, search: q }, controller.signal);
+        const { artists: results, nextCursor } = await fetchArtists(
+          { category: cat, search: q, sort: sortValue, limit: PAGE_LIMIT, ...extra },
+          controller.signal,
+        );
         setArtists(results);
+        setArtistCursor(nextCursor);
       } else {
-        const { vendors: results } = await fetchVendors({ category: cat, search: q }, controller.signal);
+        const { vendors: results, nextCursor } = await fetchVendors(
+          { category: cat, search: q, sort: sortValue, limit: PAGE_LIMIT, ...extra },
+          controller.signal,
+        );
         setVendors(results);
+        setVendorCursor(nextCursor);
       }
     } catch {
       // A cancellation (superseded by a newer search) isn't a real failure —
@@ -92,6 +126,41 @@ export default function BrowseScreen() {
       if (searchAbortRef.current === controller) setLoading(false);
     }
   }, []);
+
+  // Appends the next page using the cursor from the last response — never
+  // touches the currently-loaded items, unlike load() above which replaces
+  // them. Guarded against firing again while already in flight or once the
+  // server has said there's nothing more (nextCursor === null).
+  const loadMore = useCallback(async () => {
+    const cursor = vertical === "artist" ? artistCursor : vendorCursor;
+    if (loadingMoreRef.current || loading || !cursor) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    const extra = filterQueryParams(filters);
+    try {
+      if (vertical === "artist") {
+        const { artists: results, nextCursor } = await fetchArtists({
+          category, search, sort, cursor, limit: PAGE_LIMIT, ...extra,
+        });
+        setArtists((prev) => [...prev, ...results]);
+        setArtistCursor(nextCursor);
+      } else {
+        const { vendors: results, nextCursor } = await fetchVendors({
+          category, search, sort, cursor, limit: PAGE_LIMIT, ...extra,
+        });
+        setVendors((prev) => [...prev, ...results]);
+        setVendorCursor(nextCursor);
+      }
+    } catch (err) {
+      // Silent — the footer spinner just stops. Scrolling up and back down,
+      // or pull-to-refresh, retries; a toast for a page-2 failure would be
+      // noisier than the failure itself.
+      captureError(err, "browse-load-more");
+    } finally {
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+    }
+  }, [vertical, category, search, sort, filters, artistCursor, vendorCursor, loading]);
 
   // Browse is a tab screen — it stays mounted after the first visit, so a
   // later router.push({ pathname: "/(tabs)/browse", params }) from Home
@@ -104,9 +173,9 @@ export default function BrowseScreen() {
   }, [params.vertical, params.category]);
 
   useEffect(() => {
-    load(vertical, category, search);
+    load(vertical, category, search, sort, filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vertical, category]);
+  }, [vertical, category, sort, filters]);
 
   // Debounces typing only — the vertical/category effect above already
   // fires immediately on a tap, and this would otherwise also fire once on
@@ -121,7 +190,7 @@ export default function BrowseScreen() {
       return;
     }
     searchDebounceRef.current = setTimeout(() => {
-      load(vertical, category, search);
+      load(vertical, category, search, sort, filters);
     }, SEARCH_DEBOUNCE_MS);
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -134,14 +203,14 @@ export default function BrowseScreen() {
     setVertical(next);
     setCategory(ALL);
     // Gender only applies to artists — a stale selection carried over from
-    // the Artists tab would otherwise silently zero out every vendor, since
-    // VendorSummary has no gender field for applySortAndFilters to match.
+    // the Artists tab would otherwise silently be sent as a query param the
+    // vendors endpoint ignores anyway, but resetting it keeps the filter
+    // badge count honest for the tab the user is now looking at.
     if (next === "vendor") setFilters((f) => ({ ...f, gender: "Any" }));
   }
 
-  const visibleArtists = useMemo(() => applySortAndFilters(artists, sort, filters), [artists, sort, filters]);
-  const visibleVendors = useMemo(() => applySortAndFilters(vendors, sort, filters), [vendors, sort, filters]);
-  const visibleCount = vertical === "artist" ? visibleArtists.length : visibleVendors.length;
+  const loadedCount = vertical === "artist" ? artists.length : vendors.length;
+  const hasMore = (vertical === "artist" ? artistCursor : vendorCursor) !== null;
   const activeFilterCount = countActiveFilters(filters);
   const sortLabel = SORT_OPTIONS.find((o) => o.key === sort)?.label ?? "Sort";
 
@@ -172,7 +241,7 @@ export default function BrowseScreen() {
             onSubmitEditing={() => {
               if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
               recordSearch(search);
-              load(vertical, category, search);
+              load(vertical, category, search, sort, filters);
             }}
             placeholder={vertical === "artist" ? "Search by name, city, genre…" : "Search by business, city, category…"}
             placeholderTextColor={colors.textMute}
@@ -198,7 +267,7 @@ export default function BrowseScreen() {
                     setSearch(item);
                     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                     recordSearch(item);
-                    load(vertical, category, item);
+                    load(vertical, category, item, sort, filters);
                   }}
                 >
                   <Feather name="clock" size={11} color={colors.textMute} />
@@ -245,7 +314,7 @@ export default function BrowseScreen() {
               </View>
             ) : null}
           </Pressable>
-          <Text style={styles.resultCount}>{visibleCount} found</Text>
+          <Text style={styles.resultCount}>{loadedCount} loaded</Text>
         </View>
 
         {loading ? (
@@ -260,21 +329,24 @@ export default function BrowseScreen() {
         ) : error ? (
           <ScrollView
             contentContainerStyle={styles.errorScroll}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(vertical, category, search)} tintColor={colors.pink} />}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(vertical, category, search, sort, filters)} tintColor={colors.pink} />}
           >
             <Text style={styles.muted}>{error}</Text>
-            <Pressable style={styles.retryButton} onPress={() => load(vertical, category, search)}>
+            <Pressable style={styles.retryButton} onPress={() => load(vertical, category, search, sort, filters)}>
               <Text style={styles.retryButtonText}>Try again</Text>
             </Pressable>
           </ScrollView>
         ) : vertical === "artist" ? (
           <FlatList
-            data={visibleArtists}
+            data={artists}
             keyExtractor={(item) => item.id}
             numColumns={2}
             columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.grid}
             ListEmptyComponent={<EmptyState label="artists" />}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={hasMore ? <LoadMoreFooter loading={loadingMore} /> : null}
             renderItem={({ item }) => (
               <ArtistCard
                 artist={item}
@@ -284,12 +356,15 @@ export default function BrowseScreen() {
           />
         ) : (
           <FlatList
-            data={visibleVendors}
+            data={vendors}
             keyExtractor={(item) => item.id}
             numColumns={2}
             columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.grid}
             ListEmptyComponent={<EmptyState label="vendors" />}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={hasMore ? <LoadMoreFooter loading={loadingMore} /> : null}
             renderItem={({ item }) => (
               <ArtistCard
                 vendor={item}
@@ -317,6 +392,14 @@ function SkeletonCard() {
       <Skeleton height={160} borderRadius={radii.xl} />
       <Skeleton height={14} width="70%" style={styles.skeletonLine} />
       <Skeleton height={11} width="40%" style={styles.skeletonLineSm} />
+    </View>
+  );
+}
+
+function LoadMoreFooter({ loading }: { loading: boolean }) {
+  return (
+    <View style={styles.loadMoreFooter}>
+      {loading ? <ActivityIndicator color={colors.pink} /> : null}
     </View>
   );
 }
@@ -478,6 +561,7 @@ const styles = StyleSheet.create({
     color: colors.pink,
   },
   grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
+  loadMoreFooter: { height: 44, alignItems: "center", justifyContent: "center" },
   gridRow: { gap: spacing.sm },
   skeletonRow: { flexDirection: "row", gap: spacing.sm },
   skeletonCard: { flex: 1 },

@@ -308,17 +308,47 @@ export function fetchSession() {
 
 // ─── Artists ───
 
-export function fetchArtists(
-  params: { category?: string; city?: string; search?: string; sort?: "recommended" | "trending" | "rating" } = {},
-  signal?: AbortSignal,
-) {
+// Shared with fetchVendors — matches the query params both /api/mobile/artists
+// and /api/mobile/vendors accept (the server ignores gender for vendors, see
+// its buildWhere comment, so it's safe to send unconditionally from Browse).
+export type ListingSort = "recommended" | "top_rated" | "price_low" | "price_high" | "experience";
+
+export interface ListingParams {
+  category?: string;
+  city?: string;
+  search?: string;
+  sort?: ListingSort | "trending"; // trending is artists-only (Home's "Fresh picks" rail)
+  cursor?: string;
+  limit?: number;
+  minPrice?: string;
+  maxPrice?: string;
+  travelReady?: boolean;
+  negotiableOnly?: boolean;
+  gender?: string;
+}
+
+function listingQueryString(params: ListingParams): string {
   const query = new URLSearchParams();
   if (params.category && params.category !== "All") query.set("category", params.category);
   if (params.city) query.set("city", params.city);
   if (params.search) query.set("search", params.search);
   if (params.sort) query.set("sort", params.sort);
-  const qs = query.toString();
-  return request<{ artists: ArtistSummary[]; total: number }>(`/api/mobile/artists${qs ? `?${qs}` : ""}`, { signal });
+  if (params.cursor) query.set("cursor", params.cursor);
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.minPrice) query.set("minPrice", params.minPrice);
+  if (params.maxPrice) query.set("maxPrice", params.maxPrice);
+  if (params.travelReady) query.set("travelReady", "1");
+  if (params.negotiableOnly) query.set("negotiableOnly", "1");
+  if (params.gender && params.gender !== "Any") query.set("gender", params.gender);
+  return query.toString();
+}
+
+export function fetchArtists(params: ListingParams = {}, signal?: AbortSignal) {
+  const qs = listingQueryString(params);
+  return request<{ artists: ArtistSummary[]; total: number; nextCursor: string | null }>(
+    `/api/mobile/artists${qs ? `?${qs}` : ""}`,
+    { signal },
+  );
 }
 
 export function fetchArtist(id: string) {
@@ -331,17 +361,12 @@ export function fetchFeatured() {
 
 // ─── Vendors ───
 
-export function fetchVendors(
-  params: { category?: string; city?: string; search?: string; sort?: "recommended" | "rating" } = {},
-  signal?: AbortSignal,
-) {
-  const query = new URLSearchParams();
-  if (params.category && params.category !== "All") query.set("category", params.category);
-  if (params.city) query.set("city", params.city);
-  if (params.search) query.set("search", params.search);
-  if (params.sort) query.set("sort", params.sort);
-  const qs = query.toString();
-  return request<{ vendors: VendorSummary[]; total: number }>(`/api/mobile/vendors${qs ? `?${qs}` : ""}`, { signal });
+export function fetchVendors(params: ListingParams = {}, signal?: AbortSignal) {
+  const qs = listingQueryString(params);
+  return request<{ vendors: VendorSummary[]; total: number; nextCursor: string | null }>(
+    `/api/mobile/vendors${qs ? `?${qs}` : ""}`,
+    { signal },
+  );
 }
 
 export function fetchVendor(id: string) {
