@@ -111,6 +111,7 @@ export default function ReelsScreen() {
             ) : (
               <FlatList
                 ref={listRef}
+                style={styles.list}
                 data={filteredReels}
                 keyExtractor={(item) => item.id}
                 pagingEnabled
@@ -205,7 +206,7 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
         style={StyleSheet.absoluteFill}
       />
 
-      <SafeAreaView style={styles.overlay} edges={["top", "bottom"]}>
+      <SafeAreaView style={styles.overlay} edges={["top", "bottom", "left", "right"]}>
         <View style={styles.topRow}>
           <View />
           {videoSource ? (
@@ -269,6 +270,7 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: spacing.xl },
+  list: { flex: 1 },
   skeletonCard: { flex: 1, position: "relative" },
   skeletonInfo: { position: "absolute", left: spacing.lg, bottom: spacing.xl, gap: 8 },
   skeletonName: { marginBottom: 2 },
