@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
@@ -84,35 +84,45 @@ export default function OtpScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe}>
-        <View style={styles.head}>
-          <Text style={styles.step}>STEP 2 OF 2</Text>
-          <Text style={styles.title}>Enter the code</Text>
-          <Text style={styles.sub}>We sent a 6-digit code to +91 {phone}</Text>
-        </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+          style={styles.flex}
+        >
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.head}>
+              <Text style={styles.step}>STEP 2 OF 2</Text>
+              <Text style={styles.title}>Enter the code</Text>
+              <Text style={styles.sub}>We sent a 6-digit code to +91 {phone}</Text>
+            </View>
 
-        <OtpInput value={otp} onChange={setOtp} />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+            <OtpInput value={otp} onChange={setOtp} />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <GradientButton label="Verify & continue" onPress={handleVerify} disabled={otp.length !== 6} loading={loading} style={styles.button} />
+            <GradientButton label="Verify & continue" onPress={handleVerify} disabled={otp.length !== 6} loading={loading} style={styles.button} />
 
-        {capReached ? (
-          <Pressable style={styles.resend} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)}>
-            <Text style={styles.resendText}>Still not received? Call our helpline {HELPLINE_NUMBER}</Text>
-          </Pressable>
-        ) : (
-          <Pressable onPress={handleResend} style={styles.resend} disabled={cooldownSeconds > 0 || resending}>
-            <Text style={[styles.resendText, cooldownSeconds > 0 ? styles.resendTextDisabled : null]}>
-              {cooldownSeconds > 0 ? `Resend in ${formatCountdown(cooldownSeconds)}` : "Didn't get it? Resend code"}
-            </Text>
-          </Pressable>
-        )}
+            {capReached ? (
+              <Pressable style={styles.resend} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)}>
+                <Text style={styles.resendText}>Still not received? Call our helpline {HELPLINE_NUMBER}</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={handleResend} style={styles.resend} disabled={cooldownSeconds > 0 || resending}>
+                <Text style={[styles.resendText, cooldownSeconds > 0 ? styles.resendTextDisabled : null]}>
+                  {cooldownSeconds > 0 ? `Resend in ${formatCountdown(cooldownSeconds)}` : "Didn't get it? Resend code"}
+                </Text>
+              </Pressable>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xxl },
+  safe: { flex: 1 },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xxl },
   head: { marginBottom: spacing.xl },
   step: {
     fontFamily: fonts.mono,
