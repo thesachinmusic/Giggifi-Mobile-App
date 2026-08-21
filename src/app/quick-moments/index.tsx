@@ -12,6 +12,7 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
 import { fetchQuickMomentsMatch, ApiError, type QuickMomentMatch, type QuickMomentFormat } from "@/lib/api";
+import { getCachedLocation, setCachedLocation } from "@/lib/location-cache";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -33,9 +34,18 @@ export default function QuickMomentsBrowseScreen() {
 
   // Detected the moment the screen opens — no separate "find nearby" step to
   // ask for permission first. High accuracy so the radius match is real GPS,
-  // not a coarse network-based estimate.
+  // not a coarse network-based estimate. Reuses a recent fix from
+  // location-cache.ts instead of re-detecting on every visit — previously
+  // this ran a fresh GPS fetch (and showed "Detecting your location…") every
+  // single time the screen mounted, even seconds after the last one.
   async function detectLocation() {
     setLocationStatus("detecting");
+    const cached = await getCachedLocation();
+    if (cached) {
+      setCoords(cached);
+      setLocationStatus("ready");
+      return;
+    }
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -43,8 +53,10 @@ export default function QuickMomentsBrowseScreen() {
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+      const next = { lat: position.coords.latitude, lng: position.coords.longitude };
+      setCoords(next);
       setLocationStatus("ready");
+      await setCachedLocation(next.lat, next.lng);
     } catch {
       setLocationStatus("denied");
     }
