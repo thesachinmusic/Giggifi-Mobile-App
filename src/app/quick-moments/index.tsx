@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Dimensions, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewToken } from "react-native";
+import { Dimensions, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -110,6 +110,11 @@ export default function QuickMomentsBrowseScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+          style={styles.flex}
+        >
         {results ? (
           <View style={styles.flex}>
             <View style={styles.resultsHeaderRow}>
@@ -194,6 +199,7 @@ export default function QuickMomentsBrowseScreen() {
             />
           </ScrollView>
         )}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
   );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -89,6 +89,11 @@ export default function AskGiggFiScreen() {
           </Pressable>
         </View>
 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+          style={styles.flex}
+        >
         {results ? (
           <ScrollView contentContainerStyle={styles.resultsScroll} showsVerticalScrollIndicator={false}>
             <View style={styles.resultsHeaderRow}>
@@ -153,6 +158,7 @@ export default function AskGiggFiScreen() {
             <Btn label="Find my match" onPress={handleSearch} disabled={!canSearch} loading={loading} style={styles.submitButton} />
           </ScrollView>
         )}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -207,6 +213,7 @@ function MatchResultCard({ item, kind }: { item: MatchResult; kind: Kind }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  flex: { flex: 1 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
