@@ -231,7 +231,7 @@ export default function ArtistDetailScreen() {
 
   return (
     <GradientBackground>
-      <KeyboardAvoidingView style={styles.scrollFlex} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={80}>
+      <KeyboardAvoidingView style={styles.scrollFlex} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={80}>
       <ScrollView
         ref={scrollRef}
         style={styles.scrollFlex}
