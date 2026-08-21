@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Slider from "@react-native-community/slider";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -22,6 +23,9 @@ const CARD_HEIGHT = CARD_WIDTH * 1.15;
 
 type LocationStatus = "detecting" | "ready" | "denied";
 
+const MIN_RADIUS_KM = 1;
+const MAX_RADIUS_KM = 50;
+
 export default function QuickMomentsBrowseScreen() {
   const [format, setFormat] = useState<QuickMomentFormat | null>(null);
   const [budget, setBudget] = useState("");
@@ -30,6 +34,7 @@ export default function QuickMomentsBrowseScreen() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<QuickMomentMatch[] | null>(null);
+  const [radiusKm, setRadiusKm] = useState(MAX_RADIUS_KM);
   const searchedRef = useRef(false);
 
   // Detected the moment the screen opens — no separate "find nearby" step to
@@ -98,7 +103,17 @@ export default function QuickMomentsBrowseScreen() {
     setResults(null);
     setError("");
     searchedRef.current = false;
+    setRadiusKm(MAX_RADIUS_KM);
   }
+
+  // Server already returns every match sorted by distanceKm (see
+  // /api/mobile/quick-moments/match) — the radius slider filters that
+  // already-fetched list client-side, so dragging it updates instantly
+  // with no extra network round trip.
+  const filteredResults = useMemo(
+    () => (results ? results.filter((r) => r.distanceKm <= radiusKm) : null),
+    [results, radiusKm],
+  );
 
   const [activeIndex, setActiveIndex] = useState(0);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 65 }).current;
@@ -127,17 +142,37 @@ export default function QuickMomentsBrowseScreen() {
           keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
           style={styles.flex}
         >
-        {results ? (
+        {results && filteredResults ? (
           <View style={styles.flex}>
             <View style={styles.resultsHeaderRow}>
-              <Text style={styles.resultsTitle}>{results.length} artist{results.length === 1 ? "" : "s"} nearby</Text>
+              <Text style={styles.resultsTitle}>{filteredResults.length} artist{filteredResults.length === 1 ? "" : "s"} within {radiusKm} km</Text>
               <Pressable onPress={reset}><Text style={styles.startOver}>Start over</Text></Pressable>
             </View>
-            {results.length === 0 ? (
-              <Text style={styles.muted}>No one&apos;s offering Quick Moments in your area yet — try a wider budget.</Text>
+
+            <View style={styles.radiusRow}>
+              <Text style={styles.radiusLabel}>RADIUS</Text>
+              <Text style={styles.radiusValue}>{radiusKm} km</Text>
+            </View>
+            <View style={styles.radiusSliderWrap}>
+              <Slider
+                style={styles.radiusSlider}
+                minimumValue={MIN_RADIUS_KM}
+                maximumValue={MAX_RADIUS_KM}
+                step={1}
+                value={radiusKm}
+                onValueChange={setRadiusKm}
+                minimumTrackTintColor={colors.pink}
+                maximumTrackTintColor={colors.line}
+                thumbTintColor={colors.pink}
+                accessibilityLabel="Search radius in kilometers"
+              />
+            </View>
+
+            {filteredResults.length === 0 ? (
+              <Text style={styles.muted}>No one&apos;s offering Quick Moments within {radiusKm} km yet — try a wider radius or budget.</Text>
             ) : (
               <FlatList
-                data={results}
+                data={filteredResults}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.resultsScroll}
                 showsVerticalScrollIndicator={false}
@@ -402,6 +437,17 @@ const styles = StyleSheet.create({
   resultsHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.lg, paddingTop: spacing.md, marginBottom: spacing.md },
   resultsTitle: { fontFamily: fonts.displayMedium, fontSize: 17, color: colors.text },
   startOver: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.pink },
+  radiusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    marginBottom: -spacing.xs,
+  },
+  radiusLabel: { fontFamily: fonts.mono, fontSize: 10.5, color: colors.textMute, letterSpacing: 0.6 },
+  radiusValue: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.text },
+  radiusSliderWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.xs },
+  radiusSlider: { width: "100%", height: 40 },
   muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, marginTop: spacing.lg, paddingHorizontal: spacing.lg },
   resultCard: {
     width: CARD_WIDTH,
