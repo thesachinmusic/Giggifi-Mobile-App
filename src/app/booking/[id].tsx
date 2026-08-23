@@ -79,17 +79,21 @@ export default function BookingDetailScreen() {
 
         if (stored?.bookingId === id) {
           const { resolved } = await recoverPendingPayment();
-          if (!cancelled && resolved) {
+          if (cancelled) return;
+          if (resolved) {
             setPendingPaymentState(null);
             await load();
             return;
           }
         }
+        if (cancelled) return;
 
         try {
           const status = await fetchBookingPaymentStatus(id);
-          if (!cancelled && status.payment?.status === "PAID" && status.bookingStatus !== "AWAITING_PAYMENT") {
+          if (cancelled) return;
+          if (status.payment?.status === "PAID" && status.bookingStatus !== "AWAITING_PAYMENT") {
             if (stored?.bookingId === id) await clearPendingPayment();
+            if (cancelled) return;
             setPendingPaymentState(null);
             await load();
           }
