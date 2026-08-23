@@ -17,13 +17,17 @@ const FEATURED_CARD_HEIGHT = FEATURED_CARD_WIDTH * (16 / 9);
 interface Props {
   artist: ArtistSummary;
   isActive: boolean;
-  onPress: () => void;
+  // Tapping the video opens it full-screen (video-feed.tsx) — reaching the
+  // artist's profile is a distinct action (the "View profile" pill below),
+  // not the card's default tap target anymore.
+  onOpenVideo: () => void;
+  onViewProfile: () => void;
 }
 
 // Tall, full-bleed autoplay video card for the Home "Featured Artists" rail —
 // only the card centered in view actually plays (isActive), everything else
 // stays paused so we're not decoding a dozen videos at once.
-export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
+export function FeaturedArtistCard({ artist, isActive, onOpenVideo, onViewProfile }: Props) {
   const { muted, toggleMuted } = useVideoMute();
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
 
@@ -62,26 +66,34 @@ export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
   const [c1, c2] = duotoneFor(artist.id);
 
   return (
-    <Pressable onPress={onPress} style={styles.card}>
-      {videoSource ? (
-        <VideoView
-          player={player}
-          style={styles.video}
-          contentFit="cover"
-          nativeControls={false}
-          pointerEvents="none"
-        />
-      ) : artist.profileImageUrl ? (
-        <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-      ) : (
-        <LinearGradient colors={[c1, c2]} style={StyleSheet.absoluteFill} />
-      )}
+    <View style={styles.card}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={videoSource ? onOpenVideo : onViewProfile}>
+        {videoSource ? (
+          <VideoView
+            player={player}
+            style={styles.video}
+            contentFit="cover"
+            nativeControls={false}
+            pointerEvents="none"
+          />
+        ) : artist.profileImageUrl ? (
+          <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : (
+          <LinearGradient colors={[c1, c2]} style={StyleSheet.absoluteFill} />
+        )}
 
-      <LinearGradient
-        colors={["transparent", "rgba(12,7,16,0.15)", "rgba(12,7,16,0.92)"]}
-        locations={[0, 0.55, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+        <LinearGradient
+          colors={["transparent", "rgba(12,7,16,0.15)", "rgba(12,7,16,0.92)"]}
+          locations={[0, 0.55, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {videoSource ? (
+          <View style={styles.playHint} pointerEvents="none">
+            <Feather name="play" size={16} color="#fff" />
+          </View>
+        ) : null}
+      </Pressable>
 
       {videoSource ? (
         <Pressable
@@ -96,12 +108,12 @@ export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
       ) : null}
 
       {artist.performerType ? (
-        <View style={styles.tag}>
+        <View style={styles.tag} pointerEvents="none">
           <Text style={styles.tagText}>{artist.performerType.toUpperCase()}</Text>
         </View>
       ) : null}
 
-      <View style={styles.info}>
+      <View style={styles.info} pointerEvents="box-none">
         <Text style={styles.name} numberOfLines={1}>{name}</Text>
         <View style={styles.metaRow}>
           {artist.city ? (
@@ -114,8 +126,12 @@ export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
             <Text style={styles.price}>₹{artist.ratePerEvent.toLocaleString("en-IN")}</Text>
           ) : null}
         </View>
+        <Pressable style={styles.viewProfile} onPress={onViewProfile} hitSlop={12}>
+          <Text style={styles.viewProfileText}>View profile</Text>
+          <Feather name="chevron-right" size={12} color="#fff" />
+        </Pressable>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -192,5 +208,32 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 11.5,
     color: "#fff",
+  },
+  playHint: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginTop: -18,
+    marginLeft: -18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewProfile: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingVertical: 4,
+  },
+  viewProfileText: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11.5,
+    color: "#fff",
+    textDecorationLine: "underline",
   },
 });

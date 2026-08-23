@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth-context";
 import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
+import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
@@ -56,6 +57,30 @@ function shuffle<T extends { id: string }>(items: T[]): T[] {
     [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
   }
   return sorted;
+}
+
+// Video-feed.tsx only ever swipes through items that actually have a video —
+// filtering here (rather than in the viewer) also means the starting index
+// has to be recomputed against the filtered list, not the rail's own index.
+function toVideoFeedItems(list: ArtistSummary[]): VideoFeedItem[] {
+  return list
+    .filter((a) => a.introVideoUrl || a.showreelUrl)
+    .map((a) => ({
+      id: a.id,
+      stageName: a.stageName,
+      performerType: a.performerType,
+      city: a.city,
+      videoUrl: (a.introVideoUrl || a.showreelUrl)!,
+      profileImageUrl: a.profileImageUrl,
+      avgRating: a.avgRating,
+    }));
+}
+
+function openVideoFeed(list: ArtistSummary[], artist: ArtistSummary) {
+  const items = toVideoFeedItems(list);
+  const startIndex = items.findIndex((i) => i.id === artist.id);
+  setPendingVideoFeed(items, startIndex === -1 ? 0 : startIndex);
+  router.push("/video-feed");
 }
 
 export default function HomeScreen() {
@@ -331,7 +356,8 @@ export default function HomeScreen() {
                       <FeaturedArtistCard
                         artist={item}
                         isActive={index === activeFeaturedIndex}
-                        onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
+                        onOpenVideo={() => openVideoFeed(featured, item)}
+                        onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                       />
                     )}
                   />
@@ -403,7 +429,8 @@ export default function HomeScreen() {
                       <FeaturedArtistCard
                         artist={item}
                         isActive={index === activeTrendingIndex}
-                        onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
+                        onOpenVideo={() => openVideoFeed(trending, item)}
+                        onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                       />
                     )}
                   />

@@ -162,6 +162,7 @@ function RootLayoutContent() {
                   />
                   <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
                   <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
+                  <Stack.Screen name="video-feed" options={{ presentation: "fullScreenModal", animation: "fade" }} />
                   <Stack.Screen
                     name="quick-moments/index"
                     options={{

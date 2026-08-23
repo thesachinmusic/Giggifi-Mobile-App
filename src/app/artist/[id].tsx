@@ -22,6 +22,7 @@ import { duotoneFor } from "@/lib/palette";
 import { useAuth } from "@/lib/auth-context";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import { useVideoMute } from "@/lib/video-mute-context";
+import { setPendingVideoFeed } from "@/lib/video-feed-handoff";
 import { usePushPrimer } from "@/lib/use-push-primer";
 import { PushPrimerSheet } from "@/components/PushPrimerSheet";
 import { useOffersOptIn } from "@/lib/use-offers-optin";
@@ -561,12 +562,32 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
     }, [videoSource, muted, player]),
   );
 
+  function openFullScreen() {
+    if (!videoSource) return;
+    setPendingVideoFeed(
+      [{
+        id: artist.id,
+        stageName: artist.stageName,
+        performerType: artist.performerType,
+        city: artist.city,
+        videoUrl: videoSource,
+        profileImageUrl: artist.profileImageUrl,
+        avgRating: artist.avgRating,
+      }],
+      0,
+    );
+    router.push("/video-feed");
+  }
+
   return (
     <View style={styles.hero} pointerEvents="box-none">
       {videoSource ? (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} />
-        </View>
+        <Pressable style={StyleSheet.absoluteFill} onPress={openFullScreen}>
+          <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
+          <View style={styles.heroPlayHint} pointerEvents="none">
+            <Feather name="play" size={18} color="#fff" />
+          </View>
+        </Pressable>
       ) : artist.profileImageUrl ? (
         <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
@@ -659,6 +680,19 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroPlayHint: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginTop: -22,
+    marginLeft: -22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
