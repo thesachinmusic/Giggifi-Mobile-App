@@ -9,6 +9,7 @@ import { router, useFocusEffect } from "expo-router";
 import { RatingBadge } from "@/components/RatingBadge";
 import { Skeleton } from "@/components/Skeleton";
 import { useSavedArtists } from "@/lib/saved-artists-context";
+import { useVideoMute } from "@/lib/video-mute-context";
 import { duotoneFor } from "@/lib/palette";
 import { fetchArtists, type ArtistSummary } from "@/lib/api";
 import { captureError } from "@/lib/telemetry";
@@ -154,7 +155,7 @@ function ReelFilterPill({ label, active, onPress }: { label: string; active: boo
 
 function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height: number; isActive: boolean }) {
   const { isSaved, toggle } = useSavedArtists();
-  const [muted, setMuted] = useState(true);
+  const { muted, toggleMuted } = useVideoMute();
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
   const name = artist.stageName ?? "GiggiFi Artist";
   const [c1, c2] = duotoneFor(artist.id);
@@ -211,7 +212,7 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
           <View />
           {videoSource ? (
             <Pressable
-              onPress={() => setMuted((v) => !v)}
+              onPress={toggleMuted}
               style={styles.muteButton}
               hitSlop={9}
               accessibilityRole="button"

@@ -21,6 +21,7 @@ import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationA
 import { duotoneFor } from "@/lib/palette";
 import { useAuth } from "@/lib/auth-context";
 import { useSavedArtists } from "@/lib/saved-artists-context";
+import { useVideoMute } from "@/lib/video-mute-context";
 import { usePushPrimer } from "@/lib/use-push-primer";
 import { PushPrimerSheet } from "@/components/PushPrimerSheet";
 import { useOffersOptIn } from "@/lib/use-offers-optin";
@@ -506,7 +507,7 @@ export default function ArtistDetailScreen() {
 }
 
 function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: string; c2: string; initial: string }) {
-  const [muted, setMuted] = useState(true);
+  const { muted, toggleMuted } = useVideoMute();
   const { isSaved, toggle } = useSavedArtists();
   const saved = isSaved(artist.id);
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
@@ -597,7 +598,7 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
 
       {videoSource ? (
         <Pressable
-          onPress={() => setMuted((v) => !v)}
+          onPress={toggleMuted}
           style={styles.heroMuteButton}
           hitSlop={8}
           accessibilityRole="button"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { colors, fonts, radii, spacing } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
+import { useVideoMute } from "@/lib/video-mute-context";
 import type { ArtistSummary } from "@/lib/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -23,7 +24,7 @@ interface Props {
 // only the card centered in view actually plays (isActive), everything else
 // stays paused so we're not decoding a dozen videos at once.
 export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
-  const [muted, setMuted] = useState(true);
+  const { muted, toggleMuted } = useVideoMute();
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
 
   const player = useVideoPlayer(null, (instance) => {
@@ -84,7 +85,7 @@ export function FeaturedArtistCard({ artist, isActive, onPress }: Props) {
 
       {videoSource ? (
         <Pressable
-          onPress={() => setMuted((value) => !value)}
+          onPress={toggleMuted}
           style={styles.muteButton}
           hitSlop={9}
           accessibilityRole="button"

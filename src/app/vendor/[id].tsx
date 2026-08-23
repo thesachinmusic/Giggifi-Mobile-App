@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { fetchVendor, sendVendorEnquiry, ApiError, type VendorSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
+import { useVideoMute } from "@/lib/video-mute-context";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -265,7 +266,7 @@ export default function VendorDetailScreen() {
 }
 
 function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: string; c2: string; initial: string }) {
-  const [muted, setMuted] = useState(true);
+  const { muted, toggleMuted } = useVideoMute();
   const videoSource = vendor.portfolioVideoUrl ?? null;
 
   const player = useVideoPlayer(null, (instance) => {
@@ -305,7 +306,7 @@ function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: st
       )}
       {videoSource ? (
         <Pressable
-          onPress={() => setMuted((v) => !v)}
+          onPress={toggleMuted}
           style={styles.heroMuteButton}
           hitSlop={8}
           accessibilityRole="button"

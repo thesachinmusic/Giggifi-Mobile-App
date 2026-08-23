@@ -14,6 +14,7 @@ import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
 import { fetchQuickMomentsMatch, ApiError, type QuickMomentMatch, type QuickMomentFormat } from "@/lib/api";
 import { getCachedLocation, setCachedLocation } from "@/lib/location-cache";
+import { useVideoMute } from "@/lib/video-mute-context";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -262,7 +263,7 @@ function FormLabel({ text }: { text: string }) {
 // currently in view loads real media, everything else stays unloaded so we
 // don't OOM decoding a dozen videos in a scrollable list.
 function MatchCard({ item, isActive, onPress }: { item: QuickMomentMatch; isActive: boolean; onPress: () => void }) {
-  const [muted, setMuted] = useState(true);
+  const { muted, toggleMuted } = useVideoMute();
   const videoSource = item.introVideoUrl ?? item.showreelUrl ?? null;
   const name = item.stageName ?? "GiggiFi Artist";
   const initial = name.trim().charAt(0).toUpperCase();
@@ -309,7 +310,7 @@ function MatchCard({ item, isActive, onPress }: { item: QuickMomentMatch; isActi
 
       {videoSource && isActive ? (
         <Pressable
-          onPress={() => setMuted((v) => !v)}
+          onPress={toggleMuted}
           style={styles.resultMuteButton}
           hitSlop={8}
           accessibilityRole="button"

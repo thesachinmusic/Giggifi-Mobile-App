@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/lib/auth-context";
 import { SavedArtistsProvider } from "@/lib/saved-artists-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
+import { VideoMuteProvider } from "@/lib/video-mute-context";
 import { usePushRegistration } from "@/lib/push-notifications";
 import { useNotificationRouter } from "@/lib/notification-router";
 import { NotificationToastHost } from "@/lib/toast-host";
@@ -84,114 +85,116 @@ function RootLayoutContent() {
       <BottomSheetModalProvider>
         <AuthProvider>
           <SavedArtistsProvider>
-            <NotificationsProvider>
-              <PushRegistrar />
-              {Platform.OS !== "web" ? <NotificationTapHandler /> : null}
-              <NotificationToastHost />
-              <PendingPaymentRecovery />
-              <StatusBar style="light" />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.ink },
-                }}
-              >
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                  name="artist/[id]"
-                  options={{
-                    headerShown: true,
-                    headerTransparent: true,
-                    headerTitle: "",
-                    headerTintColor: colors.text,
-                    headerBackTitle: "Back",
+            <VideoMuteProvider>
+              <NotificationsProvider>
+                <PushRegistrar />
+                {Platform.OS !== "web" ? <NotificationTapHandler /> : null}
+                <NotificationToastHost />
+                <PendingPaymentRecovery />
+                <StatusBar style="light" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.ink },
                   }}
-                />
-                <Stack.Screen
-                  name="vendor/[id]"
-                  options={{
-                    headerShown: true,
-                    headerTransparent: true,
-                    headerTitle: "",
-                    headerTintColor: colors.text,
-                    headerBackTitle: "Back",
-                  }}
-                />
-                <Stack.Screen
-                  name="booker-profile"
-                  options={{
-                    headerShown: true,
-                    headerTitle: "My Profile",
-                    headerTintColor: colors.text,
-                    headerStyle: { backgroundColor: colors.ink },
-                    headerBackTitle: "Back",
-                  }}
-                />
-                <Stack.Screen
-                  name="notification-settings"
-                  options={{
-                    headerShown: true,
-                    headerTitle: "Notification Settings",
-                    headerTintColor: colors.text,
-                    headerStyle: { backgroundColor: colors.ink },
-                    headerBackTitle: "Back",
-                  }}
-                />
-                <Stack.Screen
-                  name="saved"
-                  options={{
-                    headerShown: true,
-                    headerTitle: "Saved Artists",
-                    headerTintColor: colors.text,
-                    headerStyle: { backgroundColor: colors.ink },
-                    headerBackTitle: "Back",
-                  }}
-                />
-                <Stack.Screen
-                  name="delete-account"
-                  options={{
-                    headerShown: true,
-                    headerTitle: "Delete Account",
-                    headerTintColor: colors.text,
-                    headerStyle: { backgroundColor: colors.ink },
-                    headerBackTitle: "Back",
-                  }}
-                />
-                <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
-                <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
-                <Stack.Screen
-                  name="quick-moments/index"
-                  options={{
-                    headerShown: true,
-                    headerTitle: "Quick Moments",
-                    headerTintColor: colors.text,
-                    headerStyle: { backgroundColor: colors.ink },
-                    headerBackTitle: "Back",
-                  }}
-                />
-                <Stack.Screen
-                  name="quick-moments/book"
-                  options={{
-                    headerShown: true,
-                    headerTitle: "Book a Slot",
-                    headerTintColor: colors.text,
-                    headerStyle: { backgroundColor: colors.ink },
-                    headerBackTitle: "Back",
-                  }}
-                />
-                <Stack.Screen
-                  name="booking/[id]"
-                  options={{
-                    headerShown: true,
-                    headerTitle: "Booking",
-                    headerTintColor: colors.text,
-                    headerStyle: { backgroundColor: colors.ink },
-                    headerBackTitle: "Back",
-                  }}
-                />
-              </Stack>
-            </NotificationsProvider>
+                >
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen
+                    name="artist/[id]"
+                    options={{
+                      headerShown: true,
+                      headerTransparent: true,
+                      headerTitle: "",
+                      headerTintColor: colors.text,
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="vendor/[id]"
+                    options={{
+                      headerShown: true,
+                      headerTransparent: true,
+                      headerTitle: "",
+                      headerTintColor: colors.text,
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="booker-profile"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "My Profile",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="notification-settings"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Notification Settings",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="saved"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Saved Artists",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="delete-account"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Delete Account",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
+                  <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
+                  <Stack.Screen
+                    name="quick-moments/index"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Quick Moments",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="quick-moments/book"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Book a Slot",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="booking/[id]"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Booking",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                </Stack>
+              </NotificationsProvider>
+            </VideoMuteProvider>
           </SavedArtistsProvider>
         </AuthProvider>
       </BottomSheetModalProvider>
