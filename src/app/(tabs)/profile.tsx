@@ -140,6 +140,7 @@ export default function ProfileScreen() {
             <MenuRow icon="file-text" label="Terms of Service" onPress={() => Linking.openURL("https://giggifi.com/terms")} />
             <MenuRow icon="shield" label="Privacy Policy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
             <MenuRow icon="rotate-ccw" label="Refund Policy" onPress={() => Linking.openURL("https://giggifi.com/refund")} />
+            <MenuRow icon="user-check" label="Privacy Rights Request" onPress={() => Linking.openURL("https://giggifi.com/privacy-request")} />
           </View>
 
           <Pressable onPress={handleLogout} style={styles.logout}>

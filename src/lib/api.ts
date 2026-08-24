@@ -93,6 +93,8 @@ export interface SessionUser {
   onboardingState: string | null;
   hasArtistProfile: boolean;
   hasBookerProfile: boolean;
+  // Null means "not yet asked," not "confirmed 18+" — see AgeGateOverlay.
+  dateOfBirth: string | null;
 }
 
 export interface ReviewSummary {
@@ -685,6 +687,16 @@ export function updateProfile(input: { name?: string; image?: string }) {
   return request<{ success: true; user: SessionUser }>("/api/mobile/profile", {
     method: "PATCH",
     body: JSON.stringify(input),
+  });
+}
+
+// Shared with the website's own age gate — not under /api/mobile, but
+// getMobileUser() on that route accepts this app's Bearer token the same
+// way every /api/mobile/* route does.
+export function confirmDateOfBirth(dateOfBirth: string) {
+  return request<{ success: true }>("/api/auth/confirm-dob", {
+    method: "POST",
+    body: JSON.stringify({ dateOfBirth }),
   });
 }
 
