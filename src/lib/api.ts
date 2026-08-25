@@ -215,6 +215,10 @@ export interface BookingDetail {
   quotedPrice: number | null;
   totalAmount: number | null;
   viewerRole: "ARTIST" | "BOOKER";
+  // Only non-null once payment has cleared — see [[privacy-constraint]].
+  // The other party's real name + phone, delivered as a notification the
+  // moment payment succeeds and persisted here afterward.
+  revealedContact: { name: string; phone: string | null } | null;
   artist: { id: string; name: string | null; performerType: string | null; profileImageUrl: string | null; city: string | null };
   booker: { id: string; name: string | null; city: string | null };
   payment: { status: string; amount: number; platformFee: number; paidAt: string | null; releasedAt: string | null } | null;

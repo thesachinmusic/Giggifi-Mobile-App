@@ -327,13 +327,17 @@ export default function BookingDetailScreen() {
             </GlassCard>
           ) : null}
 
+          {booking.revealedContact ? <RevealedContactCard contact={booking.revealedContact} /> : null}
+
           <GlassCard style={styles.helplineCard}>
             <View style={styles.helplineRow}>
               <Feather name="headphones" size={18} color={colors.purple} />
-              <Text style={styles.helplineTitle}>Need help with this booking?</Text>
+              <Text style={styles.helplineTitle}>{booking.revealedContact ? "Need help? Contact GiggiFi" : "Need help with this booking?"}</Text>
             </View>
             <Text style={styles.helplineBody}>
-              For your safety, GiggiFi handles all communication between clients and artists. For any queries, contact our helpline — don&apos;t try to reach the artist directly.
+              {booking.revealedContact
+                ? "For support, disputes, or anything that needs GiggiFi's help, reach our team directly."
+                : "For your safety, GiggiFi handles all communication between clients and artists. For any queries, contact our helpline — don't try to reach the artist directly."}
             </Text>
             <Pressable style={styles.helplineButton} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)}>
               <Feather name="phone" size={15} color="#fff" />
@@ -353,6 +357,42 @@ function SummaryRow({ icon, label, value }: { icon: keyof typeof Feather.glyphMa
       <Text style={styles.summaryLabel}>{label}</Text>
       <Text style={styles.summaryValue} numberOfLines={1}>{value}</Text>
     </View>
+  );
+}
+
+// See [[privacy-constraint]] — shown only once payment has cleared
+// (revealedContact non-null). Delivered as a notification at the moment
+// payment clears too (see the website's contact-reveal-service.ts); this
+// card is where it persists afterward instead of only living in the
+// notification list.
+function RevealedContactCard({ contact }: { contact: NonNullable<BookingDetail["revealedContact"]> }) {
+  const digits = contact.phone?.replace(/[^\d+]/g, "") ?? "";
+  return (
+    <GlassCard style={styles.revealedContactCard}>
+      <View style={styles.revealedContactHeader}>
+        <Feather name="unlock" size={16} color={colors.ok} />
+        <Text style={styles.revealedContactTitle}>Contact details unlocked</Text>
+      </View>
+      <Text style={styles.revealedContactBody}>
+        Your booking is confirmed — you can now reach {contact.name} directly to coordinate the event.
+      </Text>
+      <View style={styles.revealedContactRow}>
+        <Text style={styles.revealedContactName}>{contact.name}</Text>
+        <Text style={styles.revealedContactPhone}>{contact.phone ?? "Not available"}</Text>
+      </View>
+      {digits ? (
+        <View style={styles.revealedContactActions}>
+          <Pressable style={styles.revealedContactCallButton} onPress={() => Linking.openURL(`tel:${digits}`)}>
+            <Feather name="phone" size={14} color="#fff" />
+            <Text style={styles.revealedContactCallText}>Call</Text>
+          </Pressable>
+          <Pressable style={styles.revealedContactWhatsappButton} onPress={() => Linking.openURL(`https://wa.me/${digits.replace(/^\+/, "")}`)}>
+            <Feather name="message-circle" size={14} color="#25d366" />
+            <Text style={styles.revealedContactWhatsappText}>WhatsApp</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </GlassCard>
   );
 }
 
@@ -547,6 +587,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.purple,
   },
   helplineButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#fff" },
+  revealedContactCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg, borderColor: "rgba(52,211,153,0.3)" },
+  revealedContactHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  revealedContactTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14.5, color: colors.text },
+  revealedContactBody: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 18, color: colors.textDim },
+  revealedContactRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    backgroundColor: colors.ink2, borderRadius: radii.sm, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  revealedContactName: { fontFamily: fonts.body, fontSize: 12.5, color: colors.textDim },
+  revealedContactPhone: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.text },
+  revealedContactActions: { flexDirection: "row", gap: spacing.sm },
+  revealedContactCallButton: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+    paddingVertical: 11, borderRadius: radii.lg, backgroundColor: colors.ok,
+  },
+  revealedContactCallText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: "#fff" },
+  revealedContactWhatsappButton: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+    paddingVertical: 11, borderRadius: radii.lg, backgroundColor: "rgba(37,211,102,0.15)",
+    borderWidth: 1, borderColor: "rgba(37,211,102,0.35)",
+  },
+  revealedContactWhatsappText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: "#25d366" },
   muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, paddingHorizontal: spacing.lg, textAlign: "center" },
   retryButton: {
     paddingHorizontal: 20,
