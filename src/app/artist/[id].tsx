@@ -100,16 +100,29 @@ export default function ArtistDetailScreen() {
   const [profileSubmitting, setProfileSubmitting] = useState(false);
   const [profileError, setProfileError] = useState("");
 
+  // Guards every setState below against firing after this screen has
+  // unmounted — tapping an artist card then immediately hitting back
+  // (common while flicking through a list) can otherwise let a slow
+  // fetchArtist() land on an already-unmounted screen and crash to the
+  // ErrorBoundary.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const loadArtist = useCallback(() => {
     setLoading(true);
     setError("");
     fetchArtist(id)
       .then(({ artist: result }) => {
+        if (!mountedRef.current) return;
         setArtist(result);
         setEventCity(result.city ?? "");
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this artist."))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (mountedRef.current) setError(err instanceof ApiError ? err.message : "Couldn't load this artist.");
+      })
+      .finally(() => {
+        if (mountedRef.current) setLoading(false);
+      });
   }, [id]);
 
   useEffect(() => {
@@ -134,6 +147,7 @@ export default function ArtistDetailScreen() {
         budgetAmount: bookingMode === "ENQUIRY" && budgetAmount ? Number(budgetAmount) : undefined,
         quotedPrice: bookingMode === "QUICK_BOOKING" ? priceForDuration ?? undefined : undefined,
       });
+      if (!mountedRef.current) return;
       setSentBookingId(bookingId);
       setSent(true);
       // If the primer sheet didn't present (already granted, or denied and
@@ -143,6 +157,7 @@ export default function ArtistDetailScreen() {
         if (!shown) maybePresentOffersOptIn();
       });
     } catch (err) {
+      if (!mountedRef.current) return;
       // Not signed in at all yet — verify inline, right here, then retry
       // the exact same enquiry with everything they already filled in.
       if (err instanceof ApiError && err.status === 401) {
@@ -156,7 +171,7 @@ export default function ArtistDetailScreen() {
         setFormError(err instanceof ApiError ? err.message : "Could not send enquiry. Please try again.");
       }
     } finally {
-      setSubmitting(false);
+      if (mountedRef.current) setSubmitting(false);
     }
   }
 
@@ -167,12 +182,13 @@ export default function ArtistDetailScreen() {
     try {
       await saveBookerProfile({ fullName: profileFullName, email: profileEmail, city: profileCity, state: profileState });
       await refreshSession();
+      if (!mountedRef.current) return;
       setNeedsBookerProfile(false);
       await handleSubmitEnquiry();
     } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : "Could not save your details. Please try again.");
+      if (mountedRef.current) setProfileError(err instanceof ApiError ? err.message : "Could not save your details. Please try again.");
     } finally {
-      setProfileSubmitting(false);
+      if (mountedRef.current) setProfileSubmitting(false);
     }
   }
 

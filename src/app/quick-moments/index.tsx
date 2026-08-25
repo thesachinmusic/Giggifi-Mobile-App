@@ -37,6 +37,12 @@ export default function QuickMomentsBrowseScreen() {
   const [results, setResults] = useState<QuickMomentMatch[] | null>(null);
   const [radiusKm, setRadiusKm] = useState(MAX_RADIUS_KM);
   const searchedRef = useRef(false);
+  // The OS permission prompt + a real GPS fix can both take several
+  // seconds — a user who backs out of this screen while either is still in
+  // flight would otherwise land a setState on an unmounted screen and crash
+  // to the ErrorBoundary.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   // Detected the moment the screen opens — no separate "find nearby" step to
   // ask for permission first. High accuracy so the radius match is real GPS,
@@ -48,23 +54,27 @@ export default function QuickMomentsBrowseScreen() {
     setLocationStatus("detecting");
     const cached = await getCachedLocation();
     if (cached) {
-      setCoords(cached);
-      setLocationStatus("ready");
+      if (mountedRef.current) {
+        setCoords(cached);
+        setLocationStatus("ready");
+      }
       return;
     }
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
+      if (!mountedRef.current) return;
       if (status !== "granted") {
         setLocationStatus("denied");
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      if (!mountedRef.current) return;
       const next = { lat: position.coords.latitude, lng: position.coords.longitude };
       setCoords(next);
       setLocationStatus("ready");
       await setCachedLocation(next.lat, next.lng);
     } catch {
-      setLocationStatus("denied");
+      if (mountedRef.current) setLocationStatus("denied");
     }
   }
 
@@ -82,11 +92,11 @@ export default function QuickMomentsBrowseScreen() {
         lng: coords.lng,
         budgetMax: budget ? Number(budget) : undefined,
       });
-      setResults(matched);
+      if (mountedRef.current) setResults(matched);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn't find nearby artists right now.");
+      if (mountedRef.current) setError(err instanceof ApiError ? err.message : "Couldn't find nearby artists right now.");
     } finally {
-      setSearching(false);
+      if (mountedRef.current) setSearching(false);
     }
   }
 

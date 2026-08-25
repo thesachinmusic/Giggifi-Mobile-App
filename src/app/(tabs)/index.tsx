@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, type ViewToken } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type ViewToken,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -198,6 +210,35 @@ export default function HomeScreen() {
     if (viewableItems[0]?.index != null) setActiveTrendingIndex(viewableItems[0].index);
   }).current;
 
+  // The rails' own horizontal viewability (above) only tracks which CARD is
+  // centered within the rail — it says nothing about whether the rail
+  // itself is still on screen once the page is scrolled vertically. Without
+  // this, a video left "active" by the horizontal tracker keeps playing
+  // (with sound) even after the whole section has scrolled off top or
+  // bottom. Track each rail's on-screen bounds via onLayout and compare
+  // against vertical scroll position on every scroll event; only flip
+  // state when visibility actually changes so this doesn't force a re-render
+  // on every scroll frame.
+  const viewportHeight = Dimensions.get("window").height;
+  const featuredSectionLayout = useRef({ y: 0, height: 0 });
+  const trendingSectionLayout = useRef({ y: 0, height: 0 });
+  const [featuredSectionVisible, setFeaturedSectionVisible] = useState(true);
+  const [trendingSectionVisible, setTrendingSectionVisible] = useState(true);
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetY = e.nativeEvent.contentOffset.y;
+    const isVisible = (layout: { y: number; height: number }) =>
+      layout.height > 0 && offsetY < layout.y + layout.height && offsetY + viewportHeight > layout.y;
+    setFeaturedSectionVisible((prev) => {
+      const next = isVisible(featuredSectionLayout.current);
+      return prev === next ? prev : next;
+    });
+    setTrendingSectionVisible((prev) => {
+      const next = isVisible(trendingSectionLayout.current);
+      return prev === next ? prev : next;
+    });
+  }, [viewportHeight]);
+
   const firstName = user?.name?.split(" ")[0];
 
   return (
@@ -207,6 +248,8 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.pink} />}
+          onScroll={handleScroll}
+          scrollEventThrottle={100}
         >
           <View style={styles.header}>
             <View style={styles.headerRow}>
@@ -336,7 +379,12 @@ export default function HomeScreen() {
           ) : (
             <>
               {featured.length > 0 ? (
-                <View style={styles.section}>
+                <View
+                  style={styles.section}
+                  onLayout={(e) => {
+                    featuredSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
+                  }}
+                >
                   <SectionHeader title="Featured Artists" sub="Watch before you book" />
                   <FlatList
                     data={featured}
@@ -355,7 +403,7 @@ export default function HomeScreen() {
                     renderItem={({ item, index }) => (
                       <FeaturedArtistCard
                         artist={item}
-                        isActive={index === activeFeaturedIndex}
+                        isActive={index === activeFeaturedIndex && featuredSectionVisible}
                         onOpenVideo={() => openVideoFeed(featured, item)}
                         onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                       />
@@ -405,7 +453,12 @@ export default function HomeScreen() {
               </Pressable>
 
               {trending.length > 0 ? (
-                <View style={styles.section}>
+                <View
+                  style={styles.section}
+                  onLayout={(e) => {
+                    trendingSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
+                  }}
+                >
                   <SectionHeader
                     title="Fresh picks for you"
                     sub="Handpicked for you — watch before you book"
@@ -428,7 +481,7 @@ export default function HomeScreen() {
                     renderItem={({ item, index }) => (
                       <FeaturedArtistCard
                         artist={item}
-                        isActive={index === activeTrendingIndex}
+                        isActive={index === activeTrendingIndex && trendingSectionVisible}
                         onOpenVideo={() => openVideoFeed(trending, item)}
                         onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                       />

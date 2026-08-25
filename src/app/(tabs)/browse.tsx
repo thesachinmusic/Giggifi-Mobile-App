@@ -10,7 +10,7 @@ import { ArtistCard } from "@/components/ArtistCard";
 import { SortSheet } from "@/components/SortSheet";
 import { FilterSheet } from "@/components/FilterSheet";
 import { Skeleton } from "@/components/Skeleton";
-import { fetchArtists, fetchVendors, type ArtistSummary, type ListingParams, type VendorSummary } from "@/lib/api";
+import { fetchArtists, fetchFeatured, fetchVendors, type ArtistSummary, type ListingParams, type VendorSummary } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -54,6 +54,7 @@ export default function BrowseScreen() {
   const [error, setError] = useState("");
   const [sort, setSort] = useState<SortOption>("recommended");
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [featuredArtists, setFeaturedArtists] = useState<ArtistSummary[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
@@ -75,6 +76,16 @@ export default function BrowseScreen() {
 
   useEffect(() => {
     getRecentSearches().then(setRecentSearches).catch((err) => captureError(err, "recent-searches-load"));
+  }, []);
+
+  // Same paid-placement campaigns Home's "Featured Artists" rail shows —
+  // fetched once, independent of Browse's own sort/filter/search state,
+  // since a sponsored placement isn't something a filter should be able to
+  // filter out.
+  useEffect(() => {
+    fetchFeatured()
+      .then(({ artists: results }) => setFeaturedArtists(results))
+      .catch((err) => captureError(err, "browse-featured-fetch"));
   }, []);
 
   function recordSearch(term: string) {
@@ -347,6 +358,36 @@ export default function BrowseScreen() {
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListFooterComponent={hasMore ? <LoadMoreFooter loading={loadingMore} /> : null}
+            ListHeaderComponent={
+              // Sponsored placements are a fixed set (not filterable by
+              // category/search) — showing them under an active search or
+              // category pill would surface artists unrelated to what the
+              // user actually asked for, so this only appears on the
+              // untouched, default view.
+              featuredArtists.length > 0 && category === ALL && !search ? (
+                <View style={styles.featuredSection}>
+                  <View style={styles.featuredHeader}>
+                    <Feather name="zap" size={13} color={colors.orange} />
+                    <Text style={styles.featuredHeaderTitle}>Featured Artists</Text>
+                    <Text style={styles.featuredHeaderSub}>Sponsored</Text>
+                  </View>
+                  <FlatList
+                    data={featuredArtists}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.featuredRow}
+                    renderItem={({ item }) => (
+                      <ArtistCard
+                        artist={item}
+                        width={150}
+                        onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
+                      />
+                    )}
+                  />
+                </View>
+              ) : null
+            }
             renderItem={({ item }) => (
               <ArtistCard
                 artist={item}
@@ -418,6 +459,33 @@ function EmptyState({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  featuredSection: {
+    marginBottom: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  featuredHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  featuredHeaderTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 15,
+    color: colors.text,
+  },
+  featuredHeaderSub: {
+    marginLeft: "auto",
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textMute,
+    letterSpacing: 0.5,
+  },
+  featuredRow: {
+    gap: spacing.sm,
+  },
   title: {
     fontFamily: fonts.display,
     fontSize: 26,

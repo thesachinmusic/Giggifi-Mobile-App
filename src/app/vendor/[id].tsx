@@ -72,16 +72,29 @@ export default function VendorDetailScreen() {
     setShowForm(true);
   }
 
+  // Guards every setState below against firing after this screen has
+  // unmounted — tapping a vendor card then immediately hitting back (common
+  // while flicking through a list) can otherwise let a slow fetchVendor() or
+  // sendVendorEnquiry() land on an already-unmounted screen and crash to
+  // the ErrorBoundary.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const loadVendor = useCallback(() => {
     setLoading(true);
     setError("");
     fetchVendor(id)
       .then(({ vendor: result }) => {
+        if (!mountedRef.current) return;
         setVendor(result);
         setEventCity(result.city ?? "");
       })
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this vendor."))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (mountedRef.current) setError(err instanceof ApiError ? err.message : "Couldn't load this vendor.");
+      })
+      .finally(() => {
+        if (mountedRef.current) setLoading(false);
+      });
   }, [id]);
 
   useEffect(() => {
@@ -100,11 +113,11 @@ export default function VendorDetailScreen() {
         eventDate: eventDate?.toISOString(),
         description,
       });
-      setSent(true);
+      if (mountedRef.current) setSent(true);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not send enquiry. Please try again.");
+      if (mountedRef.current) setFormError(err instanceof ApiError ? err.message : "Could not send enquiry. Please try again.");
     } finally {
-      setSubmitting(false);
+      if (mountedRef.current) setSubmitting(false);
     }
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -52,14 +52,27 @@ export default function BookingDetailScreen() {
   const [respondError, setRespondError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
 
+  // load() is shared across several call sites (direct focus call, two
+  // await-chained calls inside the pending-payment recovery IIFE below, and
+  // the polling interval further down) — each of those already guards its
+  // OWN state updates with its own effect-scoped `cancelled` flag, but load()
+  // didn't guard its OWN three setState calls, so a slow fetchBooking()
+  // resolving after the screen had already unmounted (e.g. hardware back
+  // pressed mid-request) still fired setState on an unmounted component and
+  // crashed to the ErrorBoundary. One mount-scoped ref covers every caller.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
   const load = useCallback(async () => {
     try {
       const { booking: b } = await fetchBooking(id);
+      if (!mountedRef.current) return;
       setBooking(b);
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof ApiError ? err.message : "Couldn't load this booking.");
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [id]);
 
@@ -145,9 +158,11 @@ export default function BookingDetailScreen() {
       // here is fine; a cancel just has no description and stays silent.
       const description = (err as { error?: { description?: string }; description?: string })?.error?.description
         ?? (err as { description?: string })?.description;
-      if (description) setPayError(description);
-      else if (err instanceof ApiError) setPayError(err.message);
-      setPaying(false);
+      if (mountedRef.current) {
+        if (description) setPayError(description);
+        else if (err instanceof ApiError) setPayError(err.message);
+        setPaying(false);
+      }
       return;
     }
 
@@ -170,17 +185,17 @@ export default function BookingDetailScreen() {
         razorpaySignature: razorpayResult.razorpay_signature,
       };
       await setPendingPayment(stuck);
-      setPendingPaymentState(stuck);
+      if (mountedRef.current) setPendingPaymentState(stuck);
       // One immediate retry before settling into the calm "confirming" state —
       // cheap, and resolves the common transient-network case right away.
       const { resolved } = await recoverPendingPayment();
       if (resolved) {
         hapticSuccess();
-        setPendingPaymentState(null);
+        if (mountedRef.current) setPendingPaymentState(null);
         await load();
       }
     } finally {
-      setPaying(false);
+      if (mountedRef.current) setPaying(false);
     }
   }
 
@@ -191,9 +206,9 @@ export default function BookingDetailScreen() {
       await respondToBooking(id, action);
       await load();
     } catch (err) {
-      setRespondError(err instanceof ApiError ? err.message : "Could not update this booking. Please try again.");
+      if (mountedRef.current) setRespondError(err instanceof ApiError ? err.message : "Could not update this booking. Please try again.");
     } finally {
-      setResponding(null);
+      if (mountedRef.current) setResponding(null);
     }
   }
 

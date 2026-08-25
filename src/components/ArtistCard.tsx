@@ -45,7 +45,7 @@ export function ArtistCard({ artist, vendor, onPress, width, travelBadge }: List
   const displayPrice = solo && price ? Math.round(price * MIN_DURATION_MULTIPLIER) : price;
 
   return (
-    <Pressable onPress={onPress} style={[styles.card, width ? { width } : styles.cardFlex]}>
+    <Pressable onPress={onPress} style={[styles.card, isFeatured ? styles.cardFeatured : null, width ? { width } : styles.cardFlex]}>
       <View style={styles.imageWrap}>
         {image ? (
           <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -114,6 +114,18 @@ const styles = StyleSheet.create({
   },
   cardFlex: {
     flex: 1,
+  },
+  // Paid placement — a visibly different border/glow than a regular result,
+  // not just the small corner badge, so a sponsored card reads as distinct
+  // at a glance rather than blending into the grid.
+  cardFeatured: {
+    borderColor: colors.orange,
+    borderWidth: 1.5,
+    shadowColor: colors.orange,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
   imageWrap: {
     aspectRatio: 3 / 4,
