@@ -42,7 +42,7 @@ export default function DeleteAccountScreen() {
     try {
       await deleteAccount();
       await logout();
-      router.replace("/(auth)/login");
+      router.replace("/(tabs)");
     } catch (err) {
       captureError(err, "account-delete");
       setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");

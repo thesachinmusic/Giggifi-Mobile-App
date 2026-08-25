@@ -66,15 +66,20 @@ async function request<T>(path: string, options: RequestInit = {}, withAuth = tr
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    // A real 401 on an authenticated request means the token itself is
-    // dead — every screen would otherwise show its own generic error while
-    // silently stuck logged-in-but-broken. sendOtp/verifyOtp (withAuth:
-    // false) are excluded since a wrong OTP isn't a session expiring.
-    if (response.status === 401 && withAuth) {
+    // A 401 with a token attached means that token died (30-day expiry, or
+    // revoked server-side) — every screen would otherwise show its own
+    // generic error while silently stuck logged-in-but-broken, so clear it
+    // and say so. A 401 with NO token was never a session to begin with —
+    // it's just an anonymous user hitting an auth-required endpoint (e.g.
+    // the first tap on "Book"), which the calling screen already handles by
+    // rendering InlinePhoneVerification; no toast, no navigation needed.
+    // sendOtp/verifyOtp (withAuth: false) are excluded from all of this
+    // since a wrong OTP isn't a session expiring.
+    if (response.status === 401 && withAuth && token) {
       await clearStoredToken();
       emitSessionExpired();
       showToast({ title: "Session expired", body: "Please sign in again.", category: "SECURITY" });
-      router.replace("/(auth)/login");
+      router.replace("/(tabs)");
     }
     throw new ApiError(response.status, body.error ?? "Something went wrong.");
   }

@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       // A real 401 already triggers the global session-expired handler in
-      // api.ts's request() (clears the token, resets state below, redirects
-      // to login) — this catch only guards network/server failures, which
+      // api.ts's request() (clears the token, resets state below) — this
+      // catch only guards network/server failures, which
       // shouldn't log the user out. Cold-starting on a flaky connection
       // with a valid stored token now keeps hasStoredSession true instead
       // of bouncing straight to the phone-number screen.

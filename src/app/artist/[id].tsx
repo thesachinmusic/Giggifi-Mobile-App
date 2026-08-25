@@ -10,6 +10,7 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
+import { InlinePhoneVerification } from "@/components/InlinePhoneVerification";
 import { DateField } from "@/components/DateField";
 import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -90,6 +91,7 @@ export default function ArtistDetailScreen() {
 
   const [qmFormat, setQmFormat] = useState<QuickMomentFormat | null>(null);
 
+  const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
   const [needsBookerProfile, setNeedsBookerProfile] = useState(false);
   const [profileFullName, setProfileFullName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
@@ -141,9 +143,13 @@ export default function ArtistDetailScreen() {
         if (!shown) maybePresentOffersOptIn();
       });
     } catch (err) {
-      // First-time bookers have no BookerProfile row yet — collect it inline
-      // instead of dead-ending the enquiry they already filled in.
-      if (err instanceof ApiError && err.status === 404) {
+      // Not signed in at all yet — verify inline, right here, then retry
+      // the exact same enquiry with everything they already filled in.
+      if (err instanceof ApiError && err.status === 401) {
+        setNeedsPhoneVerification(true);
+      } else if (err instanceof ApiError && err.status === 404) {
+        // First-time bookers have no BookerProfile row yet — collect it inline
+        // instead of dead-ending the enquiry they already filled in.
         setProfileCity((prev) => prev || eventCity);
         setNeedsBookerProfile(true);
       } else {
@@ -187,7 +193,7 @@ export default function ArtistDetailScreen() {
   // immediately; otherwise defer until the form container's onLayout fires,
   // once expanding it has actually grown the scrollable content.
   function handleStickyPress() {
-    if (showForm || needsBookerProfile) {
+    if (showForm || needsBookerProfile || needsPhoneVerification) {
       scrollToPriceCard();
       return;
     }
@@ -349,6 +355,15 @@ export default function ArtistDetailScreen() {
                     style={styles.formButton}
                   />
                 ) : null}
+              </View>
+            ) : needsPhoneVerification ? (
+              <View style={styles.form}>
+                <InlinePhoneVerification
+                  onVerified={() => {
+                    setNeedsPhoneVerification(false);
+                    void handleSubmitEnquiry();
+                  }}
+                />
               </View>
             ) : needsBookerProfile ? (
               <View style={styles.form}>

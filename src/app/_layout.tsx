@@ -98,7 +98,6 @@ function RootLayoutContent() {
                     contentStyle: { backgroundColor: colors.ink },
                   }}
                 >
-                  <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen
                     name="artist/[id]"

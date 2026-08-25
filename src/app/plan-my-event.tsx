@@ -25,6 +25,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { TimeField } from "@/components/TimeField";
 import { PlacesAutocompleteField } from "@/components/PlacesAutocompleteField";
+import { InlinePhoneVerification } from "@/components/InlinePhoneVerification";
 import {
   ApiError,
   matchQuickBooking,
@@ -293,6 +294,7 @@ export default function PlanMyEventScreen() {
   // Review & Pay
   const [bookingMode, setBookingMode] = useState<"ENQUIRY" | "QUICK_BOOKING">("ENQUIRY");
   const [myOffer, setMyOffer] = useState("");
+  const [needsPhoneVerification, setNeedsPhoneVerification] = useState(false);
   const [needsBookerProfile, setNeedsBookerProfile] = useState(false);
   const [profileFullName, setProfileFullName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
@@ -405,7 +407,9 @@ export default function PlanMyEventScreen() {
       setDoneBookingId(data.bookingId ?? null);
       setDone(true);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
+      if (err instanceof ApiError && err.status === 401) {
+        setNeedsPhoneVerification(true);
+      } else if (err instanceof ApiError && err.status === 404) {
         setProfileCity((prev) => prev || city);
         setNeedsBookerProfile(true);
       } else {
@@ -783,6 +787,17 @@ export default function PlanMyEventScreen() {
                   </Text>
                 </View>
 
+                {needsPhoneVerification ? (
+                  <View style={styles.profileForm}>
+                    <InlinePhoneVerification
+                      onVerified={() => {
+                        setNeedsPhoneVerification(false);
+                        void submitBooking();
+                      }}
+                    />
+                  </View>
+                ) : null}
+
                 {needsBookerProfile ? (
                   <View style={styles.profileForm}>
                     <Text style={styles.profileIntro}>One last step — tell us a bit about you and we&apos;ll send your request.</Text>
@@ -810,7 +825,7 @@ export default function PlanMyEventScreen() {
 
           </ScrollView>
 
-          {!(outerStep === 0 && innerStep === 4) && !needsBookerProfile ? (
+          {!(outerStep === 0 && innerStep === 4) && !needsBookerProfile && !needsPhoneVerification ? (
             <View style={styles.footer}>
               <Pressable onPress={handleFooterPress} disabled={nextDisabled} style={{ opacity: nextDisabled ? 0.5 : 1 }}>
                 <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.footerButton}>
