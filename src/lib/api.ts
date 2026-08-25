@@ -584,10 +584,10 @@ export interface RazorpayOrder {
   discountPct: number;
 }
 
-export function createRazorpayOrder(bookingId: string, couponCode?: string) {
+export function createRazorpayOrder(bookingId: string, couponCode?: string, termsAccepted?: boolean) {
   return request<RazorpayOrder>("/api/mobile/razorpay/order", {
     method: "POST",
-    body: JSON.stringify({ bookingId, couponCode }),
+    body: JSON.stringify({ bookingId, couponCode, termsAccepted }),
   });
 }
 
@@ -642,13 +642,16 @@ export function deleteAccount() {
   return request<{ ok: true }>("/api/mobile/account/delete", { method: "POST" });
 }
 
+// No terms field — a client never accepts anything at profile-completion
+// time. Terms/Privacy/Cancellation acceptance happens exactly once, as an
+// explicit checkbox immediately before payment (see createRazorpayOrder),
+// stamped on the Booking itself, not the profile.
 export function saveBookerProfile(input: { fullName: string; email: string; city: string; state: string; companyName?: string }) {
   return request<{ success: true }>("/api/mobile/booker-profile", {
     method: "POST",
     body: JSON.stringify({
       ...input,
       bookerType: "INDIVIDUAL",
-      terms: { service: true, escrow: true },
     }),
   });
 }

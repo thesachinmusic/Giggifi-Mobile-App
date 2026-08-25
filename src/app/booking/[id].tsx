@@ -50,6 +50,7 @@ export default function BookingDetailScreen() {
   const [pendingPayment, setPendingPaymentState] = useState<PendingPayment | null>(null);
   const [responding, setResponding] = useState<"accept" | "decline" | null>(null);
   const [respondError, setRespondError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -126,7 +127,7 @@ export default function BookingDetailScreen() {
     setPayError("");
     let razorpayResult: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string } | null = null;
     try {
-      const order = await createRazorpayOrder(booking.id);
+      const order = await createRazorpayOrder(booking.id, undefined, termsAccepted);
       razorpayResult = await RazorpayCheckout.open({
         key: order.keyId,
         amount: order.amount,
@@ -318,10 +319,20 @@ export default function BookingDetailScreen() {
                 <Text style={styles.payText}>{booking.artist.name} accepted — pay securely to confirm your event.</Text>
               </View>
               {payError ? <Text style={styles.error}>{payError}</Text> : null}
+              <Pressable style={styles.termsRow} onPress={() => setTermsAccepted((v) => !v)}>
+                <Feather name={termsAccepted ? "check-square" : "square"} size={17} color={termsAccepted ? colors.purple : colors.textMute} />
+                <Text style={styles.termsText}>
+                  I agree to the{" "}
+                  <Text style={styles.termsLink} onPress={() => Linking.openURL("https://giggifi.com/terms")}>Terms of Service</Text>,{" "}
+                  <Text style={styles.termsLink} onPress={() => Linking.openURL("https://giggifi.com/privacy")}>Privacy Policy</Text>, and{" "}
+                  <Text style={styles.termsLink} onPress={() => Linking.openURL("https://giggifi.com/refund")}>Cancellation &amp; Refund Policy</Text>.
+                </Text>
+              </Pressable>
               <Btn
                 label={booking.totalAmount ? `Pay ₹${booking.totalAmount.toLocaleString("en-IN")}` : "Pay Now"}
                 onPress={handlePay}
                 loading={paying}
+                disabled={!termsAccepted}
                 style={styles.payButton}
               />
             </GlassCard>
@@ -522,6 +533,9 @@ const styles = StyleSheet.create({
   recoveryRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   recoveryText: { flex: 1, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.text },
   payButton: {},
+  termsRow: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginBottom: spacing.sm },
+  termsText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textDim },
+  termsLink: { color: colors.purple, fontFamily: fonts.bodyMedium },
   quoteRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   priceLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, marginBottom: 4 },
   price: { fontFamily: fonts.display, fontSize: 26, color: colors.text },
