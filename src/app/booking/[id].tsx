@@ -259,6 +259,17 @@ export default function BookingDetailScreen() {
             ) : null}
           </GlassCard>
 
+          {booking.viewerRole === "BOOKER" ? (
+            <View style={styles.equipmentNote}>
+              <Feather name="info" size={14} color={colors.textMute} style={styles.equipmentNoteIcon} />
+              <Text style={styles.equipmentNoteText}>
+                This booking includes the artist/performance only — sound & equipment are not
+                included. You must arrange your own sound system, or you can inquire with us
+                about your sound requirements and we&apos;ll help arrange it.
+              </Text>
+            </View>
+          ) : null}
+
           {booking.format === "QUICK_MOMENT" && booking.viewerRole === "BOOKER" && booking.status !== "AWAITING_PAYMENT" ? (
             <QuickMomentPanel booking={booking} />
           ) : null}
@@ -457,6 +468,14 @@ const styles = StyleSheet.create({
   },
   eventName: { flex: 1, fontFamily: fonts.display, fontSize: 22, color: colors.text },
   summaryCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
+  equipmentNote: {
+    flexDirection: "row", gap: 8, alignItems: "flex-start",
+    marginHorizontal: spacing.lg, marginBottom: spacing.lg,
+    backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm,
+    padding: 12,
+  },
+  equipmentNoteIcon: { marginTop: 2 },
+  equipmentNoteText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
   payCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   payRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   payText: { flex: 1, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textDim },

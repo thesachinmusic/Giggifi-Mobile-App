@@ -412,6 +412,14 @@ export default function ArtistDetailScreen() {
                   </Text>
                 )}
                 <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
+                <View style={styles.equipmentNote}>
+                  <Feather name="info" size={14} color={colors.textMute} style={styles.equipmentNoteIcon} />
+                  <Text style={styles.equipmentNoteText}>
+                    This booking includes the artist/performance only — sound & equipment are not
+                    included. You must arrange your own sound system, or you can inquire with us
+                    about your sound requirements and we&apos;ll help arrange it.
+                  </Text>
+                </View>
                 {formError ? <Text style={styles.error}>{formError}</Text> : null}
                 <Btn
                   label={bookingMode === "QUICK_BOOKING" ? "Book Now" : "Send Enquiry"}
@@ -914,6 +922,13 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
   },
   escrowText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
+  equipmentNote: {
+    flexDirection: "row", gap: 8, alignItems: "flex-start",
+    backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm,
+    padding: 12,
+  },
+  equipmentNoteIcon: { marginTop: 2 },
+  equipmentNoteText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
   qmCard: { marginTop: spacing.lg, gap: spacing.sm },
   qmCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   qmCardEyebrow: { fontFamily: fonts.mono, fontSize: 10, color: colors.orange, letterSpacing: 1, marginBottom: 2 },

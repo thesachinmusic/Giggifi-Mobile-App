@@ -774,6 +774,15 @@ export default function PlanMyEventScreen() {
                   ))}
                 </GlassCard>
 
+                <View style={styles.equipmentNote}>
+                  <Feather name="info" size={14} color={colors.textMute} style={styles.equipmentNoteIcon} />
+                  <Text style={styles.equipmentNoteText}>
+                    This booking includes the artist/performance only — sound & equipment are not
+                    included. You must arrange your own sound system, or you can inquire with us
+                    about your sound requirements and we&apos;ll help arrange it.
+                  </Text>
+                </View>
+
                 {needsBookerProfile ? (
                   <View style={styles.profileForm}>
                     <Text style={styles.profileIntro}>One last step — tell us a bit about you and we&apos;ll send your request.</Text>
@@ -1007,6 +1016,14 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
   summaryLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.textMute, flexShrink: 0 },
   summaryValue: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.text, flexShrink: 1, textAlign: "right" },
+
+  equipmentNote: {
+    flexDirection: "row", gap: 8, alignItems: "flex-start",
+    backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm,
+    padding: 12, marginBottom: spacing.lg,
+  },
+  equipmentNoteIcon: { marginTop: 2 },
+  equipmentNoteText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
 
   profileForm: { gap: spacing.sm, marginBottom: spacing.lg },
   profileIntro: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textDim, marginBottom: spacing.xs },
