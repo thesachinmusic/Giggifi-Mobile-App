@@ -3,7 +3,7 @@ import { clearStoredToken, getStoredToken } from "./auth-storage";
 import { emitSessionExpired } from "./session-events";
 import { showToast } from "./toast-host";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://giggifi.com";
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://giggifi.com";
 const REQUEST_TIMEOUT_MS = 15_000;
 
 export class ApiError extends Error {

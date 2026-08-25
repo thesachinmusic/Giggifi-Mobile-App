@@ -9,6 +9,7 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
+import { AvailabilityCalendar } from "@/components/AvailabilityCalendar";
 import { DateField } from "@/components/DateField";
 import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -439,6 +440,8 @@ export default function ArtistDetailScreen() {
             </View>
           </GlassCard>
           </View>
+
+          <AvailabilityCalendar artistId={artist.id} />
 
           {artist.quickMomentsEnabled ? (
             <GlassCard style={styles.qmCard}>
