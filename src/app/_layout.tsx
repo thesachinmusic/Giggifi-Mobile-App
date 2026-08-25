@@ -18,7 +18,6 @@ import { useAppForeground } from "@/lib/use-app-foreground";
 import { initTelemetry, captureError } from "@/lib/telemetry";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { IntroSplash } from "@/components/IntroSplash";
-import { AgeGateOverlay } from "@/components/AgeGateOverlay";
 import { useAppFonts } from "@/theme/typography";
 import { colors } from "@/theme";
 
@@ -92,7 +91,6 @@ function RootLayoutContent() {
                 {Platform.OS !== "web" ? <NotificationTapHandler /> : null}
                 <NotificationToastHost />
                 <PendingPaymentRecovery />
-                <AgeGateOverlay />
                 <StatusBar style="light" />
                 <Stack
                   screenOptions={{
