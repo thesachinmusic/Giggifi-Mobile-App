@@ -269,6 +269,20 @@ export default function BookingDetailScreen() {
             <SummaryRow icon="map-pin" label="City" value={booking.eventCity} />
             <SummaryRow icon="calendar" label="Date" value={new Date(booking.eventDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} />
             {booking.venueName ? <SummaryRow icon="home" label="Venue" value={booking.venueName} /> : null}
+            {booking.format === "QUICK_MOMENT" && booking.travelFeeAmount ? (
+              <>
+                <SummaryRow
+                  icon="music"
+                  label="Performance"
+                  value={`₹${((booking.quotedPrice ?? 0) - booking.travelFeeAmount).toLocaleString("en-IN")}`}
+                />
+                <SummaryRow
+                  icon="navigation"
+                  label={`Travel (${booking.travelDistanceKm?.toFixed(1) ?? "?"} km)`}
+                  value={`₹${booking.travelFeeAmount.toLocaleString("en-IN")}`}
+                />
+              </>
+            ) : null}
             {booking.totalAmount ? <SummaryRow icon="credit-card" label="Total" value={`₹${booking.totalAmount.toLocaleString("en-IN")}`} /> : null}
             {booking.payment ? (
               <SummaryRow icon="shield" label="Payment" value={PAYMENT_STATUS_LABEL[booking.payment.status] ?? booking.payment.status} />

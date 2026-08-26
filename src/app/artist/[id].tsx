@@ -24,7 +24,6 @@ import { duotoneFor } from "@/lib/palette";
 import { useAuth } from "@/lib/auth-context";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import { useVideoMute } from "@/lib/video-mute-context";
-import { setPendingVideoFeed } from "@/lib/video-feed-handoff";
 import { usePushPrimer } from "@/lib/use-push-primer";
 import { PushPrimerSheet } from "@/components/PushPrimerSheet";
 import { useOffersOptIn } from "@/lib/use-offers-optin";
@@ -34,6 +33,25 @@ import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
+type ProfileTab = "about" | "media" | "packages" | "reviews";
+const TABS: { key: ProfileTab; label: string }[] = [
+  { key: "about", label: "About" },
+  { key: "media", label: "Media" },
+  { key: "packages", label: "Packages" },
+  { key: "reviews", label: "Reviews" },
+];
+
+// Same transform the website's artist profile uses (cloudinaryThumb in
+// app/artists/[id]/artist-public-profile.tsx) — a static frame grab so the
+// Media tab's grid doesn't have to decode N videos at once just to show
+// thumbnails.
+function cloudinaryThumb(url: string): string | null {
+  if (!url.includes("cloudinary.com") || !url.includes("/video/upload/")) return null;
+  return url
+    .replace("/video/upload/", "/video/upload/w_480,h_640,c_fill,f_jpg,so_1/")
+    .replace(/\.(mp4|mov|webm)(\?.*)?$/, ".jpg");
+}
+
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { refreshSession } = useAuth();
@@ -41,6 +59,7 @@ export default function ArtistDetailScreen() {
   const [artist, setArtist] = useState<ArtistSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<ProfileTab>("about");
 
   // Tracks the price card's scroll offset (bodyY + its own y within body)
   // so the sticky CTA can jump straight to the booking form instead of
@@ -153,7 +172,11 @@ export default function ArtistDetailScreen() {
       // If the primer sheet didn't present (already granted, or denied and
       // can't ask again), there's nothing for its onClosed chain to fire —
       // go straight to the offers opt-in instead of losing it silently.
+      // Guarded the same as every other post-await continuation here even
+      // though it only touches sheet refs (no setState) — cheap insurance,
+      // not the crash source (see ArtistHero below for that).
       maybePresentPushPrimer().then((shown) => {
+        if (!mountedRef.current) return;
         if (!shown) maybePresentOffersOptIn();
       });
     } catch (err) {
@@ -202,13 +225,15 @@ export default function ArtistDetailScreen() {
     scrollRef.current?.scrollTo({ y: Math.max(bodyY + priceCardY - spacing.md, 0), animated: true });
   }
 
-  // The sticky CTA collapses into this same inline form rather than opening
-  // a separate flow — it just also makes sure the form is actually visible.
-  // If the form (or the profile-collection sub-form) is already open, its
-  // layout is already accounted for in the ScrollView's content, so scroll
-  // immediately; otherwise defer until the form container's onLayout fires,
-  // once expanding it has actually grown the scrollable content.
+  // The sticky CTA always lands on the Packages tab (where the booking form
+  // lives) and makes sure it's visible — switching tabs first if needed,
+  // then scrolling once that tab's content is actually in the tree.
   function handleStickyPress() {
+    if (activeTab !== "packages") {
+      pendingScrollRef.current = true;
+      setActiveTab("packages");
+      return;
+    }
     if (showForm || needsBookerProfile || needsPhoneVerification) {
       scrollToPriceCard();
       return;
@@ -249,10 +274,13 @@ export default function ArtistDetailScreen() {
   const name = artist.stageName ?? "GiggiFi Artist";
   const initial = name.trim().charAt(0).toUpperCase();
   const [c1, c2] = duotoneFor(artist.id);
-  const chips = [...artist.genres, ...artist.eventTypes].slice(0, 8);
   const solo = isSoloPerformerType(artist.performerType);
   const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
   const adjustedPrice = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
+  const videos = [
+    artist.introVideoUrl ? { url: artist.introVideoUrl, label: "Intro" } : null,
+    artist.showreelUrl && artist.showreelUrl !== artist.introVideoUrl ? { url: artist.showreelUrl, label: "Showreel" } : null,
+  ].filter((v): v is { url: string; label: string } => v !== null);
 
   return (
     <GradientBackground>
@@ -290,189 +318,181 @@ export default function ArtistDetailScreen() {
             ) : null}
           </View>
 
-          {/* Bio is intentionally not shown — it's free text an artist
-              writes themselves, and unlike stageName it isn't run through
-              maskName(), so artists sometimes write their real name
-              directly into it, defeating the masking used everywhere
-              else on this screen. */}
-
           <View style={styles.statsRow}>
             {artist.yearsExperience ? <Stat label="YEARS" value={String(artist.yearsExperience)} /> : null}
             {artist.reviewCount ? <Stat label="REVIEWS" value={String(artist.reviewCount)} /> : null}
             <Stat label="TRAVEL" value={artist.travelAvailable ? "Yes" : "Local"} />
           </View>
 
-          {chips.length ? (
-            <View style={styles.chipRow}>
-              {chips.map((chip) => (
-                <View key={chip} style={styles.chip}>
-                  <Text style={styles.chipText}>{chip}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          {artist.languages.length ? (
-            <View style={styles.languagesBlock}>
-              <Text style={styles.fieldLabel}>LANGUAGES</Text>
-              <View style={styles.chipRow}>
-                {artist.languages.map((lang) => (
-                  <View key={lang} style={styles.chip}>
-                    <Text style={styles.chipText}>{lang}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          <View onLayout={(e) => setPriceCardY(e.nativeEvent.layout.y)}>
-          <GlassCard style={styles.priceCard}>
-            <View style={styles.priceRow}>
-              <View>
-                <Text style={styles.priceLabel}>{solo && duration != null ? `FOR ${effectiveDuration} MINS` : "STARTING AT"}</Text>
-                <Text style={styles.price}>{adjustedPrice ? `₹${adjustedPrice.toLocaleString("en-IN")}` : "On request"}</Text>
-              </View>
-              {artist.priceNegotiable ? (
-                <View style={styles.negotiableBadge}>
-                  <Text style={styles.negotiableText}>Negotiable</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {solo ? (
-              <View style={styles.durationRow}>
-                {DURATION_OPTIONS.map((d) => (
-                  <Pressable
-                    key={d}
-                    onPress={() => setDuration(d)}
-                    style={[styles.durationPill, effectiveDuration === d && styles.durationPillActive]}
-                  >
-                    <Text style={[styles.durationPillText, effectiveDuration === d && styles.durationPillTextActive]}>
-                      {d === FULL_SHOW_MINUTES ? "Full Show" : `${d} min`}
-                    </Text>
-                    <Text style={[styles.durationPillSub, effectiveDuration === d && styles.durationPillTextActive]}>
-                      {Math.round((DURATION_MULTIPLIERS[d] ?? 1) * 100)}% price
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
-
-            {sent ? (
-              <View style={styles.form}>
-                <View style={styles.sentBox}>
-                  <Feather name="check-circle" size={18} color={colors.ok} />
-                  <Text style={styles.sentText}>Enquiry sent — {name.split(" ")[0]} will respond soon.</Text>
-                </View>
-                {sentBookingId ? (
-                  <Btn
-                    label="View booking"
-                    onPress={() => router.push({ pathname: "/booking/[id]", params: { id: sentBookingId } })}
-                    style={styles.formButton}
-                  />
-                ) : null}
-              </View>
-            ) : needsPhoneVerification ? (
-              <View style={styles.form}>
-                <InlinePhoneVerification
-                  onVerified={() => {
-                    setNeedsPhoneVerification(false);
-                    void handleSubmitEnquiry();
-                  }}
-                />
-              </View>
-            ) : needsBookerProfile ? (
-              <View style={styles.form}>
-                <Text style={styles.profileIntro}>One last step — tell us a bit about you and we&apos;ll send your enquiry.</Text>
-                <FormField label="FULL NAME" value={profileFullName} onChangeText={setProfileFullName} placeholder="Your name" />
-                <FormField label="EMAIL" value={profileEmail} onChangeText={setProfileEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
-                {profileEmail && !isValidEmail(profileEmail) ? <Text style={styles.emailError}>Enter a valid email address.</Text> : null}
-                <StateCityField city={profileCity} onChangeCity={setProfileCity} state={profileState} onChangeState={setProfileState} />
-                {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
-                <Btn
-                  label="Continue & Send Enquiry"
-                  onPress={handleCompleteProfileAndSubmit}
-                  disabled={!profileFullName || !isValidEmail(profileEmail) || !profileCity || !profileState}
-                  loading={profileSubmitting || submitting}
-                  style={styles.formButton}
-                />
-                <Pressable onPress={() => setNeedsBookerProfile(false)}>
-                  <Text style={styles.profileBack}>Back</Text>
-                </Pressable>
-              </View>
-            ) : showForm ? (
-              <View
-                style={styles.form}
-                onLayout={() => {
-                  if (!pendingScrollRef.current) return;
-                  pendingScrollRef.current = false;
-                  scrollToPriceCard();
-                }}
+          {/* Tabs — mirrors the website's About/Media/Packages/Reviews profile structure */}
+          <View style={styles.tabBar}>
+            {TABS.map((t) => (
+              <Pressable
+                key={t.key}
+                onPress={() => setActiveTab(t.key)}
+                style={[styles.tabPill, activeTab === t.key && styles.tabPillActive]}
               >
-                <View style={styles.modeToggle}>
-                  <Pressable
-                    style={[styles.modeTab, bookingMode === "QUICK_BOOKING" && styles.modeTabActive]}
-                    onPress={() => setBookingMode("QUICK_BOOKING")}
-                  >
-                    <Text style={[styles.modeTabText, bookingMode === "QUICK_BOOKING" && styles.modeTabTextActive]}>
-                      Book Now{adjustedPrice ? ` — ₹${adjustedPrice.toLocaleString("en-IN")}` : ""}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.modeTab, bookingMode === "ENQUIRY" && styles.modeTabActive]}
-                    onPress={() => setBookingMode("ENQUIRY")}
-                  >
-                    <Text style={[styles.modeTabText, bookingMode === "ENQUIRY" && styles.modeTabTextActive]}>Send My Offer</Text>
-                  </Pressable>
-                </View>
-
-                <FormField label="EVENT TYPE" value={eventType} onChangeText={setEventType} placeholder="Wedding, Birthday, Corporate…" />
-                <StateCityField city={eventCity} onChangeCity={setEventCity} cityLabel="EVENT CITY" />
-                <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
-                {bookingMode === "ENQUIRY" ? (
-                  <FormField
-                    label="YOUR BUDGET (OPTIONAL)"
-                    value={budgetAmount}
-                    onChangeText={(v) => setBudgetAmount(v.replace(/[^0-9]/g, ""))}
-                    placeholder={adjustedPrice ? `Artist's rate: ₹${adjustedPrice.toLocaleString("en-IN")}` : "e.g. 12000"}
-                    keyboardType="number-pad"
-                  />
-                ) : (
-                  <Text style={styles.bookNowNote}>
-                    You&apos;ll pay the listed price — ₹{adjustedPrice?.toLocaleString("en-IN") ?? "—"}
-                    {solo ? ` for ${effectiveDuration} mins` : ""}.
-                  </Text>
-                )}
-                <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
-                <View style={styles.equipmentNote}>
-                  <Feather name="info" size={14} color={colors.textMute} style={styles.equipmentNoteIcon} />
-                  <Text style={styles.equipmentNoteText}>
-                    This booking includes the artist/performance only — sound & equipment are not
-                    included. You must arrange your own sound system, or you can inquire with us
-                    about your sound requirements and we&apos;ll help arrange it.
-                  </Text>
-                </View>
-                {formError ? <Text style={styles.error}>{formError}</Text> : null}
-                <Btn
-                  label={bookingMode === "QUICK_BOOKING" ? "Book Now" : "Send Enquiry"}
-                  onPress={handleSubmitEnquiry}
-                  disabled={!eventType || !eventCity || !eventDate}
-                  loading={submitting}
-                  style={styles.formButton}
-                />
-              </View>
-            ) : (
-              <Btn label="Enquire Now" onPress={() => setShowForm(true)} style={styles.formButton} />
-            )}
-
-            <View style={styles.escrow}>
-              <Feather name="shield" size={16} color={colors.purple} />
-              <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
-            </View>
-          </GlassCard>
+                <Text style={[styles.tabPillText, activeTab === t.key && styles.tabPillTextActive]}>{t.label}</Text>
+              </Pressable>
+            ))}
           </View>
 
-          <AvailabilityCalendar artistId={artist.id} />
+          {activeTab === "about" ? (
+            <AboutTab artist={artist} />
+          ) : activeTab === "media" ? (
+            <MediaTab videos={videos} c1={c1} c2={c2} />
+          ) : activeTab === "reviews" ? (
+            <ReviewsTab reviews={artist.recentReviews ?? []} />
+          ) : (
+            <View onLayout={(e) => setPriceCardY(e.nativeEvent.layout.y)}>
+            <GlassCard style={styles.priceCard}>
+              <View style={styles.priceRow}>
+                <View>
+                  <Text style={styles.priceLabel}>{solo && duration != null ? `FOR ${effectiveDuration} MINS` : "STARTING AT"}</Text>
+                  <Text style={styles.price}>{adjustedPrice ? `₹${adjustedPrice.toLocaleString("en-IN")}` : "On request"}</Text>
+                </View>
+                {artist.priceNegotiable ? (
+                  <View style={styles.negotiableBadge}>
+                    <Text style={styles.negotiableText}>Negotiable</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {solo ? (
+                <View style={styles.durationRow}>
+                  {DURATION_OPTIONS.map((d) => (
+                    <Pressable
+                      key={d}
+                      onPress={() => setDuration(d)}
+                      style={[styles.durationPill, effectiveDuration === d && styles.durationPillActive]}
+                    >
+                      <Text style={[styles.durationPillText, effectiveDuration === d && styles.durationPillTextActive]}>
+                        {d === FULL_SHOW_MINUTES ? "Full Show" : `${d} min`}
+                      </Text>
+                      <Text style={[styles.durationPillSub, effectiveDuration === d && styles.durationPillTextActive]}>
+                        {Math.round((DURATION_MULTIPLIERS[d] ?? 1) * 100)}% price
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
+              {sent ? (
+                <View style={styles.form}>
+                  <View style={styles.sentBox}>
+                    <Feather name="check-circle" size={18} color={colors.ok} />
+                    <Text style={styles.sentText}>Enquiry sent — {name.split(" ")[0]} will respond soon.</Text>
+                  </View>
+                  {sentBookingId ? (
+                    <Btn
+                      label="View booking"
+                      onPress={() => router.push({ pathname: "/booking/[id]", params: { id: sentBookingId } })}
+                      style={styles.formButton}
+                    />
+                  ) : null}
+                </View>
+              ) : needsPhoneVerification ? (
+                <View style={styles.form}>
+                  <InlinePhoneVerification
+                    onVerified={() => {
+                      setNeedsPhoneVerification(false);
+                      void handleSubmitEnquiry();
+                    }}
+                  />
+                </View>
+              ) : needsBookerProfile ? (
+                <View style={styles.form}>
+                  <Text style={styles.profileIntro}>One last step — tell us a bit about you and we&apos;ll send your enquiry.</Text>
+                  <FormField label="FULL NAME" value={profileFullName} onChangeText={setProfileFullName} placeholder="Your name" />
+                  <FormField label="EMAIL" value={profileEmail} onChangeText={setProfileEmail} placeholder="you@email.com" keyboardType="email-address" autoCapitalize="none" />
+                  {profileEmail && !isValidEmail(profileEmail) ? <Text style={styles.emailError}>Enter a valid email address.</Text> : null}
+                  <StateCityField city={profileCity} onChangeCity={setProfileCity} state={profileState} onChangeState={setProfileState} />
+                  {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
+                  <Btn
+                    label="Continue & Send Enquiry"
+                    onPress={handleCompleteProfileAndSubmit}
+                    disabled={!profileFullName || !isValidEmail(profileEmail) || !profileCity || !profileState}
+                    loading={profileSubmitting || submitting}
+                    style={styles.formButton}
+                  />
+                  <Pressable onPress={() => setNeedsBookerProfile(false)}>
+                    <Text style={styles.profileBack}>Back</Text>
+                  </Pressable>
+                </View>
+              ) : showForm ? (
+                <View
+                  style={styles.form}
+                  onLayout={() => {
+                    if (!pendingScrollRef.current) return;
+                    pendingScrollRef.current = false;
+                    scrollToPriceCard();
+                  }}
+                >
+                  <View style={styles.modeToggle}>
+                    <Pressable
+                      style={[styles.modeTab, bookingMode === "QUICK_BOOKING" && styles.modeTabActive]}
+                      onPress={() => setBookingMode("QUICK_BOOKING")}
+                    >
+                      <Text style={[styles.modeTabText, bookingMode === "QUICK_BOOKING" && styles.modeTabTextActive]}>
+                        Book Now{adjustedPrice ? ` — ₹${adjustedPrice.toLocaleString("en-IN")}` : ""}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.modeTab, bookingMode === "ENQUIRY" && styles.modeTabActive]}
+                      onPress={() => setBookingMode("ENQUIRY")}
+                    >
+                      <Text style={[styles.modeTabText, bookingMode === "ENQUIRY" && styles.modeTabTextActive]}>Send My Offer</Text>
+                    </Pressable>
+                  </View>
+
+                  <FormField label="EVENT TYPE" value={eventType} onChangeText={setEventType} placeholder="Wedding, Birthday, Corporate…" />
+                  <StateCityField city={eventCity} onChangeCity={setEventCity} cityLabel="EVENT CITY" />
+                  <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
+                  {bookingMode === "ENQUIRY" ? (
+                    <FormField
+                      label="YOUR BUDGET (OPTIONAL)"
+                      value={budgetAmount}
+                      onChangeText={(v) => setBudgetAmount(v.replace(/[^0-9]/g, ""))}
+                      placeholder={adjustedPrice ? `Artist's rate: ₹${adjustedPrice.toLocaleString("en-IN")}` : "e.g. 12000"}
+                      keyboardType="number-pad"
+                    />
+                  ) : (
+                    <Text style={styles.bookNowNote}>
+                      You&apos;ll pay the listed price — ₹{adjustedPrice?.toLocaleString("en-IN") ?? "—"}
+                      {solo ? ` for ${effectiveDuration} mins` : ""}.
+                    </Text>
+                  )}
+                  <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
+                  <View style={styles.equipmentNote}>
+                    <Feather name="info" size={14} color={colors.textMute} style={styles.equipmentNoteIcon} />
+                    <Text style={styles.equipmentNoteText}>
+                      This booking includes the artist/performance only — sound & equipment are not
+                      included. You must arrange your own sound system, or you can inquire with us
+                      about your sound requirements and we&apos;ll help arrange it.
+                    </Text>
+                  </View>
+                  {formError ? <Text style={styles.error}>{formError}</Text> : null}
+                  <Btn
+                    label={bookingMode === "QUICK_BOOKING" ? "Book Now" : "Send Enquiry"}
+                    onPress={handleSubmitEnquiry}
+                    disabled={!eventType || !eventCity || !eventDate}
+                    loading={submitting}
+                    style={styles.formButton}
+                  />
+                </View>
+              ) : (
+                <Btn label="Enquire Now" onPress={() => setShowForm(true)} style={styles.formButton} />
+              )}
+
+              <View style={styles.escrow}>
+                <Feather name="shield" size={16} color={colors.purple} />
+                <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
+              </View>
+            </GlassCard>
+
+            <AvailabilityCalendar artistId={artist.id} />
+            </View>
+          )}
 
           {artist.quickMomentsEnabled ? (
             <GlassCard style={styles.qmCard}>
@@ -523,8 +543,6 @@ export default function ArtistDetailScreen() {
               />
             </GlassCard>
           ) : null}
-
-          <ReviewsList reviews={artist.recentReviews ?? []} />
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
@@ -549,11 +567,207 @@ export default function ArtistDetailScreen() {
   );
 }
 
+// ─── About tab ──────────────────────────────────────────────────────────────
+
+function AboutTab({ artist }: { artist: ArtistSummary }) {
+  const highlights: { icon: keyof typeof Feather.glyphMap; title: string; desc: string }[] = [
+    ...(artist.kycStatus === "APPROVED" ? [{ icon: "shield" as const, title: "Verified Artist", desc: "Identity & KYC verified" }] : []),
+    { icon: "clock", title: "Fast Response", desc: "Usually replies within 2 hrs" },
+    { icon: "award", title: "Professional", desc: `${artist.yearsExperience ?? 5}+ years experience` },
+    { icon: "users", title: "All Events", desc: "Wedding, corporate & more" },
+  ];
+
+  return (
+    <View style={styles.tabContent}>
+      {artist.genres.length ? (
+        <View style={styles.aboutBlock}>
+          <Text style={styles.aboutBlockLabel}>GENRES</Text>
+          <View style={styles.chipRow}>
+            {artist.genres.map((g) => (
+              <View key={g} style={styles.chip}><Text style={styles.chipText}>{g}</Text></View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {artist.eventTypes.length ? (
+        <View style={styles.aboutBlock}>
+          <Text style={styles.aboutBlockLabel}>AVAILABLE FOR</Text>
+          <View style={styles.chipRow}>
+            {artist.eventTypes.map((e) => (
+              <View key={e} style={styles.chip}><Text style={styles.chipText}>{e}</Text></View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {artist.languages.length ? (
+        <View style={styles.aboutBlock}>
+          <Text style={styles.aboutBlockLabel}>LANGUAGES</Text>
+          <View style={styles.row}>
+            <Feather name="globe" size={14} color={colors.textMute} />
+            <Text style={styles.loc}>{artist.languages.join(", ")}</Text>
+          </View>
+        </View>
+      ) : null}
+
+      <View style={styles.highlightsGrid}>
+        {highlights.map((h) => (
+          <View key={h.title} style={styles.highlightCard}>
+            <Feather name={h.icon} size={16} color={colors.purple} />
+            <Text style={styles.highlightTitle}>{h.title}</Text>
+            <Text style={styles.highlightDesc}>{h.desc}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Media tab ──────────────────────────────────────────────────────────────
+
+function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]; c1: string; c2: string }) {
+  const [playingUrl, setPlayingUrl] = useState<string | null>(null);
+
+  if (videos.length === 0) {
+    return (
+      <View style={styles.mediaEmpty}>
+        <Feather name="video-off" size={22} color={colors.textMute} />
+        <Text style={styles.mediaEmptyText}>No videos yet.</Text>
+      </View>
+    );
+  }
+
+  if (playingUrl) {
+    return (
+      <View style={styles.tabContent}>
+        <InlineVideoPlayer uri={playingUrl} onClose={() => setPlayingUrl(null)} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.tabContent}>
+      <View style={styles.mediaGrid}>
+        {videos.map((v) => {
+          const thumb = cloudinaryThumb(v.url);
+          return (
+            <Pressable key={v.url} onPress={() => setPlayingUrl(v.url)} style={styles.mediaTile}>
+              {thumb ? (
+                <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              ) : (
+                <LinearGradient colors={[c1, c2]} style={StyleSheet.absoluteFill} />
+              )}
+              <View style={styles.mediaTileOverlay} pointerEvents="none">
+                <View style={styles.mediaTilePlay}>
+                  <Feather name="play" size={16} color="#fff" />
+                </View>
+              </View>
+              <Text style={styles.mediaTileLabel}>{v.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// Self-contained inline video player used by both the Media tab (tapping a
+// thumbnail) and reused visually by the hero (see ArtistHero below, which
+// keeps its own player instance instead of mounting a second one for the
+// same source). Owns its own player/lifecycle so a slow replaceAsync() that
+// resolves after the user has already backed out never touches state on an
+// unmounted component — the mountedRef pattern already fixed this exact
+// class of crash elsewhere in this screen.
+function InlineVideoPlayer({ uri, onClose }: { uri: string; onClose: () => void }) {
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+
+  const player = useVideoPlayer(null, (instance) => {
+    instance.loop = false;
+    instance.muted = false;
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    player.replaceAsync(uri).then(() => {
+      if (cancelled || !mountedRef.current) return;
+      player.play();
+    }).catch((err) => captureError(err, "media-tab-video-load"));
+    return () => {
+      cancelled = true;
+    };
+  }, [uri, player]);
+
+  return (
+    <View style={styles.inlinePlayerWrap}>
+      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls />
+      <Pressable onPress={onClose} style={styles.inlinePlayerBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back to videos">
+        <Feather name="chevron-left" size={18} color="#fff" />
+        <Text style={styles.inlinePlayerBackText}>Back</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ─── Reviews tab ────────────────────────────────────────────────────────────
+
+function ReviewsTab({ reviews }: { reviews: NonNullable<ArtistSummary["recentReviews"]> }) {
+  if (reviews.length === 0) {
+    return (
+      <View style={styles.mediaEmpty}>
+        <Text style={styles.mediaEmptyEmoji}>⭐</Text>
+        <Text style={styles.mediaEmptyText}>No reviews yet</Text>
+        <Text style={styles.mediaEmptySub}>Reviews appear after a completed booking.</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.tabContent}>
+      <ReviewsList reviews={reviews} />
+    </View>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function FormField({
+  label,
+  multiline,
+  ...props
+}: { label: string; multiline?: boolean } & React.ComponentProps<typeof TextInput>) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        {...props}
+        multiline={multiline}
+        placeholderTextColor={colors.textMute}
+        style={[styles.fieldInput, multiline ? styles.fieldInputMultiline : null]}
+      />
+    </View>
+  );
+}
+
+// ─── Hero ───────────────────────────────────────────────────────────────────
+
 function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: string; c2: string; initial: string }) {
   const { muted, toggleMuted } = useVideoMute();
   const { isSaved, toggle } = useSavedArtists();
   const saved = isSaved(artist.id);
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
+  // Tapping the hero plays it right there, unmuted, with native controls —
+  // not a navigation to another screen. "Back" just returns to the ambient
+  // muted loop, no router involved, so there's nothing here for hardware
+  // back to interact with badly.
+  const [playing, setPlaying] = useState(false);
 
   async function handleShare() {
     try {
@@ -588,47 +802,78 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   }, [videoSource, player]);
 
   useEffect(() => {
-    if (videoSource) player.muted = muted;
-  }, [muted, player, videoSource]);
+    if (videoSource && !playing) player.muted = muted;
+  }, [muted, player, videoSource, playing]);
 
   // This screen stays reachable via back-navigation without unmounting
   // immediately, so leaving it (e.g. to the enquiry flow, or back to Home)
   // would otherwise leave the hero video's audio playing underneath.
+  //
+  // The cleanup below is guarded with try/catch — this is the confirmed
+  // root cause of the recurring "Something went wrong" crash on back
+  // navigation from this screen: useVideoPlayer (via expo's
+  // useReleasingSharedObject) registers its own release-on-unmount effect
+  // BEFORE this useFocusEffect runs (it's declared earlier in this
+  // component), and React fires effect cleanups in declaration order, not
+  // reversed — so on a real unmount (not just a blur), the player's native
+  // object is already released by the time this cleanup calls
+  // player.pause(). expo-modules-core's SharedObject.release() explicitly
+  // documents that any further native call after release throws
+  // synchronously. That synchronous throw during the unmount commit is
+  // exactly what the ErrorBoundary was catching — a different bug than the
+  // async setState-after-unmount pattern fixed elsewhere on this screen,
+  // which is why patching that one didn't stop this crash.
   useFocusEffect(
     useCallback(() => {
-      if (videoSource) {
+      if (videoSource && !playing) {
         player.muted = muted;
         player.play();
       }
-      return () => player.pause();
-    }, [videoSource, muted, player]),
+      return () => {
+        try {
+          player.pause();
+        } catch {
+          // Expected when the screen is truly unmounting, not just
+          // blurring — see comment above.
+        }
+      };
+    }, [videoSource, muted, player, playing]),
   );
 
-  function openFullScreen() {
+  function handleHeroPress() {
     if (!videoSource) return;
-    setPendingVideoFeed(
-      [{
-        id: artist.id,
-        stageName: artist.stageName,
-        performerType: artist.performerType,
-        city: artist.city,
-        videoUrl: videoSource,
-        profileImageUrl: artist.profileImageUrl,
-        avgRating: artist.avgRating,
-      }],
-      0,
-    );
-    router.push("/video-feed");
+    if (playing) return; // native controls own taps once expanded
+    player.muted = false;
+    setPlaying(true);
+  }
+
+  function handleBackToStatic() {
+    try {
+      player.pause();
+    } catch {
+      // Same release race as above — harmless if it's already gone.
+    }
+    player.muted = muted;
+    setPlaying(false);
+    if (videoSource) player.play();
   }
 
   return (
     <View style={styles.hero} pointerEvents="box-none">
       {videoSource ? (
-        <Pressable style={StyleSheet.absoluteFill} onPress={openFullScreen}>
-          <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
-          <View style={styles.heroPlayHint} pointerEvents="none">
-            <Feather name="play" size={18} color="#fff" />
-          </View>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleHeroPress} disabled={playing}>
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            nativeControls={playing}
+            pointerEvents={playing ? "auto" : "none"}
+          />
+          {!playing ? (
+            <View style={styles.heroPlayHint} pointerEvents="none">
+              <Feather name="play" size={18} color="#fff" />
+            </View>
+          ) : null}
         </Pressable>
       ) : artist.profileImageUrl ? (
         <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -638,65 +883,53 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
         </LinearGradient>
       )}
 
-      <View style={styles.heroActions}>
+      {playing ? (
         <Pressable
-          onPress={() => toggle(artist.id)}
-          style={styles.heroActionButton}
+          onPress={handleBackToStatic}
+          style={styles.heroBackButton}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
+          accessibilityLabel="Back to profile"
         >
-          <Feather name="heart" size={16} color={saved ? colors.pink : "#fff"} />
+          <Feather name="chevron-left" size={18} color="#fff" />
+          <Text style={styles.heroBackButtonText}>Back</Text>
         </Pressable>
-        <Pressable
-          onPress={handleShare}
-          style={styles.heroActionButton}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Share artist"
-        >
-          <Feather name="share-2" size={16} color="#fff" />
-        </Pressable>
-      </View>
+      ) : (
+        <>
+          <View style={styles.heroActions}>
+            <Pressable
+              onPress={() => toggle(artist.id)}
+              style={styles.heroActionButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
+            >
+              <Feather name="heart" size={16} color={saved ? colors.pink : "#fff"} />
+            </Pressable>
+            <Pressable
+              onPress={handleShare}
+              style={styles.heroActionButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Share artist"
+            >
+              <Feather name="share-2" size={16} color="#fff" />
+            </Pressable>
+          </View>
 
-      {videoSource ? (
-        <Pressable
-          onPress={toggleMuted}
-          style={styles.heroMuteButton}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
-        >
-          <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function FormField({
-  label,
-  multiline,
-  ...props
-}: { label: string; multiline?: boolean } & React.ComponentProps<typeof TextInput>) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        {...props}
-        multiline={multiline}
-        placeholderTextColor={colors.textMute}
-        style={[styles.fieldInput, multiline ? styles.fieldInputMultiline : null]}
-      />
+          {videoSource ? (
+            <Pressable
+              onPress={toggleMuted}
+              style={styles.heroMuteButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+            >
+              <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
+            </Pressable>
+          ) : null}
+        </>
+      )}
     </View>
   );
 }
@@ -753,6 +986,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  heroBackButton: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingLeft: 8,
+    paddingRight: 12,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  heroBackButtonText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: "#fff" },
   stickyBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -806,7 +1053,6 @@ const styles = StyleSheet.create({
     borderColor: colors.orange,
   },
   qmBadgeText: { fontFamily: fonts.mono, fontSize: 9.5, color: colors.orange, letterSpacing: 0.3 },
-  languagesBlock: { marginBottom: spacing.lg, gap: spacing.xs },
   statsRow: {
     flexDirection: "row",
     gap: spacing.xl,
@@ -827,7 +1073,29 @@ const styles = StyleSheet.create({
     color: colors.textMute,
     letterSpacing: 0.5,
   },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: spacing.lg },
+  tabBar: {
+    flexDirection: "row",
+    gap: 4,
+    padding: 4,
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: spacing.lg,
+  },
+  tabPill: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radii.md,
+    alignItems: "center",
+  },
+  tabPillActive: { backgroundColor: colors.pink },
+  tabPillText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textMute },
+  tabPillTextActive: { color: "#fff", fontFamily: fonts.bodySemiBold },
+  tabContent: { marginBottom: spacing.lg },
+  aboutBlock: { marginBottom: spacing.lg },
+  aboutBlockLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, marginBottom: spacing.xs },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -841,7 +1109,91 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: colors.textMute,
   },
-  priceCard: { gap: spacing.md },
+  highlightsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  highlightCard: {
+    width: "47%",
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: colors.line,
+    gap: 3,
+  },
+  highlightTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.text },
+  highlightDesc: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute },
+  mediaGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  mediaTile: {
+    width: "48%",
+    aspectRatio: 9 / 16,
+    borderRadius: radii.lg,
+    overflow: "hidden",
+    backgroundColor: colors.ink2,
+    borderWidth: 1,
+    borderColor: colors.line,
+    position: "relative",
+  },
+  mediaTileOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mediaTilePlay: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mediaTileLabel: {
+    position: "absolute",
+    bottom: 8,
+    left: 10,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 11,
+    color: "#fff",
+  },
+  mediaEmpty: {
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.lg,
+    borderRadius: radii.xl,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  mediaEmptyEmoji: { fontSize: 26, marginBottom: 2 },
+  mediaEmptyText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.textDim },
+  mediaEmptySub: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute },
+  inlinePlayerWrap: {
+    width: "100%",
+    aspectRatio: 9 / 16,
+    borderRadius: radii.lg,
+    overflow: "hidden",
+    backgroundColor: "#000",
+    position: "relative",
+  },
+  inlinePlayerBack: {
+    position: "absolute",
+    top: spacing.sm,
+    left: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingLeft: 8,
+    paddingRight: 12,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  inlinePlayerBackText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: "#fff" },
+  priceCard: { gap: spacing.md, marginBottom: spacing.sm },
   priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   priceLabel: {
     fontFamily: fonts.mono,
@@ -963,7 +1315,7 @@ const styles = StyleSheet.create({
   },
   equipmentNoteIcon: { marginTop: 2 },
   equipmentNoteText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
-  qmCard: { marginTop: spacing.lg, gap: spacing.sm },
+  qmCard: { marginTop: spacing.sm, gap: spacing.sm },
   qmCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   qmCardEyebrow: { fontFamily: fonts.mono, fontSize: 10, color: colors.orange, letterSpacing: 1, marginBottom: 2 },
   qmCardTitle: { fontFamily: fonts.displayMedium, fontSize: 17, color: colors.text },

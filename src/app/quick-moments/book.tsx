@@ -28,10 +28,24 @@ function combine(date: Date, hour: number): Date {
 }
 
 export default function QuickMomentsBookScreen() {
-  const params = useLocalSearchParams<{ artistId: string; format: QuickMomentFormat; stageName?: string; pricePerSlot?: string }>();
+  const params = useLocalSearchParams<{
+    artistId: string;
+    format: QuickMomentFormat;
+    stageName?: string;
+    pricePerSlot?: string;
+    distanceKm?: string;
+    travelFee?: string;
+    clientLat?: string;
+    clientLng?: string;
+  }>();
   const { artistId, format } = params;
   const stageName = params.stageName || "this artist";
   const pricePerSlot = params.pricePerSlot ? Number(params.pricePerSlot) : null;
+  const distanceKm = params.distanceKm ? Number(params.distanceKm) : null;
+  const travelFee = params.travelFee ? Number(params.travelFee) : 0;
+  const clientLat = params.clientLat ? Number(params.clientLat) : null;
+  const clientLng = params.clientLng ? Number(params.clientLng) : null;
+  const totalPrice = pricePerSlot != null ? pricePerSlot + travelFee : null;
 
   const initial = defaultSlotStart();
   const [date, setDate] = useState<Date>(initial);
@@ -45,10 +59,10 @@ export default function QuickMomentsBookScreen() {
   const slotStart = combine(date, hour);
   const minStart = new Date(Date.now() + QUICK_MOMENTS_MIN_LEAD_HOURS * 60 * 60 * 1000);
   const leadTimeOk = slotStart >= minStart;
-  const canSubmit = Boolean(venueAddress && eventCity && leadTimeOk);
+  const canSubmit = Boolean(venueAddress && eventCity && leadTimeOk && clientLat != null && clientLng != null);
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || clientLat == null || clientLng == null) return;
     setSubmitting(true);
     setError("");
     try {
@@ -59,6 +73,8 @@ export default function QuickMomentsBookScreen() {
         venueAddress,
         eventCity,
         specialRequests: specialRequests || undefined,
+        clientLat,
+        clientLng,
       });
       router.replace({ pathname: "/booking/[id]", params: { id: bookingId } });
     } catch (err) {
@@ -77,6 +93,23 @@ export default function QuickMomentsBookScreen() {
               <Text style={styles.summaryEyebrow}>{QUICK_MOMENT_FORMAT_LABEL[format]?.toUpperCase()}</Text>
               <Text style={styles.summaryName}>{stageName}</Text>
               {pricePerSlot ? <Text style={styles.summaryPrice}>₹{pricePerSlot.toLocaleString("en-IN")} <Text style={styles.summaryPriceUnit}>/ slot</Text></Text> : null}
+              {distanceKm != null ? (
+                <View style={styles.breakdown}>
+                  <View style={styles.breakdownRow}>
+                    <Text style={styles.breakdownLabel}>Performance</Text>
+                    <Text style={styles.breakdownValue}>₹{(pricePerSlot ?? 0).toLocaleString("en-IN")}</Text>
+                  </View>
+                  <View style={styles.breakdownRow}>
+                    <Text style={styles.breakdownLabel}>Travel ({distanceKm.toFixed(1)} km)</Text>
+                    <Text style={styles.breakdownValue}>{travelFee > 0 ? `₹${travelFee.toLocaleString("en-IN")}` : "Free"}</Text>
+                  </View>
+                  <View style={styles.breakdownTotalRow}>
+                    <Text style={styles.breakdownTotalLabel}>Subtotal</Text>
+                    <Text style={styles.breakdownTotalValue}>₹{(totalPrice ?? 0).toLocaleString("en-IN")}</Text>
+                  </View>
+                  <Text style={styles.breakdownNote}>Platform fee & GST added at checkout.</Text>
+                </View>
+              ) : null}
             </GlassCard>
 
             <FormLabel text="WHEN" />
@@ -113,7 +146,7 @@ export default function QuickMomentsBookScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Btn
-              label={pricePerSlot ? `Book for ₹${pricePerSlot.toLocaleString("en-IN")}` : "Book this Quick Moment"}
+              label={totalPrice ? `Book for ₹${totalPrice.toLocaleString("en-IN")}` : "Book this Quick Moment"}
               onPress={handleSubmit}
               disabled={!canSubmit}
               loading={submitting}
@@ -144,6 +177,14 @@ const styles = StyleSheet.create({
   summaryName: { fontFamily: fonts.display, fontSize: 20, color: colors.text },
   summaryPrice: { fontFamily: fonts.displayMedium, fontSize: 15, color: colors.text, marginTop: 2 },
   summaryPriceUnit: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute },
+  breakdown: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line, gap: 4 },
+  breakdownRow: { flexDirection: "row", justifyContent: "space-between" },
+  breakdownLabel: { fontFamily: fonts.body, fontSize: 12.5, color: colors.textDim },
+  breakdownValue: { fontFamily: fonts.body, fontSize: 12.5, color: colors.textDim },
+  breakdownTotalRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+  breakdownTotalLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text },
+  breakdownTotalValue: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text },
+  breakdownNote: { fontFamily: fonts.body, fontSize: 10.5, color: colors.textMute, marginTop: 2 },
   label: {
     fontFamily: fonts.mono,
     fontSize: 10,

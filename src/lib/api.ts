@@ -230,6 +230,8 @@ export interface BookingDetail {
   // Quick Moments — format is "FULL_GIG" for every booking except these.
   format: "FULL_GIG" | "QUICK_MOMENT";
   quickMomentFormat: QuickMomentFormat | null;
+  travelDistanceKm: number | null;
+  travelFeeAmount: number | null;
   requestedWindowStart: string | null;
   enRouteAt: string | null;
   arrivedAt: string | null;
@@ -254,15 +256,21 @@ export interface QuickMomentMatch {
   showreelUrl: string | null;
   pricePerSlot: number | null;
   distanceKm: number;
+  // Tiered by distance (see calculateQuickMomentsTravelFee server-side) —
+  // already added on top of pricePerSlot in totalFromPrice, never silently
+  // bundled with no explanation.
+  travelFee: number;
+  totalFromPrice: number;
 }
 
-export function fetchQuickMomentsMatch(params: { lat: number; lng: number; budgetMax?: number; slotStartTime?: string }) {
+export function fetchQuickMomentsMatch(params: { lat: number; lng: number; radiusKm?: number; budgetMax?: number; slotStartTime?: string }) {
   const query = new URLSearchParams();
   query.set("lat", String(params.lat));
   query.set("lng", String(params.lng));
+  if (params.radiusKm) query.set("radiusKm", String(params.radiusKm));
   if (params.budgetMax) query.set("budgetMax", String(params.budgetMax));
   if (params.slotStartTime) query.set("slotStartTime", params.slotStartTime);
-  return request<{ results: QuickMomentMatch[]; total: number }>(`/api/mobile/quick-moments/match?${query.toString()}`);
+  return request<{ results: QuickMomentMatch[]; total: number; radiusKm: number }>(`/api/mobile/quick-moments/match?${query.toString()}`);
 }
 
 export function bookQuickMoment(input: {
@@ -272,6 +280,10 @@ export function bookQuickMoment(input: {
   venueAddress: string;
   eventCity: string;
   specialRequests?: string;
+  // Recomputed server-side against the artist's registered location — never
+  // trust a client-supplied distance/fee for what actually gets charged.
+  clientLat: number;
+  clientLng: number;
 }) {
   return request<{ success: true; bookingId: string }>("/api/mobile/quick-moments/book", {
     method: "POST",

@@ -24,8 +24,12 @@ const CARD_HEIGHT = CARD_WIDTH * 1.15;
 
 type LocationStatus = "detecting" | "ready" | "denied";
 
+// Mirrors QUICK_MOMENTS_MAX_RADIUS_KM in the website's
+// lib/services/quick-moments-service.ts — the server enforces the real
+// cutoff regardless of what this sends, this is just the slider's own bound.
 const MIN_RADIUS_KM = 1;
-const MAX_RADIUS_KM = 50;
+const MAX_RADIUS_KM = 30;
+const DEFAULT_RADIUS_KM = 5;
 
 export default function QuickMomentsBrowseScreen() {
   const [format, setFormat] = useState<QuickMomentFormat | null>(null);
@@ -35,7 +39,7 @@ export default function QuickMomentsBrowseScreen() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState<QuickMomentMatch[] | null>(null);
-  const [radiusKm, setRadiusKm] = useState(MAX_RADIUS_KM);
+  const [radiusKm, setRadiusKm] = useState(DEFAULT_RADIUS_KM);
   const searchedRef = useRef(false);
   // The OS permission prompt + a real GPS fix can both take several
   // seconds — a user who backs out of this screen while either is still in
@@ -87,9 +91,14 @@ export default function QuickMomentsBrowseScreen() {
     setSearching(true);
     setError("");
     try {
+      // Always fetches out to the full 30km hard cutoff (server-enforced
+      // regardless) and lets the radius slider filter that already-fetched,
+      // already-safe list client-side below — dragging the slider updates
+      // the count instantly with no network round trip per tick.
       const { results: matched } = await fetchQuickMomentsMatch({
         lat: coords.lat,
         lng: coords.lng,
+        radiusKm: MAX_RADIUS_KM,
         budgetMax: budget ? Number(budget) : undefined,
       });
       if (mountedRef.current) setResults(matched);
@@ -114,7 +123,7 @@ export default function QuickMomentsBrowseScreen() {
     setResults(null);
     setError("");
     searchedRef.current = false;
-    setRadiusKm(MAX_RADIUS_KM);
+    setRadiusKm(DEFAULT_RADIUS_KM);
   }
 
   // Server already returns every match sorted by distanceKm (see
@@ -133,7 +142,7 @@ export default function QuickMomentsBrowseScreen() {
   }).current;
 
   function openArtist(item: QuickMomentMatch) {
-    if (!format) return;
+    if (!format || !coords) return;
     router.push({
       pathname: "/quick-moments/book",
       params: {
@@ -141,6 +150,10 @@ export default function QuickMomentsBrowseScreen() {
         format,
         stageName: item.stageName ?? "",
         pricePerSlot: item.pricePerSlot != null ? String(item.pricePerSlot) : "",
+        distanceKm: String(item.distanceKm),
+        travelFee: String(item.travelFee),
+        clientLat: String(coords.lat),
+        clientLng: String(coords.lng),
       },
     });
   }
@@ -344,13 +357,16 @@ function MatchCard({ item, isActive, onPress }: { item: QuickMomentMatch; isActi
         </View>
         <View style={styles.resultBottomRow}>
           {item.pricePerSlot ? (
-            <Text style={styles.resultPrice}>From ₹{item.pricePerSlot.toLocaleString("en-IN")}</Text>
+            <Text style={styles.resultPrice}>From ₹{item.totalFromPrice.toLocaleString("en-IN")}</Text>
           ) : <View />}
           <View style={styles.resultCta}>
             <Text style={styles.resultCtaText}>Book</Text>
             <Feather name="chevron-right" size={14} color="#fff" />
           </View>
         </View>
+        {item.travelFee > 0 ? (
+          <Text style={styles.resultTravelNote}>Includes ₹{item.travelFee.toLocaleString("en-IN")} travel fee</Text>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -506,6 +522,7 @@ const styles = StyleSheet.create({
   resultRow: { flexDirection: "row", alignItems: "center", gap: 5, flexWrap: "wrap" },
   resultLoc: { fontFamily: fonts.body, fontSize: 12.5, color: "rgba(255,255,255,0.75)" },
   resultBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xs },
+  resultTravelNote: { fontFamily: fonts.body, fontSize: 10.5, color: "rgba(255,255,255,0.55)", marginTop: 3 },
   resultPrice: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#fff" },
   resultCta: {
     flexDirection: "row",
