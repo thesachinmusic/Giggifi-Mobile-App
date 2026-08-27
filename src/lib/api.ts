@@ -24,8 +24,6 @@ export class NetworkError extends ApiError {
 }
 
 async function request<T>(path: string, options: RequestInit = {}, withAuth = true): Promise<T> {
-  const token = withAuth ? await getStoredToken() : null;
-
   // Our own controller drives the actual fetch (so the 15s timeout always
   // applies), but a caller-supplied signal — e.g. browse.tsx cancelling a
   // stale search when the user types again — aborts it too. Listening
@@ -40,50 +38,73 @@ async function request<T>(path: string, options: RequestInit = {}, withAuth = tr
     else externalSignal.addEventListener("abort", onExternalAbort);
   }
 
-  let response: Response;
+  // Races the *whole* request — token lookup included — against the same
+  // 15s window. getStoredToken() used to be awaited before the controller
+  // even existed, so a SecureStore call that hangs (seen on some Android
+  // devices/OS versions, and whenever the underlying connection stalls
+  // without a clean TCP reset) left the caller's promise pending forever:
+  // no timeout, no error, just a spinner stuck on-screen for good (found
+  // via the identical bug in the artist app's copy of this function).
+  // SecureStore has no abort support, so the stuck call itself can't be
+  // cancelled — but racing it still lets this function move on and reject
+  // once the clock runs out, which is all a caller needs to stop spinning
+  // and show an error.
+  const timedOut = new Promise<never>((_, reject) => {
+    controller.signal.addEventListener("abort", () => reject(new NetworkError()), { once: true });
+  });
+
+  const attempt = (async (): Promise<T> => {
+    const token = withAuth ? await getStoredToken() : null;
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...options.headers,
+        },
+      });
+    } catch {
+      // Covers a hung request past REQUEST_TIMEOUT_MS, a flat-out unreachable
+      // host, and a caller-triggered cancellation — none of these are "server
+      // said no", so none should be reported as one. Callers that care about
+      // telling a real cancellation apart from a real network failure check
+      // their own AbortController's `.aborted` in the catch, since every case
+      // here throws the same NetworkError.
+      throw new NetworkError();
+    }
+
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      // A 401 with a token attached means that token died (30-day expiry, or
+      // revoked server-side) — every screen would otherwise show its own
+      // generic error while silently stuck logged-in-but-broken, so clear it
+      // and say so. A 401 with NO token was never a session to begin with —
+      // it's just an anonymous user hitting an auth-required endpoint (e.g.
+      // the first tap on "Book"), which the calling screen already handles by
+      // rendering InlinePhoneVerification; no toast, no navigation needed.
+      // sendOtp/verifyOtp (withAuth: false) are excluded from all of this
+      // since a wrong OTP isn't a session expiring.
+      if (response.status === 401 && withAuth && token) {
+        await clearStoredToken();
+        emitSessionExpired();
+        showToast({ title: "Session expired", body: "Please sign in again.", category: "SECURITY" });
+        router.replace("/(tabs)");
+      }
+      throw new ApiError(response.status, body.error ?? "Something went wrong.");
+    }
+    return body as T;
+  })();
+
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-    });
-  } catch {
-    // Covers a hung request past REQUEST_TIMEOUT_MS, a flat-out unreachable
-    // host, and a caller-triggered cancellation — none of these are "server
-    // said no", so none should be reported as one. Callers that care about
-    // telling a real cancellation apart from a real network failure check
-    // their own AbortController's `.aborted` in the catch, since every case
-    // here throws the same NetworkError.
-    throw new NetworkError();
+    return await Promise.race([attempt, timedOut]);
   } finally {
     clearTimeout(timeout);
     externalSignal?.removeEventListener("abort", onExternalAbort);
   }
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    // A 401 with a token attached means that token died (30-day expiry, or
-    // revoked server-side) — every screen would otherwise show its own
-    // generic error while silently stuck logged-in-but-broken, so clear it
-    // and say so. A 401 with NO token was never a session to begin with —
-    // it's just an anonymous user hitting an auth-required endpoint (e.g.
-    // the first tap on "Book"), which the calling screen already handles by
-    // rendering InlinePhoneVerification; no toast, no navigation needed.
-    // sendOtp/verifyOtp (withAuth: false) are excluded from all of this
-    // since a wrong OTP isn't a session expiring.
-    if (response.status === 401 && withAuth && token) {
-      await clearStoredToken();
-      emitSessionExpired();
-      showToast({ title: "Session expired", body: "Please sign in again.", category: "SECURITY" });
-      router.replace("/(tabs)");
-    }
-    throw new ApiError(response.status, body.error ?? "Something went wrong.");
-  }
-  return body as T;
 }
 
 // ─── Types (mirrors app/api/mobile/* response shapes on the website repo) ───
