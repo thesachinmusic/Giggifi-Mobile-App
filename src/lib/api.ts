@@ -128,6 +128,16 @@ export interface ReviewSummary {
   createdAt: string;
 }
 
+// Same shape as the website's own RepertoireData (artist-public-profile.tsx)
+// — songs grouped by moodTag only. No lyrics/musicalKey/notes ever appear
+// here; the mobile artist-profile endpoint enforces that server-side.
+export interface RepertoireData {
+  totalSongs: number;
+  languages: string[];
+  yearsExperience: number | null;
+  groups: { moodTag: string; songs: { id: string; title: string }[] }[];
+}
+
 export interface ArtistSummary {
   id: string;
   stageName: string | null;
@@ -161,6 +171,10 @@ export interface ArtistSummary {
   quickMomentsAvgRating?: number | null;
   quickMomentsReviewCount?: number;
   bookingCount?: number;
+  // Only present on the single-artist detail endpoint — undefined on list
+  // endpoints that don't select it, null when the artist has nothing
+  // showcased.
+  repertoire?: RepertoireData | null;
 }
 
 export interface VendorSummary {
