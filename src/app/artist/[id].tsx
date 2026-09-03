@@ -15,6 +15,7 @@ import { DateField } from "@/components/DateField";
 import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
+import { VideoModal } from "@/components/VideoModal";
 import { Skeleton } from "@/components/Skeleton";
 import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary, type QuickMomentFormat } from "@/lib/api";
 import { isValidEmail } from "@/lib/format";
@@ -638,14 +639,6 @@ function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]
     );
   }
 
-  if (playingUrl) {
-    return (
-      <View style={styles.tabContent}>
-        <InlineVideoPlayer uri={playingUrl} onClose={() => setPlayingUrl(null)} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.tabContent}>
       <View style={styles.mediaGrid}>
@@ -668,44 +661,7 @@ function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]
           );
         })}
       </View>
-    </View>
-  );
-}
-
-// Self-contained inline video player used by both the Media tab (tapping a
-// thumbnail) and reused visually by the hero (see ArtistHero below, which
-// keeps its own player instance instead of mounting a second one for the
-// same source). Owns its own player/lifecycle so a slow replaceAsync() that
-// resolves after the user has already backed out never touches state on an
-// unmounted component — the mountedRef pattern already fixed this exact
-// class of crash elsewhere in this screen.
-function InlineVideoPlayer({ uri, onClose }: { uri: string; onClose: () => void }) {
-  const mountedRef = useRef(true);
-  useEffect(() => () => { mountedRef.current = false; }, []);
-
-  const player = useVideoPlayer(null, (instance) => {
-    instance.loop = false;
-    instance.muted = false;
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    player.replaceAsync(uri).then(() => {
-      if (cancelled || !mountedRef.current) return;
-      player.play();
-    }).catch((err) => captureError(err, "media-tab-video-load"));
-    return () => {
-      cancelled = true;
-    };
-  }, [uri, player]);
-
-  return (
-    <View style={styles.inlinePlayerWrap}>
-      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls />
-      <Pressable onPress={onClose} style={styles.inlinePlayerBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back to videos">
-        <Feather name="chevron-left" size={18} color="#fff" />
-        <Text style={styles.inlinePlayerBackText}>Back</Text>
-      </Pressable>
+      <VideoModal visible={playingUrl !== null} uri={playingUrl} onClose={() => setPlayingUrl(null)} />
     </View>
   );
 }
@@ -763,11 +719,11 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   const { isSaved, toggle } = useSavedArtists();
   const saved = isSaved(artist.id);
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
-  // Tapping the hero plays it right there, unmuted, with native controls —
-  // not a navigation to another screen. "Back" just returns to the ambient
-  // muted loop, no router involved, so there's nothing here for hardware
-  // back to interact with badly.
-  const [playing, setPlaying] = useState(false);
+  // Tapping the hero opens the shared full-screen VideoModal — the hero's
+  // own ambient muted loop underneath is untouched by that (never paused,
+  // never made to expand in place), so there's no in-place "playing" state
+  // here anymore and nothing for the modal's close to hand back to.
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
 
   async function handleShare() {
     try {
@@ -802,8 +758,8 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   }, [videoSource, player]);
 
   useEffect(() => {
-    if (videoSource && !playing) player.muted = muted;
-  }, [muted, player, videoSource, playing]);
+    if (videoSource) player.muted = muted;
+  }, [muted, player, videoSource]);
 
   // This screen stays reachable via back-navigation without unmounting
   // immediately, so leaving it (e.g. to the enquiry flow, or back to Home)
@@ -825,7 +781,7 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   // which is why patching that one didn't stop this crash.
   useFocusEffect(
     useCallback(() => {
-      if (videoSource && !playing) {
+      if (videoSource) {
         player.muted = muted;
         player.play();
       }
@@ -837,43 +793,34 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
           // blurring — see comment above.
         }
       };
-    }, [videoSource, muted, player, playing]),
+    }, [videoSource, muted, player]),
   );
 
   function handleHeroPress() {
     if (!videoSource) return;
-    if (playing) return; // native controls own taps once expanded
-    player.muted = false;
-    setPlaying(true);
-  }
-
-  function handleBackToStatic() {
-    try {
-      player.pause();
-    } catch {
-      // Same release race as above — harmless if it's already gone.
-    }
-    player.muted = muted;
-    setPlaying(false);
-    if (videoSource) player.play();
+    setVideoModalOpen(true);
   }
 
   return (
     <View style={styles.hero} pointerEvents="box-none">
       {videoSource ? (
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleHeroPress} disabled={playing}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleHeroPress}>
+          {/* surfaceType="textureView" — see video-feed.tsx's VideoFeedCard
+              for the full explanation: Android's default SurfaceView
+              rendering can swallow taps meant for this Pressable even with
+              pointerEvents="none" set, since it composites through a
+              separate native window outside RN's normal view hierarchy. */}
           <VideoView
             player={player}
             style={StyleSheet.absoluteFill}
             contentFit="cover"
-            nativeControls={playing}
-            pointerEvents={playing ? "auto" : "none"}
+            nativeControls={false}
+            pointerEvents="none"
+            surfaceType="textureView"
           />
-          {!playing ? (
-            <View style={styles.heroPlayHint} pointerEvents="none">
-              <Feather name="play" size={18} color="#fff" />
-            </View>
-          ) : null}
+          <View style={styles.heroPlayHint} pointerEvents="none">
+            <Feather name="play" size={18} color="#fff" />
+          </View>
         </Pressable>
       ) : artist.profileImageUrl ? (
         <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -883,53 +830,40 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
         </LinearGradient>
       )}
 
-      {playing ? (
+      <View style={styles.heroActions}>
         <Pressable
-          onPress={handleBackToStatic}
-          style={styles.heroBackButton}
+          onPress={() => toggle(artist.id)}
+          style={styles.heroActionButton}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Back to profile"
+          accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
         >
-          <Feather name="chevron-left" size={18} color="#fff" />
-          <Text style={styles.heroBackButtonText}>Back</Text>
+          <Feather name="heart" size={16} color={saved ? colors.pink : "#fff"} />
         </Pressable>
-      ) : (
-        <>
-          <View style={styles.heroActions}>
-            <Pressable
-              onPress={() => toggle(artist.id)}
-              style={styles.heroActionButton}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
-            >
-              <Feather name="heart" size={16} color={saved ? colors.pink : "#fff"} />
-            </Pressable>
-            <Pressable
-              onPress={handleShare}
-              style={styles.heroActionButton}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Share artist"
-            >
-              <Feather name="share-2" size={16} color="#fff" />
-            </Pressable>
-          </View>
+        <Pressable
+          onPress={handleShare}
+          style={styles.heroActionButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Share artist"
+        >
+          <Feather name="share-2" size={16} color="#fff" />
+        </Pressable>
+      </View>
 
-          {videoSource ? (
-            <Pressable
-              onPress={toggleMuted}
-              style={styles.heroMuteButton}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={muted ? "Unmute video" : "Mute video"}
-            >
-              <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
-            </Pressable>
-          ) : null}
-        </>
-      )}
+      {videoSource ? (
+        <Pressable
+          onPress={toggleMuted}
+          style={styles.heroMuteButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+        >
+          <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
+        </Pressable>
+      ) : null}
+
+      <VideoModal visible={videoModalOpen} uri={videoSource} onClose={() => setVideoModalOpen(false)} />
     </View>
   );
 }
@@ -986,20 +920,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  heroBackButton: {
-    position: "absolute",
-    top: spacing.md,
-    left: spacing.md,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingLeft: 8,
-    paddingRight: 12,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  heroBackButtonText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: "#fff" },
   stickyBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -1171,28 +1091,6 @@ const styles = StyleSheet.create({
   mediaEmptyEmoji: { fontSize: 26, marginBottom: 2 },
   mediaEmptyText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.textDim },
   mediaEmptySub: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute },
-  inlinePlayerWrap: {
-    width: "100%",
-    aspectRatio: 9 / 16,
-    borderRadius: radii.lg,
-    overflow: "hidden",
-    backgroundColor: "#000",
-    position: "relative",
-  },
-  inlinePlayerBack: {
-    position: "absolute",
-    top: spacing.sm,
-    left: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingLeft: 8,
-    paddingRight: 12,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  inlinePlayerBackText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: "#fff" },
   priceCard: { gap: spacing.md, marginBottom: spacing.sm },
   priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   priceLabel: {
