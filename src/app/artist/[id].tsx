@@ -17,7 +17,7 @@ import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
 import { VideoModal } from "@/components/VideoModal";
 import { Skeleton } from "@/components/Skeleton";
-import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, ApiError, type ArtistSummary, type QuickMomentFormat, type RepertoireData, type EventPlanSummary } from "@/lib/api";
+import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, ApiError, type ArtistSummary, type QuickMomentFormat, type EventPlanSummary } from "@/lib/api";
 import { isValidEmail } from "@/lib/format";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
@@ -34,12 +34,11 @@ import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-type ProfileTab = "about" | "media" | "packages" | "repertoire" | "reviews";
+type ProfileTab = "about" | "media" | "packages" | "reviews";
 const TABS: { key: ProfileTab; label: string }[] = [
   { key: "about", label: "About" },
   { key: "media", label: "Media" },
   { key: "packages", label: "Packages" },
-  { key: "repertoire", label: "Repertoire" },
   { key: "reviews", label: "Reviews" },
 ];
 
@@ -357,8 +356,6 @@ export default function ArtistDetailScreen() {
             <AboutTab artist={artist} />
           ) : activeTab === "media" ? (
             <MediaTab videos={videos} c1={c1} c2={c2} />
-          ) : activeTab === "repertoire" ? (
-            <RepertoireTab repertoire={artist.repertoire ?? null} />
           ) : activeTab === "reviews" ? (
             <ReviewsTab reviews={artist.recentReviews ?? []} />
           ) : (
@@ -668,7 +665,7 @@ function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]
   if (videos.length === 0) {
     return (
       <View style={styles.mediaEmpty}>
-        <Feather name="video-off" size={22} color={colors.textMute} />
+        <Feather name="video-off" size={22} color={colors.textDim} />
         <Text style={styles.mediaEmptyText}>No videos yet.</Text>
       </View>
     );
@@ -697,47 +694,6 @@ function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]
         })}
       </View>
       <VideoModal visible={playingUrl !== null} uri={playingUrl} onClose={() => setPlayingUrl(null)} />
-    </View>
-  );
-}
-
-// ─── Repertoire tab ─────────────────────────────────────────────────────────
-
-// Mirrors the website's public Repertoire section — same data, same
-// privacy rule (title/language/moodTag only, never lyrics/keys/notes;
-// enforced server-side on the endpoint, not just here).
-function RepertoireTab({ repertoire }: { repertoire: RepertoireData | null }) {
-  if (!repertoire || repertoire.groups.length === 0) {
-    return (
-      <View style={styles.mediaEmpty}>
-        <Feather name="music" size={22} color={colors.textMute} />
-        <Text style={styles.mediaEmptyText}>No repertoire yet.</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.tabContent}>
-      <View style={styles.repertoireMetaRow}>
-        <Text style={styles.repertoireMetaText}>
-          {repertoire.totalSongs} song{repertoire.totalSongs === 1 ? "" : "s"}
-        </Text>
-        {repertoire.languages.length ? (
-          <Text style={styles.repertoireMetaText}> · {repertoire.languages.join(", ")}</Text>
-        ) : null}
-      </View>
-      {repertoire.groups.map((group) => (
-        <View key={group.moodTag} style={styles.aboutBlock}>
-          <Text style={styles.aboutBlockLabel}>{group.moodTag.toUpperCase()}</Text>
-          <View style={styles.repertoireSongList}>
-            {group.songs.map((song) => (
-              <View key={song.id} style={styles.repertoireSongRow}>
-                <Feather name="music" size={12} color={colors.textMute} />
-                <Text style={styles.repertoireSongTitle}>{song.title}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      ))}
     </View>
   );
 }
@@ -1166,24 +1122,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#fff",
   },
+  // Bumped from a near-invisible 0.03 background/muted line border — on this
+  // app's near-black theme that combination read as a genuinely blank area
+  // rather than an empty state, reported live on a real device (dim room,
+  // low-contrast screen made it worse). Kept dark/subtle, just actually
+  // visible now.
   mediaEmpty: {
     alignItems: "center",
     gap: spacing.xs,
     paddingVertical: spacing.xl,
     marginBottom: spacing.lg,
     borderRadius: radii.xl,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: colors.lineStrong,
   },
   mediaEmptyEmoji: { fontSize: 26, marginBottom: 2 },
   mediaEmptyText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.textDim },
   mediaEmptySub: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute },
-  repertoireMetaRow: { flexDirection: "row", marginBottom: spacing.md },
-  repertoireMetaText: { fontFamily: fonts.mono, fontSize: 11, color: colors.textMute },
-  repertoireSongList: { gap: 6 },
-  repertoireSongRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  repertoireSongTitle: { fontFamily: fonts.body, fontSize: 13.5, color: colors.textDim, flexShrink: 1 },
   priceCard: { gap: spacing.md, marginBottom: spacing.sm },
   priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   priceLabel: {

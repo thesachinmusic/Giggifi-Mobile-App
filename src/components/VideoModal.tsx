@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -13,15 +13,18 @@ interface VideoModalProps {
 }
 
 // Shared full-screen video popup — used by the artist profile's hero video
-// tap and the Media tab's thumbnail tap, replacing their previous in-place
-// expansion (native controls taking over the hero itself, and the Media tab
-// swapping its grid for a player). Native controls, not a custom tap-to-pause
-// overlay: video-feed.tsx's VideoFeedCard needed a surfaceType="textureView"
-// fix to make a custom overlay's taps register reliably on Android (see its
-// own comment) — native controls sidestep that whole class of bug since
-// they're rendered by the native player itself, not a separate RN view
-// fighting it for touches, matching the already-working InlineVideoPlayer
-// pattern this replaces.
+// tap and the Media tab's thumbnail tap. Custom play/pause + mute controls,
+// NOT expo-video's nativeControls — that was the original design here and
+// it shipped but failed real-device testing twice (tap-to-open unreliable,
+// and once open, native play/pause/mute didn't respond at all). Native
+// player chrome rendering/responding reliably on Android has been the
+// recurring problem in this app — it's the exact reason
+// surfaceType="textureView" had to be added to every ambient video view
+// elsewhere (video-feed.tsx, FeaturedArtistCard, the hero's own background
+// video): Android's default SurfaceView compositing doesn't reliably
+// cooperate with touch/overlay handling. Custom controls + textureView here
+// too is the same proven pattern already working on those screens, not a
+// different, untested mechanism.
 export function VideoModal({ visible, uri, onClose }: VideoModalProps) {
   if (!visible || !uri) return null;
   return <VideoModalContent uri={uri} onClose={onClose} />;
@@ -33,6 +36,9 @@ export function VideoModal({ visible, uri, onClose }: VideoModalProps) {
 function VideoModalContent({ uri, onClose }: { uri: string; onClose: () => void }) {
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
+
+  const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   const player = useVideoPlayer(null, (instance) => {
     instance.loop = false;
@@ -60,12 +66,42 @@ function VideoModalContent({ uri, onClose }: { uri: string; onClose: () => void 
         // Expected on a real unmount — see comment above.
       }
     };
+    // paused/muted deliberately excluded — this effect only handles loading
+    // the source once, not reacting to the toggle taps below (see the two
+    // dedicated effects), same split video-feed.tsx's VideoFeedCard uses.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uri, player]);
+
+  useEffect(() => {
+    if (paused) player.pause();
+    else player.play();
+  }, [paused, player]);
+
+  useEffect(() => {
+    player.muted = muted;
+  }, [muted, player]);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls />
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setPaused((v) => !v)}>
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="contain"
+            nativeControls={false}
+            pointerEvents="none"
+            surfaceType="textureView"
+          />
+          {paused ? (
+            <View style={styles.pauseOverlay} pointerEvents="none">
+              <View style={styles.pauseIconWrap}>
+                <Feather name="play" size={28} color="#fff" />
+              </View>
+            </View>
+          ) : null}
+        </Pressable>
+
         <SafeAreaView style={StyleSheet.absoluteFill} edges={["top", "left", "right"]} pointerEvents="box-none">
           <Pressable
             onPress={onClose}
@@ -76,6 +112,16 @@ function VideoModalContent({ uri, onClose }: { uri: string; onClose: () => void 
           >
             <Feather name="chevron-left" size={18} color="#fff" />
             <Text style={styles.closeButtonText}>Back</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setMuted((v) => !v)}
+            style={styles.muteButton}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+          >
+            <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
           </Pressable>
         </SafeAreaView>
       </View>
@@ -99,4 +145,32 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
   },
   closeButtonText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: "#fff" },
+  muteButton: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pauseOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pauseIconWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,6 +30,13 @@ interface Props {
 export function FeaturedArtistCard({ artist, isActive, onOpenVideo, onViewProfile }: Props) {
   const { muted, toggleMuted } = useVideoMute();
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
+  // The centered play icon used to be purely decorative — it sat inside the
+  // card's outer Pressable, so tapping it just triggered onOpenVideo like
+  // tapping anywhere else on the card, not an actual pause toggle. Real
+  // in-place pause/resume now, same paused-state pattern as video-feed.tsx's
+  // VideoFeedCard (see the effects below for why it's kept separate from the
+  // load/unload effect).
+  const [paused, setPaused] = useState(false);
 
   const player = useVideoPlayer(null, (instance) => {
     instance.loop = true;
@@ -40,6 +47,10 @@ export function FeaturedArtistCard({ artist, isActive, onOpenVideo, onViewProfil
   // buffering network video is expensive enough to OOM on weaker Android devices
   // if every card loads its source eagerly — so only the active card ever has
   // real media loaded; everything else stays unloaded until it becomes active.
+  //
+  // paused deliberately excluded from these deps — this effect only handles
+  // (un)loading the source on (de)activation, not reacting to play/pause
+  // taps (see the dedicated effect below), mirroring VideoFeedCard exactly.
   useEffect(() => {
     if (!videoSource) return;
     let cancelled = false;
@@ -56,11 +67,24 @@ export function FeaturedArtistCard({ artist, isActive, onOpenVideo, onViewProfil
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, videoSource, player]);
 
   useEffect(() => {
     if (isActive) player.muted = muted;
   }, [muted, isActive, player]);
+
+  // Reset to playing whenever this card becomes active again — swiping back
+  // to one you'd previously paused shouldn't stay frozen.
+  useEffect(() => {
+    if (isActive) setPaused(false);
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    if (paused) player.pause();
+    else player.play();
+  }, [paused, isActive, player]);
 
   const name = artist.stageName ?? "GiggiFi Artist";
   const [c1, c2] = duotoneFor(artist.id);
@@ -95,13 +119,24 @@ export function FeaturedArtistCard({ artist, isActive, onOpenVideo, onViewProfil
           locations={[0, 0.55, 1]}
           style={StyleSheet.absoluteFill}
         />
-
-        {videoSource ? (
-          <View style={styles.playHint} pointerEvents="none">
-            <Feather name="play" size={16} color="#fff" />
-          </View>
-        ) : null}
       </Pressable>
+
+      {videoSource ? (
+        // Its own Pressable, not nested inside the card's outer one's tap
+        // area — RN gives a touch to the innermost responder that claims it,
+        // so this reliably intercepts the tap instead of it falling through
+        // to onOpenVideo. Tapping anywhere else on the card still opens the
+        // full video feed, unchanged.
+        <Pressable
+          style={styles.playHint}
+          onPress={() => setPaused((v) => !v)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={paused ? "Play video" : "Pause video"}
+        >
+          <Feather name={paused ? "play" : "pause"} size={16} color="#fff" />
+        </Pressable>
+      ) : null}
 
       {videoSource ? (
         <Pressable
