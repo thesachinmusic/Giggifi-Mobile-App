@@ -8,6 +8,7 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { Skeleton } from "@/components/Skeleton";
+import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import {
   fetchEventPlans,
   fetchEventPlan,
@@ -131,20 +132,22 @@ export default function MyEventScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <Topbar />
-        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <EventHero plan={plan} />
-          {plan.totalBudget ? <BudgetCard plan={plan} /> : null}
-          <Text style={styles.sectionTitle}>Checklist</Text>
-          <ChecklistCard plan={plan} onToggle={handleToggleItem} />
-          <Pressable style={styles.addVendorCta} onPress={() => router.push("/(tabs)/browse")}>
-            <Text style={styles.addVendorCtaText}>+ Add another vendor</Text>
-          </Pressable>
-          {plans && plans.length > 1 ? (
-            <Text style={styles.multiPlanHint}>
-              You have {plans.length} events planned — showing the nearest one.
-            </Text>
-          ) : null}
-        </ScrollView>
+        <KeyboardAvoidingScreen verticalOffset={80}>
+          <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <EventHero plan={plan} />
+            {plan.totalBudget ? <BudgetCard plan={plan} /> : null}
+            <Text style={styles.sectionTitle}>Checklist</Text>
+            <ChecklistCard plan={plan} onToggle={handleToggleItem} />
+            <Pressable style={styles.addVendorCta} onPress={() => router.push("/(tabs)/browse")}>
+              <Text style={styles.addVendorCtaText}>+ Add another vendor</Text>
+            </Pressable>
+            {plans && plans.length > 1 ? (
+              <Text style={styles.multiPlanHint}>
+                You have {plans.length} events planned — showing the nearest one.
+              </Text>
+            ) : null}
+          </ScrollView>
+        </KeyboardAvoidingScreen>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -301,43 +304,45 @@ function CreatePlanForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <View style={styles.createWrap}>
-      <Feather name="calendar" size={28} color={colors.purple} style={styles.createIcon} />
-      <Text style={styles.createTitle}>Planning an event?</Text>
-      <Text style={styles.createSub}>
-        Track your countdown, budget, and vendor checklist all in one place.
-      </Text>
-      <View style={styles.createField}>
-        <Text style={styles.createLabel}>EVENT NAME</Text>
-        <TextInput
-          value={eventName}
-          onChangeText={setEventName}
-          placeholder="e.g. Priya & Rohan's Wedding"
-          placeholderTextColor={colors.textMute}
-          style={styles.createInput}
+    <KeyboardAvoidingScreen verticalOffset={80}>
+      <ScrollView contentContainerStyle={styles.createWrap} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <Feather name="calendar" size={28} color={colors.purple} style={styles.createIcon} />
+        <Text style={styles.createTitle}>Planning an event?</Text>
+        <Text style={styles.createSub}>
+          Track your countdown, budget, and vendor checklist all in one place.
+        </Text>
+        <View style={styles.createField}>
+          <Text style={styles.createLabel}>EVENT NAME</Text>
+          <TextInput
+            value={eventName}
+            onChangeText={setEventName}
+            placeholder="e.g. Priya & Rohan's Wedding"
+            placeholderTextColor={colors.textMute}
+            style={styles.createInput}
+          />
+        </View>
+        <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
+        <View style={styles.createField}>
+          <Text style={styles.createLabel}>TOTAL BUDGET (OPTIONAL)</Text>
+          <TextInput
+            value={totalBudget}
+            onChangeText={(v) => setTotalBudget(v.replace(/[^0-9]/g, ""))}
+            placeholder="e.g. 285000"
+            placeholderTextColor={colors.textMute}
+            keyboardType="number-pad"
+            style={styles.createInput}
+          />
+        </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Btn
+          label="Start planning"
+          onPress={handleCreate}
+          loading={submitting}
+          disabled={!eventName.trim() || !eventDate}
+          style={styles.createButton}
         />
-      </View>
-      <DateField label="EVENT DATE" value={eventDate} onChange={setEventDate} />
-      <View style={styles.createField}>
-        <Text style={styles.createLabel}>TOTAL BUDGET (OPTIONAL)</Text>
-        <TextInput
-          value={totalBudget}
-          onChangeText={(v) => setTotalBudget(v.replace(/[^0-9]/g, ""))}
-          placeholder="e.g. 285000"
-          placeholderTextColor={colors.textMute}
-          keyboardType="number-pad"
-          style={styles.createInput}
-        />
-      </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Btn
-        label="Start planning"
-        onPress={handleCreate}
-        loading={submitting}
-        disabled={!eventName.trim() || !eventDate}
-        style={styles.createButton}
-      />
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingScreen>
   );
 }
 
@@ -388,7 +393,7 @@ const styles = StyleSheet.create({
   muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, textAlign: "center" },
   retryButton: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.pink },
   retryButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.pink },
-  createWrap: { flex: 1, padding: spacing.xl, alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  createWrap: { flexGrow: 1, padding: spacing.xl, alignItems: "center", justifyContent: "center", gap: spacing.sm },
   createIcon: { marginBottom: spacing.xs },
   createTitle: { fontFamily: fonts.display, fontSize: 19, color: colors.text, textAlign: "center" },
   createSub: { fontFamily: fonts.body, fontSize: 13, color: colors.textMute, textAlign: "center", lineHeight: 18, marginBottom: spacing.md },

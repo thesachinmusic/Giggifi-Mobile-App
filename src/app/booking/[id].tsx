@@ -8,6 +8,7 @@ import RazorpayCheckout from "react-native-razorpay";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
+import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { Skeleton } from "@/components/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth-context";
@@ -259,7 +260,8 @@ export default function BookingDetailScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingScreen verticalOffset={80}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Text style={styles.eventName} numberOfLines={1}>{booking.eventName}</Text>
             <StatusBadge status={booking.status} />
@@ -399,6 +401,7 @@ export default function BookingDetailScreen() {
             </Pressable>
           </GlassCard>
         </ScrollView>
+        </KeyboardAvoidingScreen>
       </SafeAreaView>
     </GradientBackground>
   );

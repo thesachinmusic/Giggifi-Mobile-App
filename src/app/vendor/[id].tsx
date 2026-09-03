@@ -5,7 +5,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
@@ -303,6 +303,27 @@ function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: st
   useEffect(() => {
     if (videoSource) player.muted = muted;
   }, [muted, player, videoSource]);
+
+  // Same gap as ArtistHero used to have (see its identical comment): this
+  // screen stays reachable via back-navigation without unmounting, so
+  // leaving it (e.g. to the enquiry flow) otherwise left the hero video's
+  // audio playing underneath. Cleanup guarded with try/catch for the same
+  // SharedObject-release race on a real unmount, not just a blur.
+  useFocusEffect(
+    useCallback(() => {
+      if (videoSource) {
+        player.muted = muted;
+        player.play();
+      }
+      return () => {
+        try {
+          player.pause();
+        } catch {
+          // Expected when the screen is truly unmounting, not just blurring.
+        }
+      };
+    }, [videoSource, muted, player]),
+  );
 
   return (
     <View style={styles.hero} pointerEvents="box-none">

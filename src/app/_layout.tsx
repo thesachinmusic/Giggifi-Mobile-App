@@ -99,16 +99,19 @@ function RootLayoutContent() {
                   }}
                 >
                   <Stack.Screen name="(tabs)" />
-                  <Stack.Screen
-                    name="artist/[id]"
-                    options={{
-                      headerShown: true,
-                      headerTransparent: true,
-                      headerTitle: "",
-                      headerTintColor: colors.text,
-                      headerBackTitle: "Back",
-                    }}
-                  />
+                  {/* headerShown: false, not headerTransparent — a
+                      headerTransparent native header floats its own
+                      touchable native view over the whole screen, and on
+                      Android that's the confirmed reason tapping the hero
+                      video here did nothing (see ArtistHero's own comment):
+                      react-native-screens' transparent header on Android has
+                      documented touch-swallowing bugs for content under it.
+                      video-feed.tsx (this feature's confirmed-working
+                      reference) has no native header at all — this makes
+                      artist/[id] match that instead. A custom back button is
+                      rendered in the hero itself now that the native one is
+                      gone. */}
+                  <Stack.Screen name="artist/[id]" options={{ headerShown: false }} />
                   <Stack.Screen
                     name="vendor/[id]"
                     options={{

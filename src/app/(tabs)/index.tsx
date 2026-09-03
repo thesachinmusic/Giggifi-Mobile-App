@@ -16,7 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { SearchBarStatic } from "@/components/SearchBar";
 import { BannerCarousel } from "@/components/BannerCarousel";
@@ -225,6 +225,21 @@ export default function HomeScreen() {
   const [featuredSectionVisible, setFeaturedSectionVisible] = useState(true);
   const [trendingSectionVisible, setTrendingSectionVisible] = useState(true);
 
+  // Scroll-based visibility above only reacts to scrolling *within* this
+  // screen — it never goes false just because Home itself lost focus (e.g.
+  // navigating to an artist profile via "View profile"), so a card's video
+  // kept playing with sound in the background the whole time. Same
+  // useFocusEffect(setFocused) pattern already used by reels.tsx and
+  // video-feed.tsx; ANDed into isActive below exactly like those screens AND
+  // their own scroll/viewability visibility.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = e.nativeEvent.contentOffset.y;
     const isVisible = (layout: { y: number; height: number }) =>
@@ -414,7 +429,7 @@ export default function HomeScreen() {
                     renderItem={({ item, index }) => (
                       <FeaturedArtistCard
                         artist={item}
-                        isActive={index === activeFeaturedIndex && featuredSectionVisible}
+                        isActive={index === activeFeaturedIndex && featuredSectionVisible && focused}
                         onOpenVideo={() => openVideoFeed(featured, item)}
                         onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                       />
@@ -492,7 +507,7 @@ export default function HomeScreen() {
                     renderItem={({ item, index }) => (
                       <FeaturedArtistCard
                         artist={item}
-                        isActive={index === activeTrendingIndex && trendingSectionVisible}
+                        isActive={index === activeTrendingIndex && trendingSectionVisible && focused}
                         onOpenVideo={() => openVideoFeed(trending, item)}
                         onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                       />

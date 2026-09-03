@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
@@ -7,7 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { duotoneFor } from "@/lib/palette";
@@ -141,6 +141,19 @@ export default function QuickMomentsBrowseScreen() {
     if (viewableItems[0]?.index != null) setActiveIndex(viewableItems[0].index);
   }).current;
 
+  // activeIndex above only reacts to scroll position within this list — it
+  // never goes stale just because this screen lost focus (e.g. tapping a
+  // card navigates to the artist profile, which stays mounted underneath in
+  // the stack), so the previously-active card's video kept playing with
+  // sound in the background. Same pattern as video-feed.tsx/reels.tsx.
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
+
   function openArtist(item: QuickMomentMatch) {
     if (!format || !coords) return;
     router.push({
@@ -207,7 +220,7 @@ export default function QuickMomentsBrowseScreen() {
                 windowSize={3}
                 removeClippedSubviews
                 renderItem={({ item, index }) => (
-                  <MatchCard item={item} isActive={index === activeIndex} onPress={() => openArtist(item)} />
+                  <MatchCard item={item} isActive={index === activeIndex && focused} onPress={() => openArtist(item)} />
                 )}
               />
             )}

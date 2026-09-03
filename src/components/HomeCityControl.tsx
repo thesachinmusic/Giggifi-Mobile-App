@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { ALL_CITIES } from "@/lib/india-locations";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -80,6 +81,8 @@ export function HomeCityControl({ city, onChange }: Props) {
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        {/* Own top-level window — see StateCityField's identical comment. */}
+        <KeyboardAvoidingScreen verticalOffset={0}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHeader}>
@@ -124,6 +127,7 @@ export function HomeCityControl({ city, onChange }: Props) {
             />
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingScreen>
       </Modal>
     </>
   );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -260,6 +260,15 @@ export default function ArtistDetailScreen() {
   if (loading) {
     return (
       <GradientBackground>
+        <Pressable
+          onPress={() => router.back()}
+          style={[styles.errorBackButton, styles.floatingBackButton, { top: insets.top + spacing.sm }]}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Feather name="chevron-left" size={18} color={colors.text} />
+        </Pressable>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Skeleton height={SCREEN_WIDTH} borderRadius={0} />
           <View style={styles.body}>
@@ -276,11 +285,19 @@ export default function ArtistDetailScreen() {
   if (error || !artist) {
     return (
       <GradientBackground>
-        <SafeAreaView style={styles.centered}>
-          <Text style={styles.muted}>{error || "Artist not found."}</Text>
-          <Pressable style={styles.retryButton} onPress={loadArtist}>
-            <Text style={styles.retryButtonText}>Try again</Text>
+        {/* The native header (and its back button) no longer exists on this
+            route — see _layout.tsx's comment — so this state needs its own
+            way back too, not just the success-path hero. */}
+        <SafeAreaView style={styles.errorSafe} edges={["top"]}>
+          <Pressable onPress={() => router.back()} style={styles.errorBackButton} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">
+            <Feather name="chevron-left" size={18} color={colors.text} />
           </Pressable>
+          <View style={styles.centered}>
+            <Text style={styles.muted}>{error || "Artist not found."}</Text>
+            <Pressable style={styles.retryButton} onPress={loadArtist}>
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </Pressable>
+          </View>
         </SafeAreaView>
       </GradientBackground>
     );
@@ -750,6 +767,10 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   const { muted, toggleMuted } = useVideoMute();
   const { isSaved, toggle } = useSavedArtists();
   const saved = isSaved(artist.id);
+  // The screen no longer has a native header (see _layout.tsx's comment on
+  // this route) — its safe-area top inset used to be handled for free by
+  // that header; every top-anchored overlay here now adds insets.top itself.
+  const insets = useSafeAreaInsets();
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
   // Tapping the hero opens the shared full-screen VideoModal — the hero's
   // own ambient muted loop underneath is untouched by that (never paused,
@@ -830,6 +851,13 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
 
   function handleHeroPress() {
     if (!videoSource) return;
+    // TEMPORARY — visible-on-device diagnostic for the tap-to-open popup
+    // bug, at Sachin's explicit request after two rounds of code-only fixes.
+    // If this Alert appears, the tap handler IS firing (the bug, if it
+    // persists, is downstream — the modal itself). If it never appears,
+    // something above the hero is still swallowing the tap even after
+    // removing the transparent native header. Remove once confirmed either way.
+    Alert.alert("hero tap fired", "handleHeroPress ran — opening video now.");
     setVideoModalOpen(true);
   }
 
@@ -862,7 +890,18 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
         </LinearGradient>
       )}
 
-      <View style={styles.heroActions}>
+      <View style={[styles.heroActions, { top: insets.top + spacing.md }]}>
+        {/* Replaces the native header's back button now that this route
+            renders headerShown: false — see _layout.tsx's comment. */}
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.heroActionButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Feather name="chevron-left" size={18} color="#fff" />
+        </Pressable>
         <Pressable
           onPress={() => toggle(artist.id)}
           style={styles.heroActionButton}
@@ -886,7 +925,7 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
       {videoSource ? (
         <Pressable
           onPress={toggleMuted}
-          style={styles.heroMuteButton}
+          style={[styles.heroMuteButton, { top: insets.top + spacing.md }]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={muted ? "Unmute video" : "Mute video"}
@@ -902,6 +941,25 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
 
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, paddingHorizontal: spacing.xl },
+  errorSafe: { flex: 1 },
+  errorBackButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    marginTop: spacing.sm,
+    marginLeft: spacing.lg,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  floatingBackButton: {
+    position: "absolute",
+    left: spacing.lg,
+    marginTop: 0,
+    zIndex: 10,
+  },
   scrollFlex: { flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
   hero: { aspectRatio: 1, position: "relative" },

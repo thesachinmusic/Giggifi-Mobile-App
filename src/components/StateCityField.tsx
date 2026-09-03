@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Location from "expo-location";
 import { Feather } from "@expo/vector-icons";
+import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { ALL_CITIES, INDIA_STATES, INDIA_STATE_NAMES, findStateForCity } from "@/lib/india-locations";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -141,6 +142,11 @@ export function StateCityField({ city, onChangeCity, state, onChangeState, cityL
       )}
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        {/* The Modal is its own top-level window — a KeyboardAvoidingView
+            outside it (e.g. wrapping the screen that opens this picker)
+            never reaches content in here, so this sheet needs its own. No
+            fixed header sits above it inside the modal, hence offset 0. */}
+        <KeyboardAvoidingScreen verticalOffset={0}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHeader}>
@@ -203,6 +209,7 @@ export function StateCityField({ city, onChangeCity, state, onChangeState, cityL
             />
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingScreen>
       </Modal>
     </>
   );
