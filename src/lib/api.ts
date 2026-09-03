@@ -279,6 +279,10 @@ export interface BookingDetail {
   // booking, enforced server-side, not just by this flag.
   canReview: boolean;
   review: { id: string; rating: number; comment: string } | null;
+  // Auto Invoice — set once payment clears. A direct, publicly-fetchable
+  // Cloudinary "raw" PDF URL, not gated behind any signed-URL exchange.
+  invoiceUrl: string | null;
+  invoiceNumber: string | null;
 }
 
 // ─── Quick Moments ("Giggifi 20-20") ───

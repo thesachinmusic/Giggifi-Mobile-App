@@ -370,6 +370,13 @@ export default function BookingDetailScreen() {
 
           {booking.revealedContact ? <RevealedContactCard contact={booking.revealedContact} /> : null}
 
+          {/* Invoice generation fires at the same payment-clear point as
+              contact reveal, so revealedContact is a reliable proxy for
+              "we're past the point an invoice would exist" — no invoice
+              section at all pre-payment, since there's nothing to show or
+              wait for yet. */}
+          {booking.revealedContact ? <InvoiceCard invoiceUrl={booking.invoiceUrl} invoiceNumber={booking.invoiceNumber} /> : null}
+
           {booking.review ? (
             <ReviewSubmittedCard review={booking.review} />
           ) : booking.canReview ? (
@@ -439,6 +446,33 @@ function RevealedContactCard({ contact }: { contact: NonNullable<BookingDetail["
           </Pressable>
         </View>
       ) : null}
+    </GlassCard>
+  );
+}
+
+// invoiceUrl is a direct, publicly-fetchable Cloudinary "raw" PDF URL (see
+// lib/services/invoice-service.tsx on the website) — no signed-URL
+// exchange, no in-app PDF viewer needed. Linking.openURL is the only
+// external-content pattern this app has (Terms/Privacy/tel/wa.me links
+// elsewhere in this same file); no WebView/expo-web-browser is installed,
+// so this hands off to the OS the same way everything else here does.
+function InvoiceCard({ invoiceUrl, invoiceNumber }: { invoiceUrl: string | null; invoiceNumber: string | null }) {
+  return (
+    <GlassCard style={styles.invoiceCard}>
+      <View style={styles.invoiceRow}>
+        <Feather name="file-text" size={18} color={colors.purple} />
+        <View style={styles.invoiceTextWrap}>
+          <Text style={styles.invoiceTitle}>Invoice</Text>
+          <Text style={styles.invoiceSub}>
+            {invoiceUrl ? (invoiceNumber ?? "Ready to view") : "Generating your invoice…"}
+          </Text>
+        </View>
+        {invoiceUrl ? (
+          <Pressable style={styles.invoiceButton} onPress={() => Linking.openURL(invoiceUrl)}>
+            <Text style={styles.invoiceButtonText}>View</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </GlassCard>
   );
 }
@@ -731,6 +765,19 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(37,211,102,0.35)",
   },
   revealedContactWhatsappText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: "#25d366" },
+  invoiceCard: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
+  invoiceRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  invoiceTextWrap: { flex: 1 },
+  invoiceTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text },
+  invoiceSub: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute, marginTop: 1 },
+  invoiceButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.purple,
+  },
+  invoiceButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.purple },
   reviewCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   reviewTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14.5, color: colors.text },
   reviewStars: { flexDirection: "row", gap: 6 },
