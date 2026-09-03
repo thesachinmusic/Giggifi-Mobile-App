@@ -275,6 +275,10 @@ export interface BookingDetail {
   // website never sends these to the artist side, see the API route comment.
   arrivalOtpCode: string | null;
   completionOtpCode: string | null;
+  // Always false for the artist side — an artist can't review their own
+  // booking, enforced server-side, not just by this flag.
+  canReview: boolean;
+  review: { id: string; rating: number; comment: string } | null;
 }
 
 // ─── Quick Moments ("Giggifi 20-20") ───
@@ -729,6 +733,15 @@ export function sendEnquiry(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+// Mirrors the website's own booking-detail review form exactly (same
+// endpoint pattern, same one-review-per-booking rule enforced server-side).
+export function submitReview(bookingId: string, input: { rating: number; comment: string }) {
+  return request<{ review: { id: string; rating: number; comment: string; createdAt: string } }>(
+    `/api/mobile/booking/${bookingId}/review`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
 }
 
 export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker", reason?: string) {

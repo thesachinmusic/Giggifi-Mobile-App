@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -18,6 +18,7 @@ import {
   createRazorpayOrder,
   verifyRazorpayPayment,
   respondToBooking,
+  submitReview,
   ApiError,
   type BookingDetail,
   type QuickMomentLocation,
@@ -369,6 +370,12 @@ export default function BookingDetailScreen() {
 
           {booking.revealedContact ? <RevealedContactCard contact={booking.revealedContact} /> : null}
 
+          {booking.review ? (
+            <ReviewSubmittedCard review={booking.review} />
+          ) : booking.canReview ? (
+            <ReviewFormCard bookingId={booking.id} onSubmitted={load} />
+          ) : null}
+
           <GlassCard style={styles.helplineCard}>
             <View style={styles.helplineRow}>
               <Feather name="headphones" size={18} color={colors.purple} />
@@ -432,6 +439,78 @@ function RevealedContactCard({ contact }: { contact: NonNullable<BookingDetail["
           </Pressable>
         </View>
       ) : null}
+    </GlassCard>
+  );
+}
+
+// Mirrors the website's own minimal "Leave a review" section (built for
+// the Auto Review Request email flow — this is where a client who opens
+// that email in the app actually lands). Shown only when
+// canReview is true — booker, event actually completed, not already
+// reviewed — same gate the server enforces on submit, this is just the UI
+// reflection of it.
+function ReviewFormCard({ bookingId, onSubmitted }: { bookingId: string; onSubmitted: () => Promise<void> }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit() {
+    if (!rating || !comment.trim()) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await submitReview(bookingId, { rating, comment: comment.trim() });
+      await onSubmitted();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not submit your review. Please try again.");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <GlassCard style={styles.reviewCard}>
+      <Text style={styles.reviewTitle}>How was your experience?</Text>
+      <View style={styles.reviewStars}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Pressable key={star} onPress={() => setRating(star)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`${star} star${star === 1 ? "" : "s"}`}>
+            <Feather name="star" size={28} color={star <= rating ? colors.orange : colors.line} />
+          </Pressable>
+        ))}
+      </View>
+      <TextInput
+        value={comment}
+        onChangeText={setComment}
+        placeholder="Tell us about the performance…"
+        placeholderTextColor={colors.textMute}
+        multiline
+        style={styles.reviewInput}
+      />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Btn
+        label="Submit Review"
+        onPress={handleSubmit}
+        loading={submitting}
+        disabled={!rating || !comment.trim()}
+        style={styles.payButton}
+      />
+    </GlassCard>
+  );
+}
+
+function ReviewSubmittedCard({ review }: { review: NonNullable<BookingDetail["review"]> }) {
+  return (
+    <GlassCard style={styles.reviewCard}>
+      <View style={styles.reviewSubmittedHeader}>
+        <Feather name="check-circle" size={16} color={colors.ok} />
+        <Text style={styles.reviewTitle}>Thanks for your review</Text>
+      </View>
+      <View style={styles.reviewStars}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Feather key={star} name="star" size={18} color={star <= review.rating ? colors.orange : colors.line} />
+        ))}
+      </View>
+      <Text style={styles.reviewSubmittedComment}>{review.comment}</Text>
     </GlassCard>
   );
 }
@@ -652,6 +731,24 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(37,211,102,0.35)",
   },
   revealedContactWhatsappText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: "#25d366" },
+  reviewCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
+  reviewTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14.5, color: colors.text },
+  reviewStars: { flexDirection: "row", gap: 6 },
+  reviewInput: {
+    minHeight: 70,
+    textAlignVertical: "top",
+    backgroundColor: colors.ink2,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.text,
+  },
+  reviewSubmittedHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  reviewSubmittedComment: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textDim },
   muted: { fontFamily: fonts.body, fontSize: 14, color: colors.textMute, paddingHorizontal: spacing.lg, textAlign: "center" },
   retryButton: {
     paddingHorizontal: 20,
