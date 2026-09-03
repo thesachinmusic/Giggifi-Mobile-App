@@ -69,12 +69,20 @@ export function FeaturedArtistCard({ artist, isActive, onOpenVideo, onViewProfil
     <View style={styles.card}>
       <Pressable style={StyleSheet.absoluteFill} onPress={videoSource ? onOpenVideo : onViewProfile}>
         {videoSource ? (
+          // surfaceType="textureView" — see the identical comment in
+          // video-feed.tsx's VideoFeedCard: Android's default SurfaceView
+          // rendering can swallow taps meant for this Pressable overlay
+          // instead of passing them through, even with pointerEvents="none"
+          // set. Same overlapping-video-view shape as that card, so it gets
+          // the same defensive fix even though no report has come in for
+          // this specific card yet.
           <VideoView
             player={player}
             style={styles.video}
             contentFit="cover"
             nativeControls={false}
             pointerEvents="none"
+            surfaceType="textureView"
           />
         ) : artist.profileImageUrl ? (
           <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />

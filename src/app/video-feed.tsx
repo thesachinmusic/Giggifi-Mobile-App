@@ -145,7 +145,24 @@ function VideoFeedCard({ item, isActive }: { item: VideoFeedItem; isActive: bool
   return (
     <View style={styles.card}>
       <Pressable style={StyleSheet.absoluteFill} onPress={() => setPaused((v) => !v)}>
-        <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
+        {/* surfaceType="textureView": Android defaults VideoView to SurfaceView,
+            which composites via a separate native window outside RN's own
+            view hierarchy — pointerEvents="none" on it doesn't reliably stop
+            it from swallowing/misrouting taps meant for the Pressable
+            overlaying it. expo-video's own docs name this exact case
+            ("overlapping video views") as the reason to switch to
+            textureView, which participates in normal view compositing. This
+            is why tapping this card silently failed to toggle play/pause on
+            real Android devices despite the JS-side toggle logic being
+            correct. */}
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+          pointerEvents="none"
+          surfaceType="textureView"
+        />
         {paused ? (
           <View style={styles.pauseOverlay} pointerEvents="none">
             <View style={styles.pauseIconWrap}>
