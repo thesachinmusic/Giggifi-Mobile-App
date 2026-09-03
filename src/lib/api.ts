@@ -632,6 +632,55 @@ export function fetchBooking(id: string) {
   return request<{ booking: BookingDetail }>(`/api/mobile/booking/${id}`);
 }
 
+// ─── My Event Hub ───
+
+export interface EventPlanSummary {
+  id: string;
+  eventName: string;
+  eventDate: string;
+  totalBudget: number | null;
+}
+
+export interface EventPlanChecklistItem {
+  label: string;
+  done: boolean;
+}
+
+export interface EventPlanDetail {
+  id: string;
+  eventName: string;
+  eventDate: string;
+  totalBudget: number | null;
+  checklist: EventPlanChecklistItem[];
+  // Always the real, live sum over tagged bookings — never editable,
+  // never manually entered. See getEventPlanDetail on the website repo.
+  spent: number;
+  categories: { category: string; amount: number }[];
+  bookings: { id: string; artistName: string; status: string; totalAmount: number | null }[];
+}
+
+export function fetchEventPlans() {
+  return request<{ plans: EventPlanSummary[] }>("/api/mobile/event-plans");
+}
+
+export function createEventPlan(input: { eventName: string; eventDate: string; totalBudget?: number }) {
+  return request<{ id: string }>("/api/mobile/event-plans", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchEventPlan(id: string) {
+  return request<{ plan: EventPlanDetail }>(`/api/mobile/event-plans/${id}`);
+}
+
+export function updateEventPlanChecklist(id: string, checklist: EventPlanChecklistItem[]) {
+  return request<{ success: true }>(`/api/mobile/event-plans/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ checklist }),
+  });
+}
+
 // ─── Payments (Razorpay) ───
 
 export interface RazorpayOrder {
@@ -732,6 +781,7 @@ export function sendEnquiry(input: {
   venueName?: string;
   venueAddress?: string;
   languagePref?: string[];
+  eventPlanId?: string;
 }) {
   return request<{ success: true; bookingId: string }>("/api/mobile/bookings", {
     method: "POST",

@@ -17,7 +17,7 @@ import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
 import { VideoModal } from "@/components/VideoModal";
 import { Skeleton } from "@/components/Skeleton";
-import { fetchArtist, sendEnquiry, saveBookerProfile, ApiError, type ArtistSummary, type QuickMomentFormat, type RepertoireData } from "@/lib/api";
+import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, ApiError, type ArtistSummary, type QuickMomentFormat, type RepertoireData, type EventPlanSummary } from "@/lib/api";
 import { isValidEmail } from "@/lib/format";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
@@ -81,6 +81,12 @@ export default function ArtistDetailScreen() {
   const [eventCity, setEventCity] = useState("");
   const [eventDate, setEventDate] = useState<Date | null>(null);
   const [budgetAmount, setBudgetAmount] = useState("");
+  // My Event Hub — lets the client tag this enquiry to an already-created
+  // event plan so its "spent" figure includes this booking once it's
+  // actually committed. Fetched lazily (only once the form actually opens)
+  // rather than on every profile load — most profile views never reach it.
+  const [eventPlans, setEventPlans] = useState<EventPlanSummary[]>([]);
+  const [selectedEventPlanId, setSelectedEventPlanId] = useState<string | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   const [bookingMode, setBookingMode] = useState<"ENQUIRY" | "QUICK_BOOKING">("ENQUIRY");
   const [specialRequests, setSpecialRequests] = useState("");
@@ -150,6 +156,13 @@ export default function ArtistDetailScreen() {
     loadArtist();
   }, [loadArtist]);
 
+  useEffect(() => {
+    if (!showForm || eventPlans.length > 0) return;
+    fetchEventPlans()
+      .then(({ plans }) => { if (mountedRef.current) setEventPlans(plans); })
+      .catch((err) => captureError(err, "artist-profile-event-plans-fetch"));
+  }, [showForm, eventPlans.length]);
+
   async function handleSubmitEnquiry() {
     if (!artist || !eventType || !eventCity || !eventDate) return;
     setSubmitting(true);
@@ -167,6 +180,7 @@ export default function ArtistDetailScreen() {
         mode: bookingMode,
         budgetAmount: bookingMode === "ENQUIRY" && budgetAmount ? Number(budgetAmount) : undefined,
         quotedPrice: bookingMode === "QUICK_BOOKING" ? priceForDuration ?? undefined : undefined,
+        eventPlanId: selectedEventPlanId ?? undefined,
       });
       if (!mountedRef.current) return;
       setSentBookingId(bookingId);
@@ -466,6 +480,24 @@ export default function ArtistDetailScreen() {
                       {solo ? ` for ${effectiveDuration} mins` : ""}.
                     </Text>
                   )}
+                  {eventPlans.length > 0 ? (
+                    <View style={styles.field}>
+                      <Text style={styles.fieldLabel}>ATTACH TO AN EVENT (OPTIONAL)</Text>
+                      <View style={styles.eventPlanChipRow}>
+                        {eventPlans.map((p) => (
+                          <Pressable
+                            key={p.id}
+                            onPress={() => setSelectedEventPlanId((cur) => (cur === p.id ? null : p.id))}
+                            style={[styles.eventPlanChip, selectedEventPlanId === p.id && styles.eventPlanChipActive]}
+                          >
+                            <Text style={[styles.eventPlanChipText, selectedEventPlanId === p.id && styles.eventPlanChipTextActive]}>
+                              {p.eventName}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
                   <FormField label="NOTES (OPTIONAL)" value={specialRequests} onChangeText={setSpecialRequests} placeholder="Anything the artist should know" multiline />
                   <View style={styles.equipmentNote}>
                     <Feather name="info" size={14} color={colors.textMute} style={styles.equipmentNoteIcon} />
@@ -1073,6 +1105,18 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: colors.textMute,
   },
+  eventPlanChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  eventPlanChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.ink2,
+  },
+  eventPlanChipActive: { borderColor: colors.pink, backgroundColor: "rgba(236,72,153,0.08)" },
+  eventPlanChipText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.textDim },
+  eventPlanChipTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
   highlightsGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   highlightCard: {
     width: "47%",

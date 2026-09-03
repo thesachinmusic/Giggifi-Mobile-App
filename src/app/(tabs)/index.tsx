@@ -268,6 +268,17 @@ export default function HomeScreen() {
             <SearchBarStatic label="Search artists, DJs, bands…" onPress={() => router.push("/(tabs)/browse")} />
           </View>
 
+          <Pressable style={styles.eventHubCard} onPress={() => router.push("/my-event")}>
+            <View style={styles.eventHubIcon}>
+              <Feather name="calendar" size={16} color={colors.purple} />
+            </View>
+            <View style={styles.eventHubTextWrap}>
+              <Text style={styles.eventHubTitle}>My Event Hub</Text>
+              <Text style={styles.eventHubSub}>Countdown, budget & checklist for your event</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMute} />
+          </Pressable>
+
           <Pressable style={styles.planPromo} onPress={() => router.push("/plan-my-event")}>
             <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.planPromoGradient}>
               <View style={styles.planPromoBadge}>
@@ -603,6 +614,29 @@ const styles = StyleSheet.create({
     color: colors.textMute,
     textAlign: "center",
   },
+  eventHubCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(255,255,255,0.035)",
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  eventHubIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(168,85,247,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  eventHubTextWrap: { flex: 1 },
+  eventHubTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.text },
+  eventHubSub: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute, marginTop: 1 },
   planPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
   planPromoGradient: { padding: spacing.lg, gap: spacing.sm },
   planPromoBadge: {
