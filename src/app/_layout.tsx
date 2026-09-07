@@ -5,6 +5,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
 import * as Sentry from "@sentry/react-native";
 import * as SplashScreen from "expo-splash-screen";
+import * as Updates from "expo-updates";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider } from "@/lib/auth-context";
 import { SavedArtistsProvider } from "@/lib/saved-artists-context";
@@ -27,6 +28,43 @@ SplashScreen.preventAutoHideAsync().catch((err) => captureError(err, "splash-pre
 
 function PushRegistrar() {
   usePushRegistration();
+  return null;
+}
+
+// Confirmed root cause of "OTA published but nothing changes on device even
+// after force-closing and reopening": expo-updates' native ON_LOAD default
+// only starts a background fetch on cold start and applies it on a LATER
+// cold start — it never blocks the current launch (fallbackToCacheTimeout
+// governs how long it's willing to wait, and older installed builds may
+// predate that being raised from its 0 default). A background fetch tied to
+// the app process doesn't survive the process being killed, so a real-world
+// "open, immediately force-close, reopen" cycle can repeat forever without
+// ever giving one fetch enough wall-clock time to finish — no update ever
+// gets cached, let alone applied.
+//
+// This explicitly awaits the check+fetch, then reloads immediately once a
+// newer update is ready, so a fresh OTA can apply within the SAME cold
+// start it was fetched in — rather than requiring one extra full relaunch
+// on top of whatever it already took for the fetch to survive. Runs once
+// on mount, before the user has meaningfully interacted with anything, so
+// an occasional reload here reads as normal app startup, not a disruption
+// mid-task.
+function OtaUpdateChecker() {
+  useEffect(() => {
+    if (!Updates.isEnabled) return;
+    (async () => {
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (!result.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } catch (err) {
+        // No network, rate-limited, etc. — the existing cached/embedded
+        // bundle keeps running; not worth surfacing to the user.
+        captureError(err, "ota-update-check");
+      }
+    })();
+  }, []);
   return null;
 }
 
@@ -88,6 +126,7 @@ function RootLayoutContent() {
             <VideoMuteProvider>
               <NotificationsProvider>
                 <PushRegistrar />
+                <OtaUpdateChecker />
                 {Platform.OS !== "web" ? <NotificationTapHandler /> : null}
                 <NotificationToastHost />
                 <PendingPaymentRecovery />
