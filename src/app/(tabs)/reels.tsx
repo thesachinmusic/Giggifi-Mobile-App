@@ -253,7 +253,15 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
         style={StyleSheet.absoluteFill}
       />
 
-      <SafeAreaView style={styles.overlay} edges={["top", "bottom", "left", "right"]}>
+      {/* pointerEvents="box-none": this overlay's own empty space (outside
+          its Pressable children like the mute/share buttons) must let
+          touches fall through to the tap-to-pause Pressable wrapping the
+          video underneath — without this, taps anywhere in this overlay's
+          bounds never reach it, which is why play/pause silently did
+          nothing here. video-feed.tsx's identical overlay already had this;
+          this one never did because it never had anything to tap through
+          to before the shared video-controls work added the hold/tap zone. */}
+      <SafeAreaView style={styles.overlay} edges={["top", "bottom", "left", "right"]} pointerEvents="box-none">
         <View style={styles.topRow}>
           <View />
           {videoSource ? (

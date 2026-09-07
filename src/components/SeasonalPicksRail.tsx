@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { fetchSeasonalPicks, type SeasonalPick } from "@/lib/api";
 import { captureError } from "@/lib/telemetry";
 import { SectionHeader } from "@/components/SectionHeader";
-import { getSeasonalIcon } from "@/components/SeasonalIcons";
+import { getSeasonalArt } from "@/components/SeasonalArt";
 import { colors, fonts, radii, spacing } from "@/theme";
+
+const CARD_WIDTH = 130;
+const CARD_HEIGHT = CARD_WIDTH * 1.3;
 
 // Home's "Seasonal Picks" — driven entirely by the website's
 // FestivalCalendarEntry calendar (see getActiveSeasonalPicks), never
@@ -49,15 +54,33 @@ export function SeasonalPicksRail() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.row}
         renderItem={({ item }) => {
-          // Original line-art per occasion when one exists for this title;
-          // falls back to the admin-configured emoji glyph for any occasion
-          // not yet designed (see SeasonalIcons.tsx) rather than blocking
-          // on it.
-          const Icon = getSeasonalIcon(item.title);
+          // Illustrated artwork per occasion when one exists for this
+          // title; falls back to the admin-configured emoji glyph for any
+          // occasion not yet designed (see SeasonalArt.tsx) rather than
+          // blocking on it.
+          const art = getSeasonalArt(item.title);
           return (
             <Pressable style={styles.card} onPress={() => router.push("/(tabs)/browse")}>
-              {Icon ? <Icon /> : <Text style={styles.icon}>{item.icon ?? "✨"}</Text>}
-              <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+              {art ? (
+                // Same "image fills, title overlaid on a bottom scrim"
+                // treatment as FeaturedArtistCard. The card's own
+                // colors.surface background (below) shows through cleanly
+                // wherever a PNG has real transparency.
+                <>
+                  <Image source={art} style={StyleSheet.absoluteFill} contentFit="cover" />
+                  <LinearGradient
+                    colors={["transparent", "rgba(12,7,16,0.15)", "rgba(12,7,16,0.92)"]}
+                    locations={[0, 0.55, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <Text style={styles.titleOverlay} numberOfLines={2}>{item.title}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.icon}>{item.icon ?? "✨"}</Text>
+                  <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+                </>
+              )}
             </Pressable>
           );
         }}
@@ -71,21 +94,32 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.xl },
   row: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   card: {
-    width: 96,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     alignItems: "center",
-    gap: 6,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    justifyContent: "center",
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
+    overflow: "hidden",
   },
-  icon: { fontSize: 26 },
+  icon: { fontSize: 26, marginBottom: 6 },
   title: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 11.5,
     color: colors.text,
+    textAlign: "center",
+    paddingHorizontal: spacing.sm,
+  },
+  titleOverlay: {
+    position: "absolute",
+    left: spacing.sm,
+    right: spacing.sm,
+    bottom: spacing.sm,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: "#fff",
     textAlign: "center",
   },
   hint: {
