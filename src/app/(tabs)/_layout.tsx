@@ -64,6 +64,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="business"
+        options={{
+          title: "Business",
+          // Feather has no literal "building" glyph — briefcase is the
+          // closest standard "business" icon in the set this app uses.
+          tabBarIcon: ({ color, size }) => <Feather name="briefcase" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",

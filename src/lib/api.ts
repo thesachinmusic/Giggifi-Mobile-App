@@ -430,6 +430,15 @@ export function fetchSocialProof() {
   return request<{ count: number; visible: boolean }>("/api/mobile/social-proof");
 }
 
+// ─── Business flow ───
+
+export function logBusinessDealInterest(dealCategory: "restaurants" | "corporates" | "eventCompanies", dealId: string) {
+  return request<{ success: true }>("/api/mobile/business/deal-interest", {
+    method: "POST",
+    body: JSON.stringify({ dealCategory, dealId }),
+  });
+}
+
 // ─── Vendors ───
 
 export function fetchVendors(params: ListingParams = {}, signal?: AbortSignal) {

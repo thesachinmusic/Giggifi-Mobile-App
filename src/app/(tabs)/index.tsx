@@ -436,6 +436,24 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
+              {/* Business flow entry point — same destination as the bottom
+                  nav "Business" tab (see (tabs)/business.tsx and
+                  (tabs)/_layout.tsx), which itself decides form-vs-deals. */}
+              <Pressable style={styles.businessPromo} onPress={() => router.push("/(tabs)/business")}>
+                <LinearGradient colors={[colors.purple, colors.orange]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessPromoGradient}>
+                  <View style={styles.businessPromoBadge}>
+                    <Feather name="briefcase" size={11} color="#fff" />
+                    <Text style={styles.businessPromoBadgeText}>FOR BUSINESSES</Text>
+                  </View>
+                  <Text style={styles.businessPromoTitle}>Curated for Restaurants{"\n"}& Event Companies</Text>
+                  <Text style={styles.businessPromoSub}>Recurring bookings, business deals & invoicing.</Text>
+                  <View style={styles.businessPromoCta}>
+                    <Text style={styles.businessPromoCtaText}>See business deals</Text>
+                    <Feather name="arrow-right" size={16} color={colors.purple} />
+                  </View>
+                </LinearGradient>
+              </Pressable>
+
               {/* Fresh picks (trending) directly above Featured Artists —
                   intended Home order, per Sachin's explicit item #6/#5
                   request. Both rails already open the same swipeable
@@ -717,6 +735,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff", borderRadius: radii.pill, paddingVertical: 12,
   },
   planPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple },
+  businessPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
+  businessPromoGradient: { padding: spacing.lg, gap: spacing.sm },
+  businessPromoBadge: {
+    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill, backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  businessPromoBadgeText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 1 },
+  businessPromoTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, color: "#fff", marginTop: 2 },
+  businessPromoSub: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.88)" },
+  businessPromoCta: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: spacing.xs,
+    backgroundColor: "#fff", borderRadius: radii.pill, paddingVertical: 12,
+  },
+  businessPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple },
   qmPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
   qmPromoGradient: {
     padding: spacing.lg,
