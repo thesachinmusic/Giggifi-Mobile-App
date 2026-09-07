@@ -29,7 +29,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { HomeCityControl } from "@/components/HomeCityControl";
 import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
-import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
+import { fetchArtists, fetchFeatured, fetchSavedArtists, fetchSocialProof, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
 import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
@@ -106,6 +106,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFeaturedIndex, setActiveFeaturedIndex] = useState(0);
   const [homeCity, setHomeCityState] = useState<string | null>(null);
+  const [socialProof, setSocialProof] = useState<{ count: number; visible: boolean } | null>(null);
 
   const load = useCallback(async () => {
     setError(false);
@@ -153,6 +154,24 @@ export default function HomeScreen() {
     loadSaved();
   }, [loadSaved]);
 
+  // Independent of the main load() above (same reasoning as loadSaved) —
+  // this is a purely decorative strip, not something a failure here should
+  // ever blank out the rest of Home for. visible (server-computed, >= 50)
+  // decides whether the strip renders at all; count is never shown as a
+  // hardcoded/placeholder number, only ever this live value.
+  const loadSocialProof = useCallback(async () => {
+    try {
+      const result = await fetchSocialProof();
+      setSocialProof(result);
+    } catch (err) {
+      captureError(err, "home-social-proof-fetch");
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSocialProof();
+  }, [loadSocialProof]);
+
   // Persisted city takes priority; otherwise detect silently only if
   // location permission was already granted elsewhere (Quick Moments) — no
   // surprise permission prompt on first Home load. The picker's own "use my
@@ -192,7 +211,7 @@ export default function HomeScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await Promise.all([load(), loadSaved()]);
+    await Promise.all([load(), loadSaved(), loadSocialProof()]);
     setRefreshing(false);
   }
 
@@ -313,6 +332,19 @@ export default function HomeScreen() {
             <BannerCarousel />
           </View>
 
+          {/* Placement/styling here is intentionally minimal — final visual
+              design for this strip is still being worked out in mockups
+              separately; this is just the correctness of the logic (real
+              live count, fully hidden below 50, never a placeholder
+              number). Move/restyle freely once that lands. */}
+          {socialProof?.visible ? (
+            <View style={styles.socialProofStrip}>
+              <Text style={styles.socialProofText}>
+                {socialProof.count.toLocaleString("en-IN")} events booked this week 🔥
+              </Text>
+            </View>
+          ) : null}
+
           <Pressable style={styles.qmPromo} onPress={() => router.push("/quick-moments")}>
             <LinearGradient colors={[colors.orange, colors.magenta, colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qmPromoGradient}>
               <View style={styles.qmPromoTopRow}>
@@ -351,7 +383,7 @@ export default function HomeScreen() {
 
           <View style={styles.section}>
             <SectionHeader title="Vendors" sub="Everything else for the day" onSeeAll={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: "vendor" } })} />
-            <CategoryGrid vertical="vendor" limit={8} />
+            <CategoryGrid vertical="vendor" />
           </View>
 
           {saved.length > 0 ? (
@@ -404,6 +436,50 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
+              {/* Fresh picks (trending) directly above Featured Artists —
+                  intended Home order, per Sachin's explicit item #6/#5
+                  request. Both rails already open the same swipeable
+                  video-feed screen via openVideoFeed (see its own
+                  comment) — no separate video player exists to reuse
+                  here, this section was already wired correctly. */}
+              {trending.length > 0 ? (
+                <View
+                  style={styles.section}
+                  onLayout={(e) => {
+                    trendingSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
+                  }}
+                >
+                  <SectionHeader
+                    title="Fresh picks for you"
+                    sub="Handpicked for you — watch before you book"
+                    onSeeAll={() => router.push({ pathname: "/(tabs)/browse" })}
+                  />
+                  <FlatList
+                    data={trending}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(item) => item.id}
+                    contentContainerStyle={styles.featuredRow}
+                    snapToInterval={FEATURED_CARD_WIDTH + spacing.sm}
+                    decelerationRate="fast"
+                    viewabilityConfig={trendingViewability}
+                    onViewableItemsChanged={onTrendingViewableChanged}
+                    initialNumToRender={2}
+                    maxToRenderPerBatch={2}
+                    windowSize={3}
+                    removeClippedSubviews
+                    renderItem={({ item, index }) => (
+                      <FeaturedArtistCard
+                        artist={item}
+                        isActive={index === activeTrendingIndex && trendingSectionVisible && focused}
+                        onOpenVideo={() => openVideoFeed(trending, item)}
+                        onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
+                      />
+                    )}
+                  />
+                </View>
+              ) : null}
+
               {featured.length > 0 ? (
                 <View
                   style={styles.section}
@@ -477,44 +553,6 @@ export default function HomeScreen() {
                   <Feather name="chevron-right" size={18} color="#fff" />
                 </LinearGradient>
               </Pressable>
-
-              {trending.length > 0 ? (
-                <View
-                  style={styles.section}
-                  onLayout={(e) => {
-                    trendingSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
-                  }}
-                >
-                  <SectionHeader
-                    title="Fresh picks for you"
-                    sub="Handpicked for you — watch before you book"
-                    onSeeAll={() => router.push({ pathname: "/(tabs)/browse" })}
-                  />
-                  <FlatList
-                    data={trending}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.featuredRow}
-                    snapToInterval={FEATURED_CARD_WIDTH + spacing.sm}
-                    decelerationRate="fast"
-                    viewabilityConfig={trendingViewability}
-                    onViewableItemsChanged={onTrendingViewableChanged}
-                    initialNumToRender={2}
-                    maxToRenderPerBatch={2}
-                    windowSize={3}
-                    removeClippedSubviews
-                    renderItem={({ item, index }) => (
-                      <FeaturedArtistCard
-                        artist={item}
-                        isActive={index === activeTrendingIndex && trendingSectionVisible && focused}
-                        onOpenVideo={() => openVideoFeed(trending, item)}
-                        onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
-                      />
-                    )}
-                  />
-                </View>
-              ) : null}
             </>
           )}
 
@@ -569,6 +607,19 @@ const styles = StyleSheet.create({
   cityControlWrap: { marginTop: spacing.sm },
   searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
   section: { marginBottom: spacing.xl },
+  // Deliberately plain — see the render-site comment, final look pending mockups.
+  socialProofStrip: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(255,138,61,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(255,138,61,0.3)",
+    alignItems: "center",
+  },
+  socialProofText: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.orange },
   featuredRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   artistRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   muted: {

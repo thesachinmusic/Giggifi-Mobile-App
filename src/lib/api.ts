@@ -423,6 +423,13 @@ export function fetchFeatured() {
   return request<{ artists: ArtistSummary[]; total: number }>("/api/mobile/featured");
 }
 
+// Home's "X events booked this week" strip — visible is computed
+// server-side (count >= 50), not hardcoded here, so the threshold has one
+// source of truth. See app/api/mobile/social-proof/route.ts on the website.
+export function fetchSocialProof() {
+  return request<{ count: number; visible: boolean }>("/api/mobile/social-proof");
+}
+
 // ─── Vendors ───
 
 export function fetchVendors(params: ListingParams = {}, signal?: AbortSignal) {
