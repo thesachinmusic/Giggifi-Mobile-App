@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { fetchSeasonalPicks, type SeasonalPick } from "@/lib/api";
 import { captureError } from "@/lib/telemetry";
 import { SectionHeader } from "@/components/SectionHeader";
+import { getSeasonalIcon } from "@/components/SeasonalIcons";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 // Home's "Seasonal Picks" — driven entirely by the website's
@@ -47,12 +48,19 @@ export function SeasonalPicksRail() {
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.row}
-        renderItem={({ item }) => (
-          <Pressable style={styles.card} onPress={() => router.push("/(tabs)/browse")}>
-            <Text style={styles.icon}>{item.icon ?? "✨"}</Text>
-            <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          // Original line-art per occasion when one exists for this title;
+          // falls back to the admin-configured emoji glyph for any occasion
+          // not yet designed (see SeasonalIcons.tsx) rather than blocking
+          // on it.
+          const Icon = getSeasonalIcon(item.title);
+          return (
+            <Pressable style={styles.card} onPress={() => router.push("/(tabs)/browse")}>
+              {Icon ? <Icon /> : <Text style={styles.icon}>{item.icon ?? "✨"}</Text>}
+              <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+            </Pressable>
+          );
+        }}
       />
       <Text style={styles.hint}>{hint}</Text>
     </View>
