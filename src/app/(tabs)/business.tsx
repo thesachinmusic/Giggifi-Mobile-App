@@ -9,7 +9,7 @@ import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { useAuth } from "@/lib/auth-context";
 import { getBusinessDetails, setBusinessDetails, type BusinessDetails, type BusinessType } from "@/lib/business-storage";
 import { BUSINESS_DEALS, BUSINESS_DEAL_TABS, type BusinessDealCategory, type BusinessDeal } from "@/lib/business-deals";
-import { logBusinessDealInterest } from "@/lib/api";
+import { logBusinessDealInterest, syncBusinessDetails } from "@/lib/api";
 import { HELPLINE_NUMBER } from "@/lib/constants";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -88,6 +88,13 @@ function BusinessDetailsForm({ phone, onSubmitted }: { phone: string | null; onS
     } finally {
       setSubmitting(false);
     }
+    // Best-effort, after the local save already unblocked the user — a
+    // failure here (offline, no BookerProfile yet) must never stop them
+    // from reaching their deals, which local storage already handles.
+    const volumeLabel = VOLUME_RANGES.find((v) => v.key === volume)?.label ?? volume;
+    syncBusinessDetails({ bookerType: type, businessName: details.businessName, city: details.city, monthlyVolume: volumeLabel }).catch(
+      (err) => captureError(err, "business-details-sync"),
+    );
   }
 
   return (

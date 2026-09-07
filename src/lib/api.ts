@@ -439,6 +439,23 @@ export function logBusinessDealInterest(dealCategory: "restaurants" | "corporate
   });
 }
 
+// Best-effort sync onto the caller's existing BookerProfile (see the
+// website route's own comment: this never creates one from scratch). Local
+// storage stays the source of truth for "has this device already filled
+// the form" — this just means the business team can also see submitted
+// details for real, not only on the submitting device.
+export function syncBusinessDetails(input: {
+  bookerType: "RESTAURANT" | "CORPORATE" | "EVENT_COMPANY";
+  businessName: string;
+  city: string;
+  monthlyVolume: string;
+}) {
+  return request<{ success: true }>("/api/mobile/business/details", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 // ─── Vendors ───
 
 export function fetchVendors(params: ListingParams = {}, signal?: AbortSignal) {
