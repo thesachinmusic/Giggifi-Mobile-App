@@ -9,4 +9,6 @@ export const CATEGORIES = [
   { label: "Instrumentalist", emoji: "🎻" },
   { label: "Magician", emoji: "🪄" },
   { label: "Celebrity", emoji: "⭐" },
+  { label: "Bhajan Clubbing", emoji: "🪔" },
+  { label: "Sufi Band", emoji: "🕌" },
 ] as const;

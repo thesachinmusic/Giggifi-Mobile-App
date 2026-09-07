@@ -230,7 +230,7 @@ export default function QuickMomentsBrowseScreen() {
             <Text style={styles.eyebrow}>GIGGIFI 20-20</Text>
             <Text style={styles.title}>Quick Moments</Text>
             <Text style={styles.subtitle}>
-              A spontaneous ~15 minute performance, priced by the artist. Book with at least 2 hours&apos; notice.
+              A spontaneous 15 or 30 min performance, priced by the artist. Book with at least 2 hours&apos; notice.
             </Text>
 
             <FormLabel text="PICK A MOMENT" />

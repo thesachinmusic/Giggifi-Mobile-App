@@ -567,7 +567,7 @@ export default function ArtistDetailScreen() {
                 ) : null}
               </View>
               <Text style={styles.qmCardBlurb}>
-                A short, spontaneous ~15 minute performance — priced by {name.split(" ")[0]}, not negotiable.
+                A short, spontaneous 15 or 30 min performance — priced by {name.split(" ")[0]}, not negotiable.
                 {artist.quickMomentsPricePerSlot ? ` ₹${artist.quickMomentsPricePerSlot.toLocaleString("en-IN")} / slot.` : ""}
               </Text>
               <View style={styles.qmPillWrap}>

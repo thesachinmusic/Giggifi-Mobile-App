@@ -44,6 +44,8 @@ const ARTIST_CATEGORIES = [
   { label: "Anchor", emoji: "🎙️" },
   { label: "Instrumentalist", emoji: "🎻" },
   { label: "Magician", emoji: "🪄" },
+  { label: "Bhajan Clubbing", emoji: "🪔" },
+  { label: "Sufi Band", emoji: "🕌" },
   { label: "Other", emoji: "✨" },
 ] as const;
 

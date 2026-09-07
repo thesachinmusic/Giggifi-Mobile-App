@@ -354,7 +354,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.qmPromoTimer}>
                   <Feather name="clock" size={10} color="#fff" />
-                  <Text style={styles.qmPromoTimerText}>~15 min</Text>
+                  <Text style={styles.qmPromoTimerText}>15 or 30 min</Text>
                 </View>
               </View>
 
