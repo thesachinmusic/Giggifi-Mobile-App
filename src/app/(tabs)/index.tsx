@@ -379,11 +379,22 @@ export default function HomeScreen() {
             <HeroCarousel />
           </View>
 
-          <View style={styles.trustRow}>
-            <TrustCard doodle="✅" label="Verified artists" caption="ID + KYC checked" />
-            <TrustCard doodle="🔒" label="Secure payments" caption="Held till event's done" />
-            <TrustCard doodle="⚡" label="Fast responses" caption="Quotes within hours" />
-          </View>
+          {/* Compact reel-discovery strip — replaces both the old
+              "N events booked this week" social-proof strip and the old
+              full-size "Scroll the reel, find your act" gradient promo
+              (same destination, same intent; keeping both would have been
+              a duplicate "go watch Reels" prompt on one screen). Position
+              per the corrected Home order: directly above the offer cards. */}
+          <Pressable style={styles.reelsStrip} onPress={() => router.push("/(tabs)/reels")}>
+            <View style={styles.reelsStripPlay}>
+              <Feather name="play" size={14} color="#fff" />
+            </View>
+            <View style={styles.reelsStripBody}>
+              <Text style={styles.reelsStripTitle}>Discover through Giggifi Reels</Text>
+              <Text style={styles.reelsStripSub}>Swipe through artist videos and shortlist your favs</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.textMute} />
+          </Pressable>
 
           {/* Awareness-only offer cards — deliberately no numbers/percentages
               anywhere here; the real 10%-capped-₹500 first-booking amount
@@ -415,6 +426,10 @@ export default function HomeScreen() {
               <Text style={styles.offerTitle}>Earn when your{"\n"}friends book too</Text>
             </Pressable>
           </View>
+
+          {/* Position per the corrected Home order: directly below the
+              offer cards. */}
+          <SeasonalPicksRail />
 
           {/* Business flow entry point — same destination as the bottom nav
               "Business" tab (see (tabs)/business.tsx and (tabs)/_layout.tsx),
@@ -580,31 +595,17 @@ export default function HomeScreen() {
             </>
           )}
 
-          {/* Compact reel-discovery strip — replaces both the old
-              "N events booked this week" social-proof strip and the old
-              full-size "Scroll the reel, find your act" gradient promo
-              (same destination, same intent; keeping both would have been
-              a duplicate "go watch Reels" prompt on one screen). */}
-          <Pressable style={styles.reelsStrip} onPress={() => router.push("/(tabs)/reels")}>
-            <View style={styles.reelsStripPlay}>
-              <Feather name="play" size={14} color="#fff" />
-            </View>
-            <View style={styles.reelsStripBody}>
-              <Text style={styles.reelsStripTitle}>Discover through Giggifi Reels</Text>
-              <Text style={styles.reelsStripSub}>Swipe through artist videos and shortlist your favs</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMute} />
-          </Pressable>
-
-          <SeasonalPicksRail />
-
           <RealEventsRail />
-        </ScrollView>
 
-        <Pressable style={styles.askFab} onPress={() => router.push("/ask-giggfi")}>
-          <Feather name="zap" size={16} color="#fff" />
-          <Text style={styles.askFabText}>Ask GiggiFi</Text>
-        </Pressable>
+          {/* Trust strip — back to the very bottom of Home, right before the
+              tab bar, per the corrected order (it lived here before the
+              earlier rebuild moved it up; that placement is reverted). */}
+          <View style={styles.trustRow}>
+            <TrustCard doodle="✅" label="Verified artists" caption="ID + KYC checked" />
+            <TrustCard doodle="🔒" label="Secure payments" caption="Held till event's done" />
+            <TrustCard doodle="⚡" label="Fast responses" caption="Quotes within hours" />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </GradientBackground>
   );
@@ -823,26 +824,4 @@ const styles = StyleSheet.create({
   reelsStripBody: { flex: 1, gap: 2 },
   reelsStripTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.text },
   reelsStripSub: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute },
-  askFab: {
-    position: "absolute",
-    right: spacing.lg,
-    bottom: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: radii.pill,
-    backgroundColor: colors.pink,
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  askFabText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 13,
-    color: "#fff",
-  },
 });

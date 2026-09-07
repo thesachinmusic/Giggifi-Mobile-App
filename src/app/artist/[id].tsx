@@ -30,6 +30,7 @@ import { PushPrimerSheet } from "@/components/PushPrimerSheet";
 import { useOffersOptIn } from "@/lib/use-offers-optin";
 import { OffersOptInSheet } from "@/components/OffersOptInSheet";
 import { captureError } from "@/lib/telemetry";
+import { cloudinaryThumb } from "@/lib/video-thumb";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -41,17 +42,6 @@ const TABS: { key: ProfileTab; label: string }[] = [
   { key: "packages", label: "Packages" },
   { key: "reviews", label: "Reviews" },
 ];
-
-// Same transform the website's artist profile uses (cloudinaryThumb in
-// app/artists/[id]/artist-public-profile.tsx) — a static frame grab so the
-// Media tab's grid doesn't have to decode N videos at once just to show
-// thumbnails.
-function cloudinaryThumb(url: string): string | null {
-  if (!url.includes("cloudinary.com") || !url.includes("/video/upload/")) return null;
-  return url
-    .replace("/video/upload/", "/video/upload/w_480,h_640,c_fill,f_jpg,so_1/")
-    .replace(/\.(mp4|mov|webm)(\?.*)?$/, ".jpg");
-}
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -626,6 +616,10 @@ export default function ArtistDetailScreen() {
         visible={fullscreenVideoUri !== null}
         uri={fullscreenVideoUri}
         onClose={() => setFullscreenVideoUri(null)}
+        shareContent={{
+          message: `Check out ${artist.stageName ?? "this artist"} on GiggiFi: https://giggifi.com/discover/artist/${artist.id}`,
+          url: `https://giggifi.com/discover/artist/${artist.id}`,
+        }}
       />
     </GradientBackground>
   );

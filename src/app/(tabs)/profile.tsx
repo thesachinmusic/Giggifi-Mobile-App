@@ -5,6 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
+import { InlinePhoneVerification } from "@/components/InlinePhoneVerification";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, type BookerProfile } from "@/lib/api";
 import { HELPLINE_NUMBER } from "@/lib/constants";
@@ -18,7 +19,7 @@ export default function ProfileScreen() {
   const [profileFetchError, setProfileFetchError] = useState(false);
 
   const loadProfile = useCallback(() => {
-    if (user?.role === "ARTIST") return;
+    if (!user || user.role === "ARTIST") return;
     setProfileFetchError(false);
     fetchMyProfile()
       .then(({ bookerProfile: result }) => setBookerProfile(result))
@@ -37,8 +38,12 @@ export default function ProfileScreen() {
         text: "Log out",
         style: "destructive",
         onPress: async () => {
+          // Deliberately no navigation after this — staying on Profile
+          // means the screen re-renders straight into the logged-out card
+          // below (the actual confirmation that anything happened), rather
+          // than bouncing to Home where a logged-out state looks identical
+          // to a logged-in one and reads as "the button did nothing."
           await logout();
-          router.replace("/(tabs)");
         },
       },
     ]);
@@ -66,25 +71,46 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>Profile</Text>
 
-          <GlassCard style={styles.userCard}>
-            {user?.image ? (
-              <Image source={{ uri: user.image }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initial}</Text>
-              </View>
-            )}
-            <View style={styles.userInfo}>
-              <Text style={styles.name}>{bookerProfile?.fullName ?? user?.name ?? "GiggiFi user"}</Text>
-              {user?.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
-              {(bookerProfile?.email ?? user?.email) ? <Text style={styles.meta}>{bookerProfile?.email ?? user?.email}</Text> : null}
-              {user?.role ? (
-                <View style={styles.roleBadge}>
-                  <Text style={styles.roleText}>{user.role === "ARTIST" ? "ARTIST" : "CLIENT"}</Text>
+          {user ? (
+            <GlassCard style={styles.userCard}>
+              {user.image ? (
+                <Image source={{ uri: user.image }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initial}</Text>
                 </View>
-              ) : null}
-            </View>
-          </GlassCard>
+              )}
+              <View style={styles.userInfo}>
+                <Text style={styles.name}>{bookerProfile?.fullName ?? user.name ?? "GiggiFi user"}</Text>
+                {user.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
+                {(bookerProfile?.email ?? user.email) ? <Text style={styles.meta}>{bookerProfile?.email ?? user.email}</Text> : null}
+                {user.role ? (
+                  <View style={styles.roleBadge}>
+                    <Text style={styles.roleText}>{user.role === "ARTIST" ? "ARTIST" : "CLIENT"}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </GlassCard>
+          ) : (
+            // Logging out clears the session correctly (see auth-context.tsx's
+            // logout()), but this app has no separate login screen to land
+            // on afterward — (tabs) is browsable logged out or in (see
+            // app/index.tsx's own comment) — so without this card, tapping
+            // Log out silently left the same-looking menu on screen with
+            // only a placeholder name swapped in, reading as "did nothing."
+            // This makes the logged-out state unmistakable and gives an
+            // actual way to sign back in right here, reusing the same
+            // inline OTP component every booking flow already uses instead
+            // of a dedicated login screen.
+            <GlassCard style={styles.loggedOutCard}>
+              <View style={styles.loggedOutIcon}>
+                <Feather name="user" size={20} color={colors.textMute} />
+              </View>
+              <Text style={styles.loggedOutTitle}>You&apos;re browsing as a guest</Text>
+              <Text style={styles.loggedOutSub}>Log in to see your bookings, saved artists, and profile.</Text>
+              <InlinePhoneVerification onVerified={loadProfile} />
+            </GlassCard>
+          )}
 
           {user?.role !== "ARTIST" && profileFetchError ? (
             <GlassCard style={styles.completeCard}>
@@ -130,12 +156,16 @@ export default function ProfileScreen() {
           ) : null}
 
           <View style={styles.menu}>
-            {showBookerProfileCard && bookerProfile ? (
-              <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
+            {user ? (
+              <>
+                {showBookerProfileCard && bookerProfile ? (
+                  <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
+                ) : null}
+                <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
+                <MenuRow icon="heart" label="Saved artists" onPress={() => router.push("/saved")} />
+                <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
+              </>
             ) : null}
-            <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
-            <MenuRow icon="heart" label="Saved artists" onPress={() => router.push("/saved")} />
-            <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
             <MenuRow icon="help-circle" label="Help & support" onPress={handleHelpAndSupport} />
             <MenuRow icon="file-text" label="Terms of Service" onPress={() => Linking.openURL("https://giggifi.com/terms")} />
             <MenuRow icon="shield" label="Privacy Policy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
@@ -143,14 +173,18 @@ export default function ProfileScreen() {
             <MenuRow icon="user-check" label="Privacy Rights Request" onPress={() => Linking.openURL("https://giggifi.com/privacy-request")} />
           </View>
 
-          <Pressable onPress={handleLogout} style={styles.logout}>
-            <Feather name="log-out" size={16} color={colors.err} />
-            <Text style={styles.logoutText}>Log out</Text>
-          </Pressable>
+          {user ? (
+            <>
+              <Pressable onPress={handleLogout} style={styles.logout}>
+                <Feather name="log-out" size={16} color={colors.err} />
+                <Text style={styles.logoutText}>Log out</Text>
+              </Pressable>
 
-          <Pressable onPress={() => router.push("/delete-account")} style={styles.deleteAccount}>
-            <Text style={styles.deleteAccountText}>Delete account</Text>
-          </Pressable>
+              <Pressable onPress={() => router.push("/delete-account")} style={styles.deleteAccount}>
+                <Text style={styles.deleteAccountText}>Delete account</Text>
+              </Pressable>
+            </>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </GradientBackground>
@@ -172,6 +206,24 @@ function MenuRow({ icon, label, onPress }: { icon: keyof typeof Feather.glyphMap
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  loggedOutCard: { alignItems: "center", gap: 4, padding: spacing.lg, marginBottom: spacing.lg },
+  loggedOutIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  loggedOutTitle: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.text },
+  loggedOutSub: {
+    fontFamily: fonts.body,
+    fontSize: 12.5,
+    color: colors.textMute,
+    textAlign: "center",
+    marginBottom: spacing.sm,
+  },
   title: {
     fontFamily: fonts.display,
     fontSize: 26,

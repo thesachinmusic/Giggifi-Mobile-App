@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -435,39 +435,46 @@ function ChecklistCard({
               ) : null}
             </Pressable>
 
-            {item.category ? (
-              <View style={styles.ciMetaRow}>
-                {editingAmountIndex === i ? (
-                  <View style={styles.amountEditRow}>
-                    <Text style={styles.amountEditPrefix}>₹</Text>
-                    <TextInput
-                      value={amountDraft}
-                      onChangeText={(v) => setAmountDraft(v.replace(/[^0-9]/g, ""))}
-                      placeholder="0"
-                      placeholderTextColor={colors.textMute}
-                      keyboardType="number-pad"
-                      autoFocus
-                      style={styles.amountEditInput}
-                      onSubmitEditing={() => commitAmount(i)}
-                    />
-                    <Pressable style={styles.amountEditDone} onPress={() => commitAmount(i)}>
-                      <Feather name="check" size={13} color="#fff" />
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable onPress={() => startEditAmount(i, item.allocatedAmount)} style={styles.allocatedPill}>
-                    <Feather name="tag" size={11} color={colors.textMute} />
-                    <Text style={styles.allocatedPillText}>
-                      {item.allocatedAmount ? `₹${item.allocatedAmount.toLocaleString("en-IN")} allocated` : "Add budget"}
-                    </Text>
+            {/* Budget allocation used to be nested inside the `item.category`
+                check below, so any item added via the plain free-text field
+                (as opposed to the "+ Add Vendor/Artist" category picker)
+                could never get an allocated amount at all — this row is a
+                pure planning number unrelated to whether a category/booking
+                deep-link exists, so it now renders for every checklist item.
+                Only "Book {category}" genuinely needs a real category. */}
+            <View style={styles.ciMetaRow}>
+              {editingAmountIndex === i ? (
+                <View style={styles.amountEditRow}>
+                  <Text style={styles.amountEditPrefix}>₹</Text>
+                  <TextInput
+                    value={amountDraft}
+                    onChangeText={(v) => setAmountDraft(v.replace(/[^0-9]/g, ""))}
+                    placeholder="0"
+                    placeholderTextColor={colors.textMute}
+                    keyboardType="number-pad"
+                    autoFocus
+                    style={styles.amountEditInput}
+                    onSubmitEditing={() => commitAmount(i)}
+                  />
+                  <Pressable style={styles.amountEditDone} onPress={() => commitAmount(i)}>
+                    <Feather name="check" size={13} color="#fff" />
                   </Pressable>
-                )}
+                </View>
+              ) : (
+                <Pressable onPress={() => startEditAmount(i, item.allocatedAmount)} style={styles.allocatedPill}>
+                  <Feather name="tag" size={11} color={colors.textMute} />
+                  <Text style={styles.allocatedPillText}>
+                    {item.allocatedAmount ? `₹${item.allocatedAmount.toLocaleString("en-IN")} allocated` : "Add budget"}
+                  </Text>
+                </Pressable>
+              )}
+              {item.category ? (
                 <Pressable onPress={() => handleBookCategory(item)} style={styles.bookCta}>
                   <Text style={styles.bookCtaText}>Book {item.category}</Text>
                   <Feather name="arrow-right" size={11} color={colors.purple} />
                 </Pressable>
-              </View>
-            ) : null}
+              ) : null}
+            </View>
           </View>
         ))
       )}

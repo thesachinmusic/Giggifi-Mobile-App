@@ -2,16 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { useEvent } from "expo";
-import Slider from "@react-native-community/slider";
 import { Feather } from "@expo/vector-icons";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, spacing } from "@/theme";
+import { useVideoPlaybackControls } from "@/lib/use-video-playback-controls";
+import { VideoScrubBar, ShareVideoButton, FastForwardBadge } from "@/components/VideoPlayerControls";
+import { fonts, spacing } from "@/theme";
 
 interface FullScreenVideoPlayerProps {
   visible: boolean;
   uri: string | null;
   onClose: () => void;
+  // Omitted only when the caller genuinely has nothing better than the raw
+  // video file to share (shouldn't normally happen — every real caller is
+  // an artist or vendor profile with a real public link).
+  shareContent?: { message: string; url: string };
 }
 
 const SEEK_SECONDS = 10;
@@ -36,15 +40,23 @@ const SEEK_TAP_WINDOW_MS = 900;
 // container (e.g. GradientBackground's children), not nested inside a
 // small subcomponent like a hero image or a tab's content view, or it will
 // only cover that smaller box instead of the whole screen.
-export function FullScreenVideoPlayer({ visible, uri, onClose }: FullScreenVideoPlayerProps) {
+export function FullScreenVideoPlayer({ visible, uri, onClose, shareContent }: FullScreenVideoPlayerProps) {
   if (!visible || !uri) return null;
-  return <FullScreenVideoPlayerContent uri={uri} onClose={onClose} />;
+  return <FullScreenVideoPlayerContent uri={uri} onClose={onClose} shareContent={shareContent} />;
 }
 
 // Split out so the player (and its native resources) only exists while the
 // overlay is actually open — mounted fresh each time, not kept loaded-but-
 // hidden in the background.
-function FullScreenVideoPlayerContent({ uri, onClose }: { uri: string; onClose: () => void }) {
+function FullScreenVideoPlayerContent({
+  uri,
+  onClose,
+  shareContent,
+}: {
+  uri: string;
+  onClose: () => void;
+  shareContent?: { message: string; url: string };
+}) {
   const mountedRef = useRef(true);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seekAccumRef = useRef<{ side: "left" | "right" | null; total: number; timeoutId: ReturnType<typeof setTimeout> | null }>({
@@ -107,17 +119,8 @@ function FullScreenVideoPlayerContent({ uri, onClose }: { uri: string; onClose: 
     player.muted = muted;
   }, [muted, player]);
 
-  const { currentTime } = useEvent(player, "timeUpdate", {
-    currentTime: 0,
-    currentLiveTimestamp: null,
-    currentOffsetFromLive: null,
-    bufferedPosition: 0,
-  });
-  const duration = player.duration || 0;
-
-  const [dragging, setDragging] = useState(false);
-  const [dragValue, setDragValue] = useState(0);
-  const sliderValue = dragging ? dragValue : currentTime;
+  const { currentTime, duration, sliderValue, startDrag, updateDrag, commitDrag, isFastForward, handleHoldPressIn, handleHoldPressOut } =
+    useVideoPlaybackControls(player);
 
   const [seekIndicator, setSeekIndicator] = useState<{ side: "left" | "right"; total: number } | null>(null);
 
@@ -169,9 +172,21 @@ function FullScreenVideoPlayerContent({ uri, onClose }: { uri: string; onClose: 
           claims the tap" pattern already proven in FeaturedArtistCard. */}
       <View style={styles.tapZoneRow} pointerEvents="box-none">
         <Pressable style={styles.tapZone} onPress={() => handleSeekTap("left")} accessibilityRole="button" accessibilityLabel="Seek back 10 seconds" />
-        <Pressable style={styles.tapZone} onPress={handleCenterTap} accessibilityRole="button" accessibilityLabel={paused ? "Play" : "Pause"} />
+        {/* Quick tap toggles play/pause (handleCenterTap); pressing and
+            holding instead plays at 2x until released — see
+            useVideoPlaybackControls's own comment on the hold-vs-tap
+            threshold. */}
+        <Pressable
+          style={styles.tapZone}
+          onPressIn={handleHoldPressIn}
+          onPressOut={() => handleHoldPressOut(handleCenterTap)}
+          accessibilityRole="button"
+          accessibilityLabel={paused ? "Play" : "Pause"}
+        />
         <Pressable style={styles.tapZone} onPress={() => handleSeekTap("right")} accessibilityRole="button" accessibilityLabel="Seek forward 10 seconds" />
       </View>
+
+      <FastForwardBadge visible={isFastForward} />
 
       {seekIndicator ? (
         <View
@@ -207,49 +222,30 @@ function FullScreenVideoPlayerContent({ uri, onClose }: { uri: string; onClose: 
       </View>
 
       <SafeAreaView style={styles.chrome} edges={["top", "bottom", "left", "right"]} pointerEvents="box-none">
-        <Pressable
-          onPress={onClose}
-          style={styles.backButton}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Close video"
-        >
-          <Feather name="chevron-left" size={22} color="#fff" />
-        </Pressable>
-
-        <View style={styles.seekBarRow} pointerEvents="box-none">
-          <Text style={styles.timeText}>{formatTime(sliderValue)}</Text>
-          <Slider
-            style={styles.slider}
-            minimumValue={0}
-            maximumValue={duration > 0 ? duration : 1}
-            value={sliderValue}
-            minimumTrackTintColor={colors.pink}
-            maximumTrackTintColor="rgba(255,255,255,0.3)"
-            thumbTintColor="#fff"
-            disabled={duration <= 0}
-            onSlidingStart={() => {
-              setDragging(true);
-              setDragValue(currentTime);
-            }}
-            onValueChange={setDragValue}
-            onSlidingComplete={(value) => {
-              player.currentTime = value;
-              setDragging(false);
-            }}
-          />
-          <Text style={styles.timeText}>{formatTime(duration)}</Text>
+        <View style={styles.topRow} pointerEvents="box-none">
+          <Pressable
+            onPress={onClose}
+            style={styles.backButton}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close video"
+          >
+            <Feather name="chevron-left" size={22} color="#fff" />
+          </Pressable>
+          {shareContent ? <ShareVideoButton shareContent={shareContent} /> : null}
         </View>
+
+        <VideoScrubBar
+          currentTime={currentTime}
+          duration={duration}
+          sliderValue={sliderValue}
+          onSlidingStart={startDrag}
+          onValueChange={updateDrag}
+          onSlidingComplete={commitDrag}
+        />
       </SafeAreaView>
     </View>
   );
-}
-
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const styles = StyleSheet.create({
@@ -291,9 +287,14 @@ const styles = StyleSheet.create({
   },
   flashIconSpacer: { width: 56, height: 56 },
   chrome: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "space-between" },
-  backButton: {
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginTop: spacing.sm,
-    marginLeft: spacing.lg,
+    marginHorizontal: spacing.lg,
+  },
+  backButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -301,13 +302,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  seekBarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  slider: { flex: 1, height: 32 },
-  timeText: { fontFamily: fonts.mono, fontSize: 11, color: "#fff", minWidth: 34, textAlign: "center" },
 });

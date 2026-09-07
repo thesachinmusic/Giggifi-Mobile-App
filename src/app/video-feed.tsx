@@ -10,6 +10,8 @@ import { duotoneFor } from "@/lib/palette";
 import { useVideoMute } from "@/lib/video-mute-context";
 import { takePendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
+import { useVideoPlaybackControls } from "@/lib/use-video-playback-controls";
+import { VideoScrubBar, ShareVideoButton, FastForwardBadge } from "@/components/VideoPlayerControls";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -104,7 +106,12 @@ function VideoFeedCard({ item, isActive }: { item: VideoFeedItem; isActive: bool
   const player = useVideoPlayer(null, (instance) => {
     instance.loop = true;
     instance.muted = true;
+    // 0 (the default) disables the timeUpdate event entirely — needed for
+    // the scrub bar below to track playback position.
+    instance.timeUpdateEventInterval = 0.25;
   });
+  const { currentTime, duration, sliderValue, startDrag, updateDrag, commitDrag, isFastForward, handleHoldPressIn, handleHoldPressOut } =
+    useVideoPlaybackControls(player);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +151,11 @@ function VideoFeedCard({ item, isActive }: { item: VideoFeedItem; isActive: bool
 
   return (
     <View style={styles.card}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={() => setPaused((v) => !v)}>
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPressIn={handleHoldPressIn}
+        onPressOut={() => handleHoldPressOut(() => setPaused((v) => !v))}
+      >
         {/* surfaceType="textureView": Android defaults VideoView to SurfaceView,
             which composites via a separate native window outside RN's own
             view hierarchy — pointerEvents="none" on it doesn't reliably stop
@@ -170,6 +181,7 @@ function VideoFeedCard({ item, isActive }: { item: VideoFeedItem; isActive: bool
             </View>
           </View>
         ) : null}
+        <FastForwardBadge visible={isFastForward} />
       </Pressable>
 
       <LinearGradient
@@ -182,16 +194,36 @@ function VideoFeedCard({ item, isActive }: { item: VideoFeedItem; isActive: bool
       <SafeAreaView style={styles.overlay} edges={["top", "bottom", "left", "right"]} pointerEvents="box-none">
         <View style={styles.topRow}>
           <View />
-          <Pressable
-            onPress={toggleMuted}
-            style={styles.muteButton}
-            hitSlop={9}
-            accessibilityRole="button"
-            accessibilityLabel={muted ? "Unmute video" : "Mute video"}
-          >
-            <Feather name={muted ? "volume-x" : "volume-2"} size={14} color="#fff" />
-          </Pressable>
+          <View style={styles.topRowActions}>
+            <ShareVideoButton
+              shareContent={{
+                message: `Check out ${name} on GiggiFi: https://giggifi.com/discover/artist/${item.id}`,
+                url: `https://giggifi.com/discover/artist/${item.id}`,
+              }}
+              style={styles.muteButton}
+            />
+            <Pressable
+              onPress={toggleMuted}
+              style={styles.muteButton}
+              hitSlop={9}
+              accessibilityRole="button"
+              accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+            >
+              <Feather name={muted ? "volume-x" : "volume-2"} size={14} color="#fff" />
+            </Pressable>
+          </View>
         </View>
+
+        <View>
+        <VideoScrubBar
+          currentTime={currentTime}
+          duration={duration}
+          sliderValue={sliderValue}
+          onSlidingStart={startDrag}
+          onValueChange={updateDrag}
+          onSlidingComplete={commitDrag}
+          dark
+        />
 
         <View style={styles.bottomRow}>
           <View style={styles.info}>
@@ -215,6 +247,7 @@ function VideoFeedCard({ item, isActive }: { item: VideoFeedItem; isActive: bool
             </Pressable>
           </View>
         </View>
+        </View>
       </SafeAreaView>
 
       {!item.videoUrl ? (
@@ -236,6 +269,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: 56,
   },
+  topRowActions: { flexDirection: "row", gap: spacing.xs },
   muteButton: {
     width: 30,
     height: 30,

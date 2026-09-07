@@ -12,11 +12,13 @@ import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
+import { FullScreenVideoPlayer } from "@/components/FullScreenVideoPlayer";
 import { Skeleton } from "@/components/Skeleton";
 import { fetchVendor, sendVendorEnquiry, ApiError, type VendorSummary } from "@/lib/api";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
 import { useVideoMute } from "@/lib/video-mute-context";
+import { cloudinaryThumb } from "@/lib/video-thumb";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -27,6 +29,12 @@ export default function VendorDetailScreen() {
   const [vendor, setVendor] = useState<VendorSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Vendor profiles never had anywhere to re-watch the portfolio video in
+  // full — it only ever autoplayed muted in the hero background. This mirrors
+  // the artist profile's Media tab: tap a thumbnail, get the same shared
+  // full-featured player (play/pause, seek, hold-to-2x, share) everywhere
+  // else in the app.
+  const [fullscreenVideoUri, setFullscreenVideoUri] = useState<string | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const [bodyY, setBodyY] = useState(0);
@@ -193,10 +201,29 @@ export default function VendorDetailScreen() {
             </View>
           ) : null}
 
-          {vendor.portfolioPhotos.length ? (
+          {vendor.portfolioPhotos.length || vendor.portfolioVideoUrl ? (
             <View style={styles.galleryBlock}>
               <Text style={styles.fieldLabel}>PORTFOLIO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
+                {vendor.portfolioVideoUrl ? (
+                  <Pressable
+                    onPress={() => setFullscreenVideoUri(vendor.portfolioVideoUrl!)}
+                    style={styles.galleryPhoto}
+                    accessibilityRole="button"
+                    accessibilityLabel="Play portfolio video"
+                  >
+                    {cloudinaryThumb(vendor.portfolioVideoUrl) ? (
+                      <Image source={{ uri: cloudinaryThumb(vendor.portfolioVideoUrl)! }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    ) : (
+                      <LinearGradient colors={[c1, c2]} style={StyleSheet.absoluteFill} />
+                    )}
+                    <View style={styles.galleryVideoOverlay} pointerEvents="none">
+                      <View style={styles.galleryVideoPlay}>
+                        <Feather name="play" size={16} color="#fff" />
+                      </View>
+                    </View>
+                  </Pressable>
+                ) : null}
                 {vendor.portfolioPhotos.map((uri) => (
                   <Image key={uri} source={{ uri }} style={styles.galleryPhoto} contentFit="cover" />
                 ))}
@@ -274,6 +301,18 @@ export default function VendorDetailScreen() {
           </Pressable>
         </View>
       ) : null}
+
+      {/* shareContent deliberately omitted (hides the share button) — unlike
+          artists (giggifi.com/discover/artist/[id] and /artists/[id] both
+          real, live public pages), there is no public web page for a vendor
+          profile anywhere on the website today, only /vendor/onboarding.
+          Sharing a URL that 404s would be worse than no share button;
+          flagged back rather than guessed at. */}
+      <FullScreenVideoPlayer
+        visible={fullscreenVideoUri !== null}
+        uri={fullscreenVideoUri}
+        onClose={() => setFullscreenVideoUri(null)}
+      />
     </GradientBackground>
   );
 }
@@ -426,7 +465,16 @@ const styles = StyleSheet.create({
   skeletonPriceCard: { marginTop: spacing.md },
   galleryBlock: { marginBottom: spacing.lg, gap: spacing.xs },
   galleryRow: { gap: spacing.sm },
-  galleryPhoto: { width: 120, height: 150, borderRadius: radii.md, backgroundColor: colors.surface },
+  galleryPhoto: { width: 120, height: 150, borderRadius: radii.md, backgroundColor: colors.surface, overflow: "hidden" },
+  galleryVideoOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  galleryVideoPlay: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   body: { padding: spacing.lg, marginTop: -radii.xl, backgroundColor: colors.ink, borderTopLeftRadius: radii.xl * 1.5, borderTopRightRadius: radii.xl * 1.5 },
   tagline: {
     fontFamily: fonts.mono,

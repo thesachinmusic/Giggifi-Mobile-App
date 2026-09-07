@@ -13,6 +13,8 @@ import { useVideoMute } from "@/lib/video-mute-context";
 import { duotoneFor } from "@/lib/palette";
 import { fetchArtists, type ArtistSummary } from "@/lib/api";
 import { captureError } from "@/lib/telemetry";
+import { useVideoPlaybackControls } from "@/lib/use-video-playback-controls";
+import { VideoScrubBar, ShareVideoButton, FastForwardBadge } from "@/components/VideoPlayerControls";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 type ReelFilter = "all" | "music" | "other";
@@ -160,11 +162,17 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
   const name = artist.stageName ?? "GiggiFi Artist";
   const [c1, c2] = duotoneFor(artist.id);
   const saved = isSaved(artist.id);
+  const [paused, setPaused] = useState(false);
 
   const player = useVideoPlayer(null, (instance) => {
     instance.loop = true;
     instance.muted = true;
+    // 0 (the default) disables the timeUpdate event entirely — needed for
+    // the scrub bar below to track playback position.
+    instance.timeUpdateEventInterval = 0.25;
   });
+  const { currentTime, duration, sliderValue, startDrag, updateDrag, commitDrag, isFastForward, handleHoldPressIn, handleHoldPressOut } =
+    useVideoPlaybackControls(player);
 
   // Only the active reel loads real media — the vertical feed keeps neighboring
   // cards mounted, and loading video for all of them at once is what OOM'd the
@@ -191,10 +199,48 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
     if (isActive) player.muted = muted;
   }, [muted, isActive, player]);
 
+  // Reset to playing whenever a card becomes active again (e.g. swiping
+  // back to one you'd previously paused shouldn't stay frozen) — same
+  // pattern as video-feed.tsx's VideoFeedCard.
+  useEffect(() => {
+    if (isActive) setPaused(false);
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    if (paused) player.pause();
+    else player.play();
+  }, [paused, isActive, player]);
+
   return (
     <View style={[styles.card, { height }]}>
       {videoSource ? (
-        <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPressIn={handleHoldPressIn}
+          onPressOut={() => handleHoldPressOut(() => setPaused((v) => !v))}
+        >
+          {/* surfaceType="textureView": see video-feed.tsx's identical
+              comment — SurfaceView (the default) composites through its own
+              native window on Android and silently swallows taps meant for
+              this Pressable. */}
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            nativeControls={false}
+            pointerEvents="none"
+            surfaceType="textureView"
+          />
+          {paused ? (
+            <View style={styles.pauseOverlay} pointerEvents="none">
+              <View style={styles.pauseIconWrap}>
+                <Feather name="play" size={28} color="#fff" />
+              </View>
+            </View>
+          ) : null}
+          <FastForwardBadge visible={isFastForward} />
+        </Pressable>
       ) : artist.profileImageUrl ? (
         <Image source={{ uri: artist.profileImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
@@ -211,17 +257,39 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
         <View style={styles.topRow}>
           <View />
           {videoSource ? (
-            <Pressable
-              onPress={toggleMuted}
-              style={styles.muteButton}
-              hitSlop={9}
-              accessibilityRole="button"
-              accessibilityLabel={muted ? "Unmute video" : "Mute video"}
-            >
-              <Feather name={muted ? "volume-x" : "volume-2"} size={14} color="#fff" />
-            </Pressable>
+            <View style={styles.topRowActions}>
+              <ShareVideoButton
+                shareContent={{
+                  message: `Check out ${name} on GiggiFi: https://giggifi.com/discover/artist/${artist.id}`,
+                  url: `https://giggifi.com/discover/artist/${artist.id}`,
+                }}
+                style={styles.muteButton}
+              />
+              <Pressable
+                onPress={toggleMuted}
+                style={styles.muteButton}
+                hitSlop={9}
+                accessibilityRole="button"
+                accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+              >
+                <Feather name={muted ? "volume-x" : "volume-2"} size={14} color="#fff" />
+              </Pressable>
+            </View>
           ) : null}
         </View>
+
+        <View>
+        {videoSource ? (
+          <VideoScrubBar
+            currentTime={currentTime}
+            duration={duration}
+            sliderValue={sliderValue}
+            onSlidingStart={startDrag}
+            onValueChange={updateDrag}
+            onSlidingComplete={commitDrag}
+            dark
+          />
+        ) : null}
 
         <View style={styles.bottomRow}>
           <View style={styles.info}>
@@ -262,6 +330,7 @@ function ReelCard({ artist, height, isActive }: { artist: ArtistSummary; height:
               <Feather name="user" size={20} color="#fff" />
             </Pressable>
           </View>
+        </View>
         </View>
       </SafeAreaView>
     </View>
@@ -330,6 +399,16 @@ const styles = StyleSheet.create({
   },
   filterPillTextActive: {
     color: colors.ink,
+  },
+  topRowActions: { flexDirection: "row", gap: spacing.xs },
+  pauseOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  pauseIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   muteButton: {
     width: 30,
