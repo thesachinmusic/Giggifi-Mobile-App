@@ -32,4 +32,8 @@ export const gradients = {
   brandLocations: [0, 0.45, 1] as const,
   glowPurple: [colors.purple + "55", colors.purple + "00"] as const,
   glowOrange: [colors.orange + "55", colors.orange + "00"] as const,
+  // Home hero carousel — same fixed maroon→plum→burnt-orange background on
+  // all 3 slides (only copy/destination differs per slide).
+  hero: ["#3d1a52", "#7a1f57", "#c2410c"] as const,
+  heroLocations: [0, 0.55, 1] as const,
 } as const;

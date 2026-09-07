@@ -20,23 +20,26 @@ import * as Location from "expo-location";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { SearchBarStatic } from "@/components/SearchBar";
-import { BannerCarousel } from "@/components/BannerCarousel";
-import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { HeroCarousel } from "@/components/HeroCarousel";
 import { CategoryGrid } from "@/components/CategoryGrid";
 import { FeaturedArtistCard, FEATURED_CARD_WIDTH } from "@/components/FeaturedArtistCard";
 import { ArtistCard } from "@/components/ArtistCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { NotificationBell } from "@/components/NotificationBell";
 import { HomeCityControl } from "@/components/HomeCityControl";
+import { SeasonalPicksRail } from "@/components/SeasonalPicksRail";
+import { RealEventsRail } from "@/components/RealEventsRail";
 import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
-import { fetchArtists, fetchFeatured, fetchSavedArtists, fetchSocialProof, fetchBookings, type ArtistSummary } from "@/lib/api";
+import { fetchArtists, fetchFeatured, fetchSavedArtists, fetchBookings, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
 import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
 import { EVENT_COMPLETED_STATUSES } from "@/lib/booking-status";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
+
+type BrowseVertical = "artist" | "vendor";
 
 // Deterministic PRNG (mulberry32-style LCG) seeded from a plain integer —
 // same seed always produces the same shuffle order.
@@ -108,8 +111,8 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFeaturedIndex, setActiveFeaturedIndex] = useState(0);
   const [homeCity, setHomeCityState] = useState<string | null>(null);
-  const [socialProof, setSocialProof] = useState<{ count: number; visible: boolean } | null>(null);
   const [hasCompletedBooking, setHasCompletedBooking] = useState<boolean | null>(null);
+  const [browseVertical, setBrowseVertical] = useState<BrowseVertical>("artist");
 
   const load = useCallback(async () => {
     setError(false);
@@ -156,24 +159,6 @@ export default function HomeScreen() {
   useEffect(() => {
     loadSaved();
   }, [loadSaved]);
-
-  // Independent of the main load() above (same reasoning as loadSaved) —
-  // this is a purely decorative strip, not something a failure here should
-  // ever blank out the rest of Home for. visible (server-computed, >= 50)
-  // decides whether the strip renders at all; count is never shown as a
-  // hardcoded/placeholder number, only ever this live value.
-  const loadSocialProof = useCallback(async () => {
-    try {
-      const result = await fetchSocialProof();
-      setSocialProof(result);
-    } catch (err) {
-      captureError(err, "home-social-proof-fetch");
-    }
-  }, []);
-
-  useEffect(() => {
-    loadSocialProof();
-  }, [loadSocialProof]);
 
   // Independent of the main load() above (same reasoning as loadSaved) —
   // decides whether the first-booking offer card renders in its active or
@@ -249,7 +234,7 @@ export default function HomeScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await Promise.all([load(), loadSaved(), loadSocialProof(), loadBookingHistory()]);
+    await Promise.all([load(), loadSaved(), loadBookingHistory()]);
     setRefreshing(false);
   }
 
@@ -329,45 +314,75 @@ export default function HomeScreen() {
               <NotificationBell />
             </View>
             <Text style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who&apos;s the act tonight?</Text>
-            <View style={styles.cityControlWrap}>
-              <HomeCityControl city={homeCity} onChange={handleCityChange} />
-            </View>
           </View>
 
-          <AnnouncementBanner />
+          <View style={styles.cityEventRow}>
+            <HomeCityControl city={homeCity} onChange={handleCityChange} />
+            <Pressable style={styles.eventHubCard} onPress={() => router.push("/my-event")}>
+              <View style={styles.eventHubIcon}>
+                <Feather name="calendar" size={14} color={colors.purple} />
+              </View>
+              <View style={styles.eventHubTextWrap}>
+                <Text style={styles.eventHubTitle} numberOfLines={1}>My Event Hub</Text>
+                <Text style={styles.eventHubSub} numberOfLines={1}>Countdown, budget & checklist</Text>
+              </View>
+            </Pressable>
+          </View>
 
           <View style={styles.searchWrap}>
             <SearchBarStatic label="Search artists, DJs, bands…" onPress={() => router.push("/(tabs)/browse")} />
           </View>
 
-          <Pressable style={styles.eventHubCard} onPress={() => router.push("/my-event")}>
-            <View style={styles.eventHubIcon}>
-              <Feather name="calendar" size={16} color={colors.purple} />
+          <View style={styles.section}>
+            <SectionHeader
+              title={browseVertical === "artist" ? "Artists" : "Vendors"}
+              sub={browseVertical === "artist" ? "Performers for your event" : "Everything else for the day"}
+              onSeeAll={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: browseVertical } })}
+            />
+            <View style={styles.verticalToggle}>
+              <Pressable
+                style={[styles.verticalToggleTab, browseVertical === "artist" && styles.verticalToggleTabActive]}
+                onPress={() => setBrowseVertical("artist")}
+              >
+                <Text style={[styles.verticalToggleText, browseVertical === "artist" && styles.verticalToggleTextActive]}>Artists</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.verticalToggleTab, browseVertical === "vendor" && styles.verticalToggleTabActive]}
+                onPress={() => setBrowseVertical("vendor")}
+              >
+                <Text style={[styles.verticalToggleText, browseVertical === "vendor" && styles.verticalToggleTextActive]}>Vendors</Text>
+              </Pressable>
             </View>
-            <View style={styles.eventHubTextWrap}>
-              <Text style={styles.eventHubTitle}>My Event Hub</Text>
-              <Text style={styles.eventHubSub}>Countdown, budget & checklist for your event</Text>
-            </View>
-            <Feather name="chevron-right" size={16} color={colors.textMute} />
-          </Pressable>
+            <CategoryGrid vertical={browseVertical} />
+          </View>
 
-          <Pressable style={styles.planPromo} onPress={() => router.push("/plan-my-event")}>
-            <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.planPromoGradient}>
-              <View style={styles.planPromoBadge}>
-                <Feather name="compass" size={11} color="#fff" />
-                <Text style={styles.planPromoBadgeText}>PLAN MY EVENT</Text>
-              </View>
-              <Text style={styles.planPromoTitle}>Get matched to real artists{"\n"}in minutes</Text>
-              <Text style={styles.planPromoSub}>Type, budget, duration — see real prices and videos before you commit.</Text>
-              <View style={styles.planPromoCta}>
-                <Text style={styles.planPromoCtaText}>Start planning</Text>
-                <Feather name="arrow-right" size={16} color={colors.purple} />
-              </View>
-            </LinearGradient>
-          </Pressable>
+          {/* Not called out in the new Home spec either way — kept rather
+              than silently dropped, same relative spot as before (right
+              after category browsing). Flagged back for an explicit call. */}
+          {saved.length > 0 ? (
+            <View style={styles.section}>
+              <SectionHeader title="Saved for you" />
+              <FlatList
+                data={saved}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.artistRow}
+                renderItem={({ item }) => (
+                  <ArtistCard artist={item} width={168} onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })} />
+                )}
+              />
+            </View>
+          ) : null}
 
           <View style={styles.section}>
-            <BannerCarousel />
+            <HeroCarousel />
+          </View>
+
+          <View style={styles.trustRow}>
+            <TrustCard doodle="✅" label="Verified artists" caption="ID + KYC checked" />
+            <TrustCard doodle="🔒" label="Secure payments" caption="Held till event's done" />
+            <TrustCard doodle="⚡" label="Fast responses" caption="Quotes within hours" />
           </View>
 
           {/* Awareness-only offer cards — deliberately no numbers/percentages
@@ -401,87 +416,37 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {/* Placement/styling here is intentionally minimal — final visual
-              design for this strip is still being worked out in mockups
-              separately; this is just the correctness of the logic (real
-              live count, fully hidden below 50, never a placeholder
-              number). Move/restyle freely once that lands. */}
-          {socialProof?.visible ? (
-            <View style={styles.socialProofStrip}>
-              <Text style={styles.socialProofText}>
-                {socialProof.count.toLocaleString("en-IN")} events booked this week 🔥
-              </Text>
-            </View>
-          ) : null}
-
-          <Pressable style={styles.qmPromo} onPress={() => router.push("/quick-moments")}>
-            <LinearGradient colors={[colors.orange, colors.magenta, colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.qmPromoGradient}>
-              <View style={styles.qmPromoTopRow}>
-                <View style={styles.qmPromoBadge}>
-                  <Feather name="zap" size={11} color="#fff" />
-                  <Text style={styles.qmPromoBadgeText}>GIGGIFI 20-20</Text>
-                </View>
-                <View style={styles.qmPromoTimer}>
-                  <Feather name="clock" size={10} color="#fff" />
-                  <Text style={styles.qmPromoTimerText}>15 or 30 min</Text>
-                </View>
+          {/* Business flow entry point — same destination as the bottom nav
+              "Business" tab (see (tabs)/business.tsx and (tabs)/_layout.tsx),
+              which itself decides form-vs-deals. Static, no dependency on
+              artists/featured/trending, so it no longer needs to sit behind
+              the loading/error branch below. */}
+          <Pressable style={styles.businessPromo} onPress={() => router.push("/(tabs)/business")}>
+            <LinearGradient colors={[colors.purple, colors.orange]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessPromoGradient}>
+              <View style={styles.businessPromoBadge}>
+                <Feather name="briefcase" size={11} color="#fff" />
+                <Text style={styles.businessPromoBadgeText}>FOR BUSINESSES</Text>
               </View>
-
-              <Text style={styles.qmPromoTitle}>Surprise someone{"\n"}with a live performance</Text>
-              <Text style={styles.qmPromoSub}>
-                Pick a moment, find a nearby artist, and they show up within hours — no weeks of planning.
-              </Text>
-
-              <View style={styles.qmPromoFormats}>
-                <View style={styles.qmPromoFormatChip}><Text style={styles.qmPromoFormatEmoji}>🎂</Text><Text style={styles.qmPromoFormatText}>Birthday</Text></View>
-                <View style={styles.qmPromoFormatChip}><Text style={styles.qmPromoFormatEmoji}>💐</Text><Text style={styles.qmPromoFormatText}>Anniversary</Text></View>
-                <View style={styles.qmPromoFormatChip}><Text style={styles.qmPromoFormatEmoji}>✨</Text><Text style={styles.qmPromoFormatText}>Just Because</Text></View>
-              </View>
-
-              <View style={styles.qmPromoCta}>
-                <Text style={styles.qmPromoCtaText}>Find an artist near you</Text>
-                <Feather name="arrow-right" size={16} color={colors.magenta} />
+              <Text style={styles.businessPromoTitle}>Curated for Restaurants{"\n"}& Event Companies</Text>
+              <Text style={styles.businessPromoSub}>Recurring bookings, business deals & invoicing.</Text>
+              <View style={styles.businessPromoCta}>
+                <Text style={styles.businessPromoCtaText}>See business deals</Text>
+                <Feather name="arrow-right" size={16} color={colors.purple} />
               </View>
             </LinearGradient>
           </Pressable>
 
-          <View style={styles.section}>
-            <SectionHeader title="Artists" sub="Performers for your event" onSeeAll={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: "artist" } })} />
-            <CategoryGrid vertical="artist" />
-          </View>
-
-          <View style={styles.section}>
-            <SectionHeader title="Vendors" sub="Everything else for the day" onSeeAll={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: "vendor" } })} />
-            <CategoryGrid vertical="vendor" />
-          </View>
-
-          {saved.length > 0 ? (
-            <View style={styles.section}>
-              <SectionHeader title="Saved for you" />
-              <FlatList
-                data={saved}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.artistRow}
-                renderItem={({ item }) => (
-                  <ArtistCard artist={item} width={168} onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })} />
-                )}
-              />
-            </View>
-          ) : null}
-
           {loading ? (
             <>
               <View style={styles.section}>
-                <SectionHeader title="Featured Artists" sub="Watch before you book" />
+                <SectionHeader title="Fresh picks for you" sub="Handpicked for you — watch before you book" />
                 <View style={[styles.featuredRow, styles.skeletonRow]}>
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
                 </View>
               </View>
               <View style={styles.section}>
-                <SectionHeader title="Popular right now" />
+                <SectionHeader title="Featured Artists" sub="Watch before you book" />
                 <View style={[styles.artistRow, styles.skeletonRow]}>
                   {[0, 1, 2].map((i) => (
                     <View key={i} style={styles.skeletonCard}>
@@ -505,24 +470,6 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {/* Business flow entry point — same destination as the bottom
-                  nav "Business" tab (see (tabs)/business.tsx and
-                  (tabs)/_layout.tsx), which itself decides form-vs-deals. */}
-              <Pressable style={styles.businessPromo} onPress={() => router.push("/(tabs)/business")}>
-                <LinearGradient colors={[colors.purple, colors.orange]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessPromoGradient}>
-                  <View style={styles.businessPromoBadge}>
-                    <Feather name="briefcase" size={11} color="#fff" />
-                    <Text style={styles.businessPromoBadgeText}>FOR BUSINESSES</Text>
-                  </View>
-                  <Text style={styles.businessPromoTitle}>Curated for Restaurants{"\n"}& Event Companies</Text>
-                  <Text style={styles.businessPromoSub}>Recurring bookings, business deals & invoicing.</Text>
-                  <View style={styles.businessPromoCta}>
-                    <Text style={styles.businessPromoCtaText}>See business deals</Text>
-                    <Feather name="arrow-right" size={16} color={colors.purple} />
-                  </View>
-                </LinearGradient>
-              </Pressable>
-
               {/* Fresh picks (trending) directly above Featured Artists —
                   intended Home order, per Sachin's explicit item #6/#5
                   request. Both rails already open the same swipeable
@@ -601,6 +548,10 @@ export default function HomeScreen() {
                 </View>
               ) : null}
 
+              {/* Also not called out in the new spec — kept rather than
+                  silently dropped, same relative spot as before (right
+                  after Featured Artists). Flagged back for an explicit
+                  call. */}
               <View style={styles.section}>
                 <SectionHeader title="Popular right now" onSeeAll={() => router.push("/(tabs)/browse")} />
                 {popular.length === 0 ? (
@@ -626,28 +577,28 @@ export default function HomeScreen() {
                   />
                 )}
               </View>
-
-              <Pressable style={styles.reelsPromo} onPress={() => router.push("/(tabs)/reels")}>
-                <LinearGradient colors={[colors.magenta, colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.reelsPromoGradient}>
-                  <Text style={styles.reelsPromoDoodle}>🎬</Text>
-                  <View style={styles.reelsPromoPlay}>
-                    <Feather name="play" size={16} color="#fff" />
-                  </View>
-                  <View style={styles.reelsPromoBody}>
-                    <Text style={styles.reelsPromoTitle}>Scroll the reel,{"\n"}find your act</Text>
-                    <Text style={styles.reelsPromoSub}>Swipe through artist videos and shortlist your favourites</Text>
-                  </View>
-                  <Feather name="chevron-right" size={18} color="#fff" />
-                </LinearGradient>
-              </Pressable>
             </>
           )}
 
-          <View style={styles.trustRow}>
-            <TrustCard doodle="✅" label="Verified artists" caption="ID + KYC checked" />
-            <TrustCard doodle="🔒" label="Secure payments" caption="Held till event's done" />
-            <TrustCard doodle="⚡" label="Fast responses" caption="Quotes within hours" />
-          </View>
+          {/* Compact reel-discovery strip — replaces both the old
+              "N events booked this week" social-proof strip and the old
+              full-size "Scroll the reel, find your act" gradient promo
+              (same destination, same intent; keeping both would have been
+              a duplicate "go watch Reels" prompt on one screen). */}
+          <Pressable style={styles.reelsStrip} onPress={() => router.push("/(tabs)/reels")}>
+            <View style={styles.reelsStripPlay}>
+              <Feather name="play" size={14} color="#fff" />
+            </View>
+            <View style={styles.reelsStripBody}>
+              <Text style={styles.reelsStripTitle}>Discover through Giggifi Reels</Text>
+              <Text style={styles.reelsStripSub}>Swipe through artist videos and shortlist your favs</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.textMute} />
+          </Pressable>
+
+          <SeasonalPicksRail />
+
+          <RealEventsRail />
         </ScrollView>
 
         <Pressable style={styles.askFab} onPress={() => router.push("/ask-giggfi")}>
@@ -691,9 +642,29 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     color: colors.text,
   },
-  cityControlWrap: { marginTop: spacing.sm },
+  cityEventRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
   searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
   section: { marginBottom: spacing.xl },
+  verticalToggle: {
+    flexDirection: "row",
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    padding: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.ink2,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  verticalToggleTab: { flex: 1, paddingVertical: 9, borderRadius: radii.pill, alignItems: "center" },
+  verticalToggleTabActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.lineStrong },
+  verticalToggleText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.textMute },
+  verticalToggleTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
   offerRow: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -732,19 +703,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     lineHeight: 17,
   },
-  // Deliberately plain — see the render-site comment, final look pending mockups.
-  socialProofStrip: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,138,61,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,138,61,0.3)",
-    alignItems: "center",
-  },
-  socialProofText: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.orange },
   featuredRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   artistRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   muted: {
@@ -777,7 +735,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
   trustCard: {
     flex: 1,
@@ -806,42 +764,28 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   eventHubCard: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    padding: spacing.md,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
     borderRadius: radii.lg,
     backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
     borderColor: colors.line,
   },
   eventHubIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 9,
     backgroundColor: "rgba(168,85,247,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   eventHubTextWrap: { flex: 1 },
-  eventHubTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.text },
-  eventHubSub: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute, marginTop: 1 },
-  planPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
-  planPromoGradient: { padding: spacing.lg, gap: spacing.sm },
-  planPromoBadge: {
-    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill, backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  planPromoBadgeText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 1 },
-  planPromoTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, color: "#fff", marginTop: 2 },
-  planPromoSub: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.88)" },
-  planPromoCta: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: spacing.xs,
-    backgroundColor: "#fff", borderRadius: radii.pill, paddingVertical: 12,
-  },
-  planPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple },
+  eventHubTitle: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.text },
+  eventHubSub: { fontFamily: fonts.body, fontSize: 10, color: colors.textMute, marginTop: 1 },
   businessPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
   businessPromoGradient: { padding: spacing.lg, gap: spacing.sm },
   businessPromoBadge: {
@@ -856,96 +800,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff", borderRadius: radii.pill, paddingVertical: 12,
   },
   businessPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple },
-  qmPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
-  qmPromoGradient: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  qmPromoTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  qmPromoBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  qmPromoBadgeText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 1 },
-  qmPromoTimer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(0,0,0,0.18)",
-  },
-  qmPromoTimerText: { fontFamily: fonts.bodySemiBold, fontSize: 10.5, color: "#fff" },
-  qmPromoTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, color: "#fff", marginTop: 2 },
-  qmPromoSub: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.88)" },
-  qmPromoFormats: { flexDirection: "row", gap: spacing.xs, marginTop: 2 },
-  qmPromoFormatChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.14)",
-  },
-  qmPromoFormatEmoji: { fontSize: 13 },
-  qmPromoFormatText: { fontFamily: fonts.bodyMedium, fontSize: 11, color: "#fff" },
-  qmPromoCta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: spacing.xs,
-    backgroundColor: "#fff",
-    borderRadius: radii.pill,
-    paddingVertical: 12,
-  },
-  qmPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.magenta },
-  reelsPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
-  reelsPromoGradient: {
+  reelsStrip: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    position: "relative",
-    overflow: "hidden",
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(255,255,255,0.035)",
+    borderWidth: 1,
+    borderColor: colors.line,
   },
-  reelsPromoDoodle: {
-    position: "absolute",
-    right: -6,
-    bottom: -14,
-    fontSize: 64,
-    opacity: 0.16,
-    transform: [{ rotate: "10deg" }],
-  },
-  reelsPromoPlay: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.18)",
+  reelsStripPlay: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.magenta,
     alignItems: "center",
     justifyContent: "center",
   },
-  reelsPromoBody: { flex: 1, gap: 2 },
-  reelsPromoTitle: {
-    fontFamily: fonts.displayMedium,
-    fontSize: 15,
-    lineHeight: 18,
-    color: "#fff",
-  },
-  reelsPromoSub: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    lineHeight: 14,
-    color: "rgba(255,255,255,0.85)",
-  },
+  reelsStripBody: { flex: 1, gap: 2 },
+  reelsStripTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.text },
+  reelsStripSub: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute },
   askFab: {
     position: "absolute",
     right: spacing.lg,

@@ -430,6 +430,40 @@ export function fetchSocialProof() {
   return request<{ count: number; visible: boolean }>("/api/mobile/social-proof");
 }
 
+// Home's "Seasonal Picks" rail. isActive here is the website's dated-vs-
+// evergreen distinction (see getActiveSeasonalPicks), not a visibility
+// toggle — every entry returned is meant to render, already filtered
+// server-side by the admin kill-switch and today's date.
+export interface SeasonalPick {
+  id: string;
+  title: string;
+  icon: string | null;
+  isActive: boolean;
+  isEvergreen: boolean;
+}
+
+export function fetchSeasonalPicks() {
+  return request<{ picks: SeasonalPick[] }>("/api/mobile/seasonal-picks");
+}
+
+// Home's "From Real Events" rail — admin-approved reviews with real
+// uploaded media only (see app/api/mobile/real-events/route.ts). No
+// booker identity is ever included, by design.
+export interface RealEvent {
+  id: string;
+  rating: number;
+  comment: string;
+  mediaUrls: string[];
+  eventType: string;
+  eventCity: string;
+  artistName: string;
+  createdAt: string;
+}
+
+export function fetchRealEvents() {
+  return request<{ events: RealEvent[] }>("/api/mobile/real-events");
+}
+
 // ─── Business flow ───
 
 export function logBusinessDealInterest(dealCategory: "restaurants" | "corporates" | "eventCompanies", dealId: string) {
@@ -636,23 +670,6 @@ export function updateNotificationPreferences(patch: {
     method: "PATCH",
     body: JSON.stringify(patch),
   });
-}
-
-// ─── Announcements ───
-// Backend endpoint ships in a later phase (admin console). Until then this
-// 404s and callers treat that identically to "no announcements" — see
-// src/components/AnnouncementBanner.tsx.
-
-export interface Announcement {
-  id: string;
-  title: string;
-  body: string;
-  imageUrl: string | null;
-  actionUrl: string | null;
-}
-
-export function fetchAnnouncements() {
-  return request<{ announcements: Announcement[] }>("/api/mobile/announcements");
 }
 
 // ─── Bookings ───

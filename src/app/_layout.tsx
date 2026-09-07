@@ -201,6 +201,16 @@ function RootLayoutContent() {
                       headerBackTitle: "Back",
                     }}
                   />
+                  <Stack.Screen
+                    name="how-it-works"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Secure Payment",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
                   <Stack.Screen name="ask-giggfi" options={{ presentation: "modal" }} />
                   <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
                   <Stack.Screen name="video-feed" options={{ presentation: "fullScreenModal", animation: "fade" }} />
