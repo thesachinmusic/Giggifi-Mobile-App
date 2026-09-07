@@ -644,6 +644,20 @@ export interface EventPlanSummary {
 export interface EventPlanChecklistItem {
   label: string;
   done: boolean;
+  // Set when this row was added via the category picker rather than the
+  // free-text field — old plans and free-text rows just omit these, which
+  // is fine, not a broken/legacy state.
+  kind?: "artist" | "vendor";
+  category?: string;
+  // Client-set planning number — separate from `spent` below, never
+  // derived from a real booking.
+  allocatedAmount?: number;
+  // Live-computed on the server from real Bookings tagged to this plan —
+  // never sent back on PATCH, never stored. Always false for vendor rows:
+  // vendors have no committed/paid booking flow on this platform yet (see
+  // getEventPlanDetail's comment on the website repo), so there's no real
+  // signal to check — only artist rows can ever be genuinely "Booked".
+  isBooked?: boolean;
 }
 
 export interface EventPlanDetail {

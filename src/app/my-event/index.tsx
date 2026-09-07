@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
@@ -9,6 +9,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { Skeleton } from "@/components/Skeleton";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
+import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
 import {
   fetchEventPlans,
   fetchEventPlan,
@@ -26,6 +27,25 @@ import { colors, fonts, radii, spacing } from "@/theme";
 // screen that can stay open a while (someone lingering while planning) is
 // needless battery drain for no visible benefit.
 const TICK_MS = 60_000;
+
+// Mirrors PERFORMER_TYPES in the website's artist onboarding route
+// (app/api/mobile/artist/onboarding/route.ts) — the real values
+// ArtistProfile.performerType can hold, which is what getEventPlanDetail's
+// isBooked matching and Browse's category filter both key off. Deliberately
+// NOT lib/categories.ts's CATEGORIES (Browse's own pill row) — that list
+// swaps "Other" for "Celebrity" and would silently break isBooked matching
+// for anyone who picks "Other" here.
+const ARTIST_CATEGORIES = [
+  { label: "Singer", emoji: "🎤" },
+  { label: "DJ", emoji: "🎧" },
+  { label: "Live Band", emoji: "🎸" },
+  { label: "Comedian", emoji: "🎭" },
+  { label: "Dancer", emoji: "💃" },
+  { label: "Anchor", emoji: "🎙️" },
+  { label: "Instrumentalist", emoji: "🎻" },
+  { label: "Magician", emoji: "🪄" },
+  { label: "Other", emoji: "✨" },
+] as const;
 
 function useCountdown(eventDate: string) {
   const [now, setNow] = useState(() => Date.now());
@@ -76,15 +96,32 @@ export default function MyEventScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  async function handleToggleItem(index: number) {
+  // Single path for every checklist mutation (toggle, free-text add,
+  // category-picker add, allocated-amount edit) — optimistic update so the
+  // screen reflects the change immediately, reverting to server truth via
+  // load() if the PATCH actually failed.
+  async function handleChecklistChange(next: EventPlanChecklistItem[]) {
     if (!plan) return;
-    const next = plan.checklist.map((item, i) => (i === index ? { ...item, done: !item.done } : item));
-    setPlan({ ...plan, checklist: next }); // optimistic
+    setPlan({ ...plan, checklist: next });
     try {
       await updateEventPlanChecklist(plan.id, next);
     } catch {
-      await load(); // revert to server truth on failure
+      await load();
     }
+  }
+
+  async function handleToggleItem(index: number) {
+    if (!plan) return;
+    const next = plan.checklist.map((item, i) => (i === index ? { ...item, done: !item.done } : item));
+    await handleChecklistChange(next);
+  }
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  async function handlePickCategory(kind: "artist" | "vendor", category: string) {
+    if (!plan) return;
+    const next: EventPlanChecklistItem[] = [...plan.checklist, { label: category, done: false, kind, category }];
+    await handleChecklistChange(next);
   }
 
   if (loading) {
@@ -137,9 +174,9 @@ export default function MyEventScreen() {
             <EventHero plan={plan} />
             {plan.totalBudget ? <BudgetCard plan={plan} /> : null}
             <Text style={styles.sectionTitle}>Checklist</Text>
-            <ChecklistCard plan={plan} onToggle={handleToggleItem} />
-            <Pressable style={styles.addVendorCta} onPress={() => router.push("/(tabs)/browse")}>
-              <Text style={styles.addVendorCtaText}>+ Add another vendor</Text>
+            <ChecklistCard plan={plan} onToggle={handleToggleItem} onChecklistChange={handleChecklistChange} />
+            <Pressable style={styles.addVendorCta} onPress={() => setPickerOpen(true)}>
+              <Text style={styles.addVendorCtaText}>+ Add Vendor/Artist</Text>
             </Pressable>
             {plans && plans.length > 1 ? (
               <Text style={styles.multiPlanHint}>
@@ -149,6 +186,8 @@ export default function MyEventScreen() {
           </ScrollView>
         </KeyboardAvoidingScreen>
       </SafeAreaView>
+
+      <AddVendorArtistModal visible={pickerOpen} onClose={() => setPickerOpen(false)} onPick={handlePickCategory} />
     </GradientBackground>
   );
 }
@@ -161,6 +200,94 @@ function Topbar() {
       </Pressable>
       <Text style={styles.tbName}>My Event</Text>
     </View>
+  );
+}
+
+// Two-step: pick Artist or Vendor, then a real category from that
+// taxonomy — same bottom-sheet Modal shape as StateCityField/
+// HomeCityControl (a plain list picker, not a video overlay, so the
+// Android touch-reliability concerns that ruled out <Modal> for
+// FullScreenVideoPlayer don't apply here).
+function AddVendorArtistModal({
+  visible,
+  onClose,
+  onPick,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onPick: (kind: "artist" | "vendor", category: string) => void;
+}) {
+  const [step, setStep] = useState<"kind" | "category">("kind");
+  const [kind, setKind] = useState<"artist" | "vendor" | null>(null);
+
+  function reset() {
+    setStep("kind");
+    setKind(null);
+  }
+
+  function handleClose() {
+    reset();
+    onClose();
+  }
+
+  function pickKind(k: "artist" | "vendor") {
+    setKind(k);
+    setStep("category");
+  }
+
+  function pickCategory(category: string) {
+    if (!kind) return;
+    onPick(kind, category);
+    reset();
+    onClose();
+  }
+
+  const categoryOptions = kind === "vendor" ? VENDOR_CATEGORIES : ARTIST_CATEGORIES;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <Pressable style={pickerStyles.backdrop} onPress={handleClose}>
+        <Pressable style={pickerStyles.sheet} onPress={(e) => e.stopPropagation()}>
+          <View style={pickerStyles.sheetHeader}>
+            {step === "category" ? (
+              <Pressable onPress={() => setStep("kind")} hitSlop={15} accessibilityRole="button" accessibilityLabel="Back">
+                <Feather name="chevron-left" size={18} color={colors.textDim} />
+              </Pressable>
+            ) : (
+              <View style={{ width: 18 }} />
+            )}
+            <Text style={pickerStyles.sheetTitle}>
+              {step === "kind" ? "Add to checklist" : kind === "vendor" ? "Select vendor category" : "Select artist category"}
+            </Text>
+            <Pressable onPress={handleClose} hitSlop={15} accessibilityRole="button" accessibilityLabel="Close">
+              <Feather name="x" size={18} color={colors.textDim} />
+            </Pressable>
+          </View>
+
+          {step === "kind" ? (
+            <View style={pickerStyles.kindRow}>
+              <Pressable style={pickerStyles.kindOption} onPress={() => pickKind("artist")}>
+                <Feather name="mic" size={22} color={colors.purple} />
+                <Text style={pickerStyles.kindOptionText}>Artist</Text>
+              </Pressable>
+              <Pressable style={pickerStyles.kindOption} onPress={() => pickKind("vendor")}>
+                <Feather name="briefcase" size={22} color={colors.orange} />
+                <Text style={pickerStyles.kindOptionText}>Vendor</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <ScrollView style={pickerStyles.list} showsVerticalScrollIndicator={false}>
+              {categoryOptions.map((c) => (
+                <Pressable key={c.label} onPress={() => pickCategory(c.label)} style={pickerStyles.optionRow}>
+                  <Text style={pickerStyles.optionEmoji}>{c.emoji}</Text>
+                  <Text style={pickerStyles.optionText}>{c.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -197,6 +324,13 @@ function CountdownTile({ value, label }: { value: number; label: string }) {
 function BudgetCard({ plan }: { plan: EventPlanDetail }) {
   const total = plan.totalBudget ?? 0;
   const pct = total > 0 ? Math.min(100, Math.round((plan.spent / total) * 100)) : 0;
+  // Purely a planning number, computed client-side same as the countdown —
+  // separate from `spent` above (the real, live sum over actual Bookings,
+  // untouched by this). Not clamped at 0: over-allocating is a legitimate
+  // mid-planning state (revising other lines down), not an error, so it's
+  // shown honestly as a negative/red "over" figure rather than blocked.
+  const allocated = plan.checklist.reduce((sum, item) => sum + (item.allocatedAmount ?? 0), 0);
+  const remaining = total - allocated;
   return (
     <>
       <Text style={styles.sectionTitle}>Budget</Text>
@@ -219,25 +353,59 @@ function BudgetCard({ plan }: { plan: EventPlanDetail }) {
             ))}
           </View>
         ) : null}
+        <View style={styles.allocatedRow}>
+          <Text style={styles.allocatedRowText}>₹{allocated.toLocaleString("en-IN")} allocated</Text>
+          <Text style={[styles.allocatedRowText, remaining < 0 ? styles.remainingOver : styles.remainingOk]}>
+            {remaining < 0
+              ? `₹${Math.abs(remaining).toLocaleString("en-IN")} over`
+              : `₹${remaining.toLocaleString("en-IN")} remaining`}
+          </Text>
+        </View>
       </GlassCard>
     </>
   );
 }
 
-function ChecklistCard({ plan, onToggle }: { plan: EventPlanDetail; onToggle: (index: number) => void }) {
+function ChecklistCard({
+  plan,
+  onToggle,
+  onChecklistChange,
+}: {
+  plan: EventPlanDetail;
+  onToggle: (index: number) => void;
+  onChecklistChange: (next: EventPlanChecklistItem[]) => Promise<void>;
+}) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
+  const [editingAmountIndex, setEditingAmountIndex] = useState<number | null>(null);
+  const [amountDraft, setAmountDraft] = useState("");
 
   async function handleAdd() {
     if (!draft.trim()) return;
     const next: EventPlanChecklistItem[] = [...plan.checklist, { label: draft.trim(), done: false }];
     setDraft("");
     setAdding(false);
-    try {
-      await updateEventPlanChecklist(plan.id, next);
-    } catch {
-      // Best-effort — the next focus-triggered load() reconciles state if this failed.
-    }
+    await onChecklistChange(next);
+  }
+
+  function startEditAmount(index: number, current?: number) {
+    setEditingAmountIndex(index);
+    setAmountDraft(current ? String(current) : "");
+  }
+
+  async function commitAmount(index: number) {
+    const allocatedAmount = amountDraft.trim() ? Number(amountDraft) : undefined;
+    const next = plan.checklist.map((item, i) => (i === index ? { ...item, allocatedAmount } : item));
+    setEditingAmountIndex(null);
+    await onChecklistChange(next);
+  }
+
+  function handleBookCategory(item: EventPlanChecklistItem) {
+    if (!item.category) return;
+    router.push({
+      pathname: "/(tabs)/browse",
+      params: { vertical: item.kind === "vendor" ? "vendor" : "artist", category: item.category },
+    });
   }
 
   return (
@@ -246,12 +414,59 @@ function ChecklistCard({ plan, onToggle }: { plan: EventPlanDetail; onToggle: (i
         <Text style={styles.checklistEmpty}>Nothing on your checklist yet.</Text>
       ) : (
         plan.checklist.map((item, i) => (
-          <Pressable key={`${item.label}-${i}`} style={styles.checklistItem} onPress={() => onToggle(i)}>
-            <View style={[styles.cb, item.done ? styles.cbDone : styles.cbPending]}>
-              {item.done ? <Feather name="check" size={11} color={colors.ok} /> : null}
-            </View>
-            <Text style={[styles.ciText, item.done && styles.ciTextDone]}>{item.label}</Text>
-          </Pressable>
+          <View key={`${item.label}-${i}`} style={styles.checklistItemWrap}>
+            <Pressable style={styles.checklistItem} onPress={() => onToggle(i)}>
+              <View style={[styles.cb, item.done ? styles.cbDone : styles.cbPending]}>
+                {item.done ? <Feather name="check" size={11} color={colors.ok} /> : null}
+              </View>
+              <View style={styles.ciTextWrap}>
+                <Text style={[styles.ciText, item.done && styles.ciTextDone]}>{item.label}</Text>
+                {item.category ? (
+                  <Text style={styles.ciCategory}>{item.kind === "vendor" ? "Vendor" : "Artist"} · {item.category}</Text>
+                ) : null}
+              </View>
+              {item.isBooked ? (
+                <View style={styles.bookedBadge}>
+                  <Feather name="check-circle" size={11} color={colors.ok} />
+                  <Text style={styles.bookedBadgeText}>Booked</Text>
+                </View>
+              ) : null}
+            </Pressable>
+
+            {item.category ? (
+              <View style={styles.ciMetaRow}>
+                {editingAmountIndex === i ? (
+                  <View style={styles.amountEditRow}>
+                    <Text style={styles.amountEditPrefix}>₹</Text>
+                    <TextInput
+                      value={amountDraft}
+                      onChangeText={(v) => setAmountDraft(v.replace(/[^0-9]/g, ""))}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMute}
+                      keyboardType="number-pad"
+                      autoFocus
+                      style={styles.amountEditInput}
+                      onSubmitEditing={() => commitAmount(i)}
+                    />
+                    <Pressable style={styles.amountEditDone} onPress={() => commitAmount(i)}>
+                      <Feather name="check" size={13} color="#fff" />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable onPress={() => startEditAmount(i, item.allocatedAmount)} style={styles.allocatedPill}>
+                    <Feather name="tag" size={11} color={colors.textMute} />
+                    <Text style={styles.allocatedPillText}>
+                      {item.allocatedAmount ? `₹${item.allocatedAmount.toLocaleString("en-IN")} allocated` : "Add budget"}
+                    </Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={() => handleBookCategory(item)} style={styles.bookCta}>
+                  <Text style={styles.bookCtaText}>Book {item.category}</Text>
+                  <Feather name="arrow-right" size={11} color={colors.purple} />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
         ))
       )}
       {adding ? (
@@ -376,12 +591,30 @@ const styles = StyleSheet.create({
   budgetChipText: { fontSize: 10.5, color: colors.textDim, fontFamily: fonts.body },
   checklistCard: { padding: spacing.md, gap: 2 },
   checklistEmpty: { fontFamily: fonts.body, fontSize: 12.5, color: colors.textMute, paddingVertical: spacing.sm },
-  checklistItem: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.line },
+  checklistItemWrap: { borderBottomWidth: 1, borderBottomColor: colors.line },
+  checklistItem: { flexDirection: "row", alignItems: "center", gap: 11, paddingVertical: 11 },
   cb: { width: 21, height: 21, borderRadius: 7, alignItems: "center", justifyContent: "center" },
   cbDone: { backgroundColor: "rgba(34,197,94,0.16)" },
   cbPending: { borderWidth: 1.5, borderColor: colors.line },
-  ciText: { flex: 1, fontFamily: fonts.body, fontSize: 13.5, color: colors.text },
+  ciTextWrap: { flex: 1, gap: 2 },
+  ciText: { fontFamily: fonts.body, fontSize: 13.5, color: colors.text },
   ciTextDone: { color: colors.textMute, textDecorationLine: "line-through" },
+  ciCategory: { fontFamily: fonts.body, fontSize: 10.5, color: colors.textMute },
+  bookedBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radii.pill, backgroundColor: "rgba(34,197,94,0.12)" },
+  bookedBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.ok },
+  ciMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: 32, paddingBottom: 10 },
+  allocatedPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radii.pill, backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line },
+  allocatedPillText: { fontFamily: fonts.body, fontSize: 11, color: colors.textDim },
+  amountEditRow: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm, paddingHorizontal: 8, paddingVertical: 4 },
+  amountEditPrefix: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute },
+  amountEditInput: { minWidth: 60, fontFamily: fonts.body, fontSize: 12.5, color: colors.text, paddingVertical: 2 },
+  amountEditDone: { width: 22, height: 22, borderRadius: 11, backgroundColor: colors.purple, alignItems: "center", justifyContent: "center" },
+  bookCta: { flexDirection: "row", alignItems: "center", gap: 4 },
+  bookCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.purple },
+  allocatedRow: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line },
+  allocatedRowText: { fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute },
+  remainingOk: { color: colors.textDim },
+  remainingOver: { color: colors.err },
   addItemRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: spacing.sm },
   addItemInput: { flex: 1, backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 9, fontFamily: fonts.body, fontSize: 13.5, color: colors.text },
   addItemDone: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.purple, alignItems: "center", justifyContent: "center" },
@@ -402,4 +635,36 @@ const styles = StyleSheet.create({
   createInput: { backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 10, fontFamily: fonts.body, fontSize: 14, color: colors.text },
   error: { fontFamily: fonts.body, fontSize: 12.5, color: colors.err, alignSelf: "flex-start" },
   createButton: { width: "100%", marginTop: spacing.sm },
+});
+
+const pickerStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  sheet: {
+    backgroundColor: colors.ink2,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.line,
+    maxHeight: "75%",
+  },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
+  sheetTitle: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.text },
+  kindRow: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.md },
+  kindOption: {
+    flex: 1,
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.lg,
+    backgroundColor: colors.ink,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  kindOptionText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text },
+  list: { maxHeight: 380 },
+  optionRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.line },
+  optionEmoji: { fontSize: 16 },
+  optionText: { fontFamily: fonts.body, fontSize: 14.5, color: colors.text },
 });
