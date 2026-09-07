@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,7 +15,7 @@ import { DateField } from "@/components/DateField";
 import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
-import { VideoModal } from "@/components/VideoModal";
+import { FullScreenVideoPlayer } from "@/components/FullScreenVideoPlayer";
 import { Skeleton } from "@/components/Skeleton";
 import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, ApiError, type ArtistSummary, type QuickMomentFormat, type EventPlanSummary } from "@/lib/api";
 import { isValidEmail } from "@/lib/format";
@@ -61,6 +61,14 @@ export default function ArtistDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<ProfileTab>("about");
+  // Lifted here (rather than living inside ArtistHero/MediaTab) because
+  // FullScreenVideoPlayer isn't a <Modal> — it's a plain absolutely-
+  // positioned overlay, which only fills its own immediate parent's box.
+  // Rendered from deep inside the hero (a small aspectRatio:1 square) or a
+  // tab's content view, it would only cover that box, not the real screen.
+  // Rendering it once here, as a direct child of GradientBackground's
+  // full-screen content area, is what makes it actually full-screen.
+  const [fullscreenVideoUri, setFullscreenVideoUri] = useState<string | null>(null);
 
   // Tracks the price card's scroll offset (bodyY + its own y within body)
   // so the sticky CTA can jump straight to the booking form instead of
@@ -323,7 +331,7 @@ export default function ArtistDetailScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <ArtistHero artist={artist} c1={c1} c2={c2} initial={initial} />
+        <ArtistHero artist={artist} c1={c1} c2={c2} initial={initial} onOpenVideo={setFullscreenVideoUri} />
 
         <View style={styles.body} onLayout={(e) => setBodyY(e.nativeEvent.layout.y)}>
           {artist.performerType ? <Text style={styles.tagline}>{artist.performerType.toUpperCase()}</Text> : null}
@@ -372,7 +380,7 @@ export default function ArtistDetailScreen() {
           {activeTab === "about" ? (
             <AboutTab artist={artist} />
           ) : activeTab === "media" ? (
-            <MediaTab videos={videos} c1={c1} c2={c2} />
+            <MediaTab videos={videos} c1={c1} c2={c2} onOpenVideo={setFullscreenVideoUri} />
           ) : activeTab === "reviews" ? (
             <ReviewsTab reviews={artist.recentReviews ?? []} />
           ) : (
@@ -613,6 +621,12 @@ export default function ArtistDetailScreen() {
 
       <PushPrimerSheet ref={pushSheetRef} onEnable={handlePushEnable} onNotNow={handlePushNotNow} onClosed={handlePushClosed} />
       <OffersOptInSheet ref={offersSheetRef} onAccept={handleOffersAccept} onDecline={handleOffersDecline} onClosed={handleOffersClosed} />
+
+      <FullScreenVideoPlayer
+        visible={fullscreenVideoUri !== null}
+        uri={fullscreenVideoUri}
+        onClose={() => setFullscreenVideoUri(null)}
+      />
     </GradientBackground>
   );
 }
@@ -676,9 +690,17 @@ function AboutTab({ artist }: { artist: ArtistSummary }) {
 
 // ─── Media tab ──────────────────────────────────────────────────────────────
 
-function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]; c1: string; c2: string }) {
-  const [playingUrl, setPlayingUrl] = useState<string | null>(null);
-
+function MediaTab({
+  videos,
+  c1,
+  c2,
+  onOpenVideo,
+}: {
+  videos: { url: string; label: string }[];
+  c1: string;
+  c2: string;
+  onOpenVideo: (url: string) => void;
+}) {
   if (videos.length === 0) {
     return (
       <View style={styles.mediaEmpty}>
@@ -694,7 +716,7 @@ function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]
         {videos.map((v) => {
           const thumb = cloudinaryThumb(v.url);
           return (
-            <Pressable key={v.url} onPress={() => setPlayingUrl(v.url)} style={styles.mediaTile}>
+            <Pressable key={v.url} onPress={() => onOpenVideo(v.url)} style={styles.mediaTile}>
               {thumb ? (
                 <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" />
               ) : (
@@ -710,7 +732,6 @@ function MediaTab({ videos, c1, c2 }: { videos: { url: string; label: string }[]
           );
         })}
       </View>
-      <VideoModal visible={playingUrl !== null} uri={playingUrl} onClose={() => setPlayingUrl(null)} />
     </View>
   );
 }
@@ -763,7 +784,19 @@ function FormField({
 
 // ─── Hero ───────────────────────────────────────────────────────────────────
 
-function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: string; c2: string; initial: string }) {
+function ArtistHero({
+  artist,
+  c1,
+  c2,
+  initial,
+  onOpenVideo,
+}: {
+  artist: ArtistSummary;
+  c1: string;
+  c2: string;
+  initial: string;
+  onOpenVideo: (url: string) => void;
+}) {
   const { muted, toggleMuted } = useVideoMute();
   const { isSaved, toggle } = useSavedArtists();
   const saved = isSaved(artist.id);
@@ -772,11 +805,11 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
   // that header; every top-anchored overlay here now adds insets.top itself.
   const insets = useSafeAreaInsets();
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
-  // Tapping the hero opens the shared full-screen VideoModal — the hero's
-  // own ambient muted loop underneath is untouched by that (never paused,
-  // never made to expand in place), so there's no in-place "playing" state
-  // here anymore and nothing for the modal's close to hand back to.
-  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  // Tapping the hero opens the shared FullScreenVideoPlayer (rendered once,
+  // at the top of ArtistDetailScreen — see its own comment on why) — the
+  // hero's own ambient muted loop underneath is untouched by that (never
+  // paused, never made to expand in place), so there's no in-place
+  // "playing" state here anymore.
 
   async function handleShare() {
     try {
@@ -851,14 +884,7 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
 
   function handleHeroPress() {
     if (!videoSource) return;
-    // TEMPORARY — visible-on-device diagnostic for the tap-to-open popup
-    // bug, at Sachin's explicit request after two rounds of code-only fixes.
-    // If this Alert appears, the tap handler IS firing (the bug, if it
-    // persists, is downstream — the modal itself). If it never appears,
-    // something above the hero is still swallowing the tap even after
-    // removing the transparent native header. Remove once confirmed either way.
-    Alert.alert("hero tap fired", "handleHeroPress ran — opening video now.");
-    setVideoModalOpen(true);
+    onOpenVideo(videoSource);
   }
 
   return (
@@ -933,8 +959,6 @@ function ArtistHero({ artist, c1, c2, initial }: { artist: ArtistSummary; c1: st
           <Feather name={muted ? "volume-x" : "volume-2"} size={15} color="#fff" />
         </Pressable>
       ) : null}
-
-      <VideoModal visible={videoModalOpen} uri={videoSource} onClose={() => setVideoModalOpen(false)} />
     </View>
   );
 }
