@@ -37,6 +37,12 @@ export const STATUS_TONE: Record<string, StatusTone> = {
   RESOLVED: "ok",
 };
 
+// Mirrors GiggFi-Website's lib/booking-status.ts EVENT_COMPLETED_STATUSES —
+// the exact same set computeFirstBookingDiscount uses server-side to decide
+// "has this client ever had a completed booking". Keep in sync with that
+// file; this is the only client-side signal for first-booking eligibility.
+export const EVENT_COMPLETED_STATUSES = ["EVENT_COMPLETED", "PAYOUT_PROCESSING", "PAYOUT_RELEASED"];
+
 // Mirrors Prisma's PaymentStatus enum (GiggFi-Website/prisma/schema.prisma) —
 // booking.payment.status was rendered raw (PAID/PENDING) with no label map,
 // unlike every other status field on this screen.
