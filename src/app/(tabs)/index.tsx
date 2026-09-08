@@ -28,6 +28,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { HomeCityControl } from "@/components/HomeCityControl";
 import { SeasonalPicksRail } from "@/components/SeasonalPicksRail";
 import { RealEventsRail } from "@/components/RealEventsRail";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
@@ -277,6 +278,8 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who&apos;s the act tonight?</Text>
           </View>
+
+          <AnnouncementBanner />
 
           <View style={styles.cityEventRow}>
             <HomeCityControl city={homeCity} onChange={handleCityChange} />

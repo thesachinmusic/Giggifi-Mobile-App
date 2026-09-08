@@ -477,6 +477,21 @@ export function fetchRealEvents() {
   return request<{ events: RealEvent[] }>("/api/mobile/real-events");
 }
 
+// Home's admin-controlled announcement banner (giggifi.com/admin/
+// announcements). Server already resolves active/in-window/audience-
+// matched candidates — the app just renders whichever one it's given.
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  actionUrl: string | null;
+}
+
+export function fetchAnnouncements() {
+  return request<{ announcements: Announcement[] }>("/api/mobile/announcements");
+}
+
 // ─── Business flow ───
 
 export function logBusinessDealInterest(dealCategory: "restaurants" | "corporates" | "eventCompanies", dealId: string) {
