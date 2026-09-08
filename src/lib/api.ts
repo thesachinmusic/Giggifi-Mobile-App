@@ -489,7 +489,7 @@ export interface Announcement {
 }
 
 export function fetchAnnouncements() {
-  return request<{ announcements: Announcement[] }>("/api/mobile/announcements");
+  return request<{ announcements: Announcement[] }>("/api/mobile/announcements?app=client");
 }
 
 // ─── Business flow ───
