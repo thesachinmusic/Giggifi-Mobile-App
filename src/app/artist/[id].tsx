@@ -313,10 +313,12 @@ export default function ArtistDetailScreen() {
     artist.showreelUrl && artist.showreelUrl !== artist.introVideoUrl ? { url: artist.showreelUrl, label: "Showreel" } : null,
     // The artist's own-managed performance gallery (Artist App's Media tab,
     // up to 5) — see performanceVideos's own comment on why this was
-    // uploaded correctly all along but never actually reached here.
+    // uploaded correctly all along but never actually reached here. Tags
+    // aren't shown here (this tab isn't tag-filtered) — used by Home's
+    // Seasonal Picks tap-through instead, once that's built.
     ...(artist.performanceVideos ?? [])
-      .filter((url) => !featuredUrls.has(url))
-      .map((url, i) => ({ url, label: `Performance ${i + 1}` })),
+      .filter((v) => !featuredUrls.has(v.url))
+      .map((v, i) => ({ url: v.url, label: `Performance ${i + 1}` })),
   ].filter((v): v is { url: string; label: string } => v !== null);
 
   return (
