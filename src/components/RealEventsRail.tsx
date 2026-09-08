@@ -18,8 +18,8 @@ function isVideoUrl(url: string) {
 
 // No photo/video upload exists anywhere in the app yet — the only review
 // flow (booking/[id].tsx's ReviewFormCard) is rating + text comment only,
-// no media picker. Same honest-placeholder approach as Home's Refer & Earn
-// card: real destination once upload support is built.
+// no media picker. Honest placeholder rather than a fake destination:
+// swap for real navigation once upload support is built.
 function handleUploadTilePress() {
   Alert.alert("Coming soon", "Sharing photos & videos from your events is on its way.");
 }

@@ -256,6 +256,11 @@ export default function BookingDetailScreen() {
   }
 
   const otherParty = booking.viewerRole === "ARTIST" ? booking.booker.name : booking.artist.name;
+  // totalAmount is the agreed contractual total (set at quote-acceptance,
+  // unrelated to any discount) — the discount only ever reduces what's
+  // actually charged via Razorpay (see createRazorpayOrder), so the real
+  // payable figure has to be computed here rather than read off one field.
+  const payableAmount = booking.totalAmount != null ? Math.max(0, booking.totalAmount - booking.firstBookingDiscount) : null;
 
   return (
     <GradientBackground>
@@ -287,6 +292,17 @@ export default function BookingDetailScreen() {
               </>
             ) : null}
             {booking.totalAmount ? <SummaryRow icon="credit-card" label="Total" value={`₹${booking.totalAmount.toLocaleString("en-IN")}`} /> : null}
+            {/* Deliberately plain — no badge, no "you saved!" copy, no
+                explainer. Sachin's explicit call: small discounts don't
+                move these clients and promoting one looks cheap, so this
+                only ever shows up as a normal line item once it's real
+                money off, exactly like any other line above it. */}
+            {booking.firstBookingDiscount > 0 ? (
+              <>
+                <SummaryRow icon="tag" label="First booking discount" value={`−₹${booking.firstBookingDiscount.toLocaleString("en-IN")}`} />
+                <SummaryRow icon="check-circle" label="You pay" value={`₹${(payableAmount ?? 0).toLocaleString("en-IN")}`} />
+              </>
+            ) : null}
             {booking.payment ? (
               <SummaryRow icon="shield" label="Payment" value={PAYMENT_STATUS_LABEL[booking.payment.status] ?? booking.payment.status} />
             ) : null}
@@ -361,7 +377,7 @@ export default function BookingDetailScreen() {
                 </Text>
               </Pressable>
               <Btn
-                label={booking.totalAmount ? `Pay ₹${booking.totalAmount.toLocaleString("en-IN")}` : "Pay Now"}
+                label={payableAmount != null ? `Pay ₹${payableAmount.toLocaleString("en-IN")}` : "Pay Now"}
                 onPress={handlePay}
                 loading={paying}
                 disabled={!termsAccepted}

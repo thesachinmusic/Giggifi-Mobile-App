@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Dimensions,
   FlatList,
   Pressable,
@@ -31,12 +30,11 @@ import { SeasonalPicksRail } from "@/components/SeasonalPicksRail";
 import { RealEventsRail } from "@/components/RealEventsRail";
 import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
-import { fetchArtists, fetchFeatured, fetchSavedArtists, fetchBookings, type ArtistSummary } from "@/lib/api";
+import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
 import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
-import { EVENT_COMPLETED_STATUSES } from "@/lib/booking-status";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 type BrowseVertical = "artist" | "vendor";
@@ -111,7 +109,6 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFeaturedIndex, setActiveFeaturedIndex] = useState(0);
   const [homeCity, setHomeCityState] = useState<string | null>(null);
-  const [hasCompletedBooking, setHasCompletedBooking] = useState<boolean | null>(null);
   const [browseVertical, setBrowseVertical] = useState<BrowseVertical>("artist");
 
   const load = useCallback(async () => {
@@ -160,30 +157,6 @@ export default function HomeScreen() {
     loadSaved();
   }, [loadSaved]);
 
-  // Independent of the main load() above (same reasoning as loadSaved) —
-  // decides whether the first-booking offer card renders in its active or
-  // muted state. Mirrors the exact status set computeFirstBookingDiscount
-  // uses server-side (EVENT_COMPLETED_STATUSES) so this never disagrees
-  // with what checkout will actually apply. Reuses the already-existing
-  // fetchBookings() call — no new endpoint needed. Defaults to "eligible"
-  // (null) while loading/logged-out so the card doesn't flash muted first.
-  const loadBookingHistory = useCallback(async () => {
-    if (!user) {
-      setHasCompletedBooking(false);
-      return;
-    }
-    try {
-      const { bookings } = await fetchBookings();
-      setHasCompletedBooking(bookings.some((b) => EVENT_COMPLETED_STATUSES.includes(b.status)));
-    } catch (err) {
-      captureError(err, "home-booking-history-fetch");
-    }
-  }, [user]);
-
-  useEffect(() => {
-    loadBookingHistory();
-  }, [loadBookingHistory]);
-
   // Persisted city takes priority; otherwise detect silently only if
   // location permission was already granted elsewhere (Quick Moments) — no
   // surprise permission prompt on first Home load. The picker's own "use my
@@ -216,17 +189,6 @@ export default function HomeScreen() {
     return () => { cancelled = true; };
   }, []);
 
-  // No referral screen exists anywhere in this app yet, and the website's
-  // only referral-code endpoint (GET /api/referral/my-code) is
-  // session-cookie-authenticated, not reachable with this app's bearer
-  // token — wiring a real destination needs a mobile-facing endpoint and a
-  // screen, both new backend/product work flagged back rather than guessed
-  // at here. This placeholder keeps the card honestly interactive in the
-  // meantime; swap for real navigation once that destination exists.
-  function handleReferPress() {
-    Alert.alert("Coming soon", "Refer & Earn is on its way — check back here soon.");
-  }
-
   function handleCityChange(city: string) {
     setHomeCityState(city);
     setHomeCity(city).catch((err) => captureError(err, "home-city-persist"));
@@ -234,7 +196,7 @@ export default function HomeScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await Promise.all([load(), loadSaved(), loadBookingHistory()]);
+    await Promise.all([load(), loadSaved()]);
     setRefreshing(false);
   }
 
@@ -395,37 +357,6 @@ export default function HomeScreen() {
             </View>
             <Feather name="chevron-right" size={18} color={colors.textMute} />
           </Pressable>
-
-          {/* Awareness-only offer cards — deliberately no numbers/percentages
-              anywhere here; the real 10%-capped-₹500 first-booking amount
-              and referral reward are only ever computed and shown at
-              checkout. First-booking card mutes itself once
-              hasCompletedBooking is confirmed true so it never entices
-              someone who's already used it. */}
-          <View style={styles.offerRow}>
-            {hasCompletedBooking !== true ? (
-              <Pressable style={styles.offerCard} onPress={() => router.push("/(tabs)/browse")}>
-                <View style={styles.offerBadge}>
-                  <Text style={styles.offerBadgeText}>🎉 New here?</Text>
-                </View>
-                <Text style={styles.offerTitle}>Save on your{"\n"}first booking</Text>
-              </Pressable>
-            ) : (
-              <View style={[styles.offerCard, styles.offerCardMuted]}>
-                <View style={styles.offerBadge}>
-                  <Text style={styles.offerBadgeText}>✅ Welcome back</Text>
-                </View>
-                <Text style={styles.offerTitle}>You&apos;ve already{"\n"}booked with us</Text>
-              </View>
-            )}
-
-            <Pressable style={styles.offerCard} onPress={handleReferPress}>
-              <View style={styles.offerBadge}>
-                <Text style={styles.offerBadgeText}>🤝 Refer & Earn</Text>
-              </View>
-              <Text style={styles.offerTitle}>Earn when your{"\n"}friends book too</Text>
-            </Pressable>
-          </View>
 
           {/* Position per the corrected Home order: directly below the
               offer cards. */}
@@ -666,44 +597,6 @@ const styles = StyleSheet.create({
   verticalToggleTabActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.lineStrong },
   verticalToggleText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.textMute },
   verticalToggleTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
-  offerRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  offerCard: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,255,255,0.035)",
-    borderWidth: 1,
-    borderColor: colors.line,
-    minHeight: 92,
-    justifyContent: "space-between",
-  },
-  offerCardMuted: {
-    opacity: 0.55,
-  },
-  offerBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(168,85,247,0.14)",
-  },
-  offerBadgeText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 10.5,
-    color: colors.purple,
-  },
-  offerTitle: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 13,
-    color: colors.text,
-    marginTop: spacing.sm,
-    lineHeight: 17,
-  },
   featuredRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   artistRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   muted: {

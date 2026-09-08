@@ -254,6 +254,11 @@ export interface BookingDetail {
   specialRequests: string | null;
   quotedPrice: number | null;
   totalAmount: number | null;
+  // Booker-only preview of the same auto-applied discount real order
+  // creation uses (see createRazorpayOrder) — 0 when not eligible, or for
+  // the artist's own view of this booking. Never shown as a promo/banner
+  // anywhere; just a quiet line item in the price breakdown when > 0.
+  firstBookingDiscount: number;
   viewerRole: "ARTIST" | "BOOKER";
   // Only non-null once payment has cleared — see [[privacy-constraint]].
   // The other party's real name + phone, delivered as a notification the
@@ -755,6 +760,8 @@ export interface RazorpayOrder {
   bookingId: string;
   eventName: string;
   discountPct: number;
+  firstBookingDiscount: number;
+  referralRewardDiscount: number;
 }
 
 export function createRazorpayOrder(bookingId: string, couponCode?: string, termsAccepted?: boolean) {
