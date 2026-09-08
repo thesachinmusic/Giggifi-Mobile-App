@@ -307,9 +307,16 @@ export default function ArtistDetailScreen() {
   const solo = isSoloPerformerType(artist.performerType);
   const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
   const adjustedPrice = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
+  const featuredUrls = new Set([artist.introVideoUrl, artist.showreelUrl].filter(Boolean));
   const videos = [
     artist.introVideoUrl ? { url: artist.introVideoUrl, label: "Intro" } : null,
     artist.showreelUrl && artist.showreelUrl !== artist.introVideoUrl ? { url: artist.showreelUrl, label: "Showreel" } : null,
+    // The artist's own-managed performance gallery (Artist App's Media tab,
+    // up to 5) — see performanceVideos's own comment on why this was
+    // uploaded correctly all along but never actually reached here.
+    ...(artist.performanceVideos ?? [])
+      .filter((url) => !featuredUrls.has(url))
+      .map((url, i) => ({ url, label: `Performance ${i + 1}` })),
   ].filter((v): v is { url: string; label: string } => v !== null);
 
   return (

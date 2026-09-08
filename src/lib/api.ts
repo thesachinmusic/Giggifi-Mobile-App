@@ -154,6 +154,12 @@ export interface ArtistSummary {
   profileImageUrl: string | null;
   introVideoUrl: string | null;
   showreelUrl?: string | null;
+  // The artist's own-managed performance video gallery (Artist App's Media
+  // tab, up to 5) — undefined on list endpoints that don't select it, same
+  // convention as quickMoments* below. Was being uploaded and stored
+  // correctly all along; the mobile artist-detail endpoint just never
+  // selected/returned it, so it silently never appeared here.
+  performanceVideos?: string[];
   availability: boolean;
   travelAvailable: boolean;
   yearsExperience: number | null;
