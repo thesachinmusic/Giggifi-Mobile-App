@@ -699,7 +699,15 @@ function AboutTab({ artist }: { artist: ArtistSummary }) {
 // weren't enough to confirm or rule out a render-path bug. Remove once
 // Sachin confirms videos are showing correctly and sends back a screenshot
 // of this box for the record.
-function MediaDebugBox({ artist, videosCount }: { artist: ArtistSummary; videosCount: number }) {
+function MediaDebugBox({
+  artist,
+  videos,
+  tileLayouts,
+}: {
+  artist: ArtistSummary;
+  videos: { url: string; label: string }[];
+  tileLayouts: Record<number, { w: number; h: number } | "no-layout-event">;
+}) {
   return (
     <View style={styles.debugBox}>
       <Text style={styles.debugTitle}>DEBUG — remove after confirming</Text>
@@ -709,7 +717,20 @@ function MediaDebugBox({ artist, videosCount }: { artist: ArtistSummary; videosC
       <Text style={styles.debugLine}>
         performanceVideos: {artist.performanceVideos === undefined ? "undefined (field missing from response!)" : JSON.stringify(artist.performanceVideos)}
       </Text>
-      <Text style={styles.debugLine}>computed videos[] length: {videosCount}</Text>
+      <Text style={styles.debugLine}>computed videos[]: {JSON.stringify(videos)}</Text>
+      <Text style={styles.debugLine}>
+        rendered tiles (onLayout fired):{" "}
+        {videos.length === 0
+          ? "n/a"
+          : videos
+              .map((_, i) => {
+                const l = tileLayouts[i];
+                if (l === undefined) return `#${i}: never fired`;
+                if (l === "no-layout-event") return `#${i}: fired, no size`;
+                return `#${i}: ${Math.round(l.w)}x${Math.round(l.h)}`;
+              })
+              .join(", ")}
+      </Text>
     </View>
   );
 }
@@ -727,10 +748,17 @@ function MediaTab({
   onOpenVideo: (url: string) => void;
   artist: ArtistSummary;
 }) {
+  // TEMPORARY — see MediaDebugBox's own comment. Tracks whether each tile's
+  // onLayout actually fires and what size RN measured it at, to tell apart
+  // "collapsed to zero / never mounted" from "correctly sized but invisibly
+  // painted" — the two very different bugs a screenshot alone can't
+  // distinguish between.
+  const [tileLayouts, setTileLayouts] = useState<Record<number, { w: number; h: number } | "no-layout-event">>({});
+
   if (videos.length === 0) {
     return (
       <View style={styles.tabContent}>
-        <MediaDebugBox artist={artist} videosCount={videos.length} />
+        <MediaDebugBox artist={artist} videos={videos} tileLayouts={tileLayouts} />
         <View style={styles.mediaEmpty}>
           <Feather name="video-off" size={22} color={colors.textDim} />
           <Text style={styles.mediaEmptyText}>No videos yet.</Text>
@@ -741,12 +769,20 @@ function MediaTab({
 
   return (
     <View style={styles.tabContent}>
-      <MediaDebugBox artist={artist} videosCount={videos.length} />
+      <MediaDebugBox artist={artist} videos={videos} tileLayouts={tileLayouts} />
       <View style={styles.mediaGrid}>
-        {videos.map((v) => {
+        {videos.map((v, i) => {
           const thumb = cloudinaryThumb(v.url);
           return (
-            <Pressable key={v.url} onPress={() => onOpenVideo(v.url)} style={styles.mediaTile}>
+            <Pressable
+              key={v.url}
+              onPress={() => onOpenVideo(v.url)}
+              style={[styles.mediaTile, styles.mediaTileDebugBg]}
+              onLayout={(e) => {
+                const { width, height } = e.nativeEvent.layout;
+                setTileLayouts((prev) => ({ ...prev, [i]: width > 0 || height > 0 ? { w: width, h: height } : "no-layout-event" }));
+              }}
+            >
               {thumb ? (
                 <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" />
               ) : (
@@ -1217,6 +1253,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     position: "relative",
+  },
+  // TEMPORARY — loud, impossible-to-miss diagnostic border/background
+  // layered on top of mediaTile's real (subtle, near-invisible-on-black)
+  // styling, so a screenshot can tell apart "the box is genuinely not
+  // there" from "the box is there but its contents aren't painting" — the
+  // two very different bugs this round is trying to distinguish between.
+  // Remove alongside the rest of the debug overlay.
+  mediaTileDebugBg: {
+    backgroundColor: "#00ff00",
+    borderWidth: 3,
+    borderColor: "#ff00ff",
   },
   mediaTileOverlay: {
     position: "absolute",
