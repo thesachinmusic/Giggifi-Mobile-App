@@ -379,7 +379,7 @@ export default function ArtistDetailScreen() {
           {activeTab === "about" ? (
             <AboutTab artist={artist} />
           ) : activeTab === "media" ? (
-            <MediaTab videos={videos} c1={c1} c2={c2} onOpenVideo={setFullscreenVideoUri} artist={artist} />
+            <MediaTab videos={videos} c1={c1} c2={c2} onOpenVideo={setFullscreenVideoUri} />
           ) : activeTab === "reviews" ? (
             <ReviewsTab reviews={artist.recentReviews ?? []} />
           ) : (
@@ -693,72 +693,20 @@ function AboutTab({ artist }: { artist: ArtistSummary }) {
 
 // ─── Media tab ──────────────────────────────────────────────────────────────
 
-// TEMPORARY — diagnostic overlay for the Media-tab-empty investigation
-// (3rd round). Shows exactly what this screen actually received at
-// runtime, on the real device, since two rounds of code-review-only fixes
-// weren't enough to confirm or rule out a render-path bug. Remove once
-// Sachin confirms videos are showing correctly and sends back a screenshot
-// of this box for the record.
-function MediaDebugBox({
-  artist,
-  videos,
-  tileLayouts,
-}: {
-  artist: ArtistSummary;
-  videos: { url: string; label: string }[];
-  tileLayouts: Record<number, { w: number; h: number } | "no-layout-event">;
-}) {
-  return (
-    <View style={styles.debugBox}>
-      <Text style={styles.debugTitle}>DEBUG — remove after confirming</Text>
-      <Text style={styles.debugLine}>artist.id: {artist.id}</Text>
-      <Text style={styles.debugLine}>introVideoUrl: {artist.introVideoUrl ?? "null"}</Text>
-      <Text style={styles.debugLine}>showreelUrl: {artist.showreelUrl ?? "null"}</Text>
-      <Text style={styles.debugLine}>
-        performanceVideos: {artist.performanceVideos === undefined ? "undefined (field missing from response!)" : JSON.stringify(artist.performanceVideos)}
-      </Text>
-      <Text style={styles.debugLine}>computed videos[]: {JSON.stringify(videos)}</Text>
-      <Text style={styles.debugLine}>
-        rendered tiles (onLayout fired):{" "}
-        {videos.length === 0
-          ? "n/a"
-          : videos
-              .map((_, i) => {
-                const l = tileLayouts[i];
-                if (l === undefined) return `#${i}: never fired`;
-                if (l === "no-layout-event") return `#${i}: fired, no size`;
-                return `#${i}: ${Math.round(l.w)}x${Math.round(l.h)}`;
-              })
-              .join(", ")}
-      </Text>
-    </View>
-  );
-}
-
 function MediaTab({
   videos,
   c1,
   c2,
   onOpenVideo,
-  artist,
 }: {
   videos: { url: string; label: string }[];
   c1: string;
   c2: string;
   onOpenVideo: (url: string) => void;
-  artist: ArtistSummary;
 }) {
-  // TEMPORARY — see MediaDebugBox's own comment. Tracks whether each tile's
-  // onLayout actually fires and what size RN measured it at, to tell apart
-  // "collapsed to zero / never mounted" from "correctly sized but invisibly
-  // painted" — the two very different bugs a screenshot alone can't
-  // distinguish between.
-  const [tileLayouts, setTileLayouts] = useState<Record<number, { w: number; h: number } | "no-layout-event">>({});
-
   if (videos.length === 0) {
     return (
       <View style={styles.tabContent}>
-        <MediaDebugBox artist={artist} videos={videos} tileLayouts={tileLayouts} />
         <View style={styles.mediaEmpty}>
           <Feather name="video-off" size={22} color={colors.textDim} />
           <Text style={styles.mediaEmptyText}>No videos yet.</Text>
@@ -769,20 +717,11 @@ function MediaTab({
 
   return (
     <View style={styles.tabContent}>
-      <MediaDebugBox artist={artist} videos={videos} tileLayouts={tileLayouts} />
       <View style={styles.mediaGrid}>
-        {videos.map((v, i) => {
+        {videos.map((v) => {
           const thumb = cloudinaryThumb(v.url);
           return (
-            <Pressable
-              key={v.url}
-              onPress={() => onOpenVideo(v.url)}
-              style={[styles.mediaTile, styles.mediaTileDebugBg]}
-              onLayout={(e) => {
-                const { width, height } = e.nativeEvent.layout;
-                setTileLayouts((prev) => ({ ...prev, [i]: width > 0 || height > 0 ? { w: width, h: height } : "no-layout-event" }));
-              }}
-            >
+            <Pressable key={v.url} onPress={() => onOpenVideo(v.url)} style={styles.mediaTile}>
               {thumb ? (
                 <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" />
               ) : (
@@ -1193,16 +1132,6 @@ const styles = StyleSheet.create({
   tabPillText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textMute },
   tabPillTextActive: { color: "#fff", fontFamily: fonts.bodySemiBold },
   tabContent: { marginBottom: spacing.lg },
-  debugBox: {
-    marginBottom: spacing.md,
-    padding: spacing.sm,
-    borderRadius: radii.sm,
-    backgroundColor: "#3d2a00",
-    borderWidth: 1,
-    borderColor: colors.orange,
-  },
-  debugTitle: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.orange, marginBottom: 4 },
-  debugLine: { fontFamily: fonts.mono, fontSize: 10, color: "#ffd699", lineHeight: 14 },
   aboutBlock: { marginBottom: spacing.lg },
   aboutBlockLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, marginBottom: spacing.xs },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
@@ -1243,7 +1172,14 @@ const styles = StyleSheet.create({
   },
   highlightTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.text },
   highlightDesc: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute },
-  mediaGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  // alignItems must be "flex-start", not the default "stretch" — with
+  // flexWrap + a percentage-width child whose height comes only from
+  // aspectRatio, "stretch" asks Yoga to resolve the tile's cross-axis size
+  // (height) before aspectRatio can compute it from the already-resolved
+  // width, and that circular case collapses to 0. Confirmed on a real
+  // device via a temporary onLayout probe: tiles measured 150x6 (a 0-height
+  // box with only the 3px top+bottom debug border painting through).
+  mediaGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, alignItems: "flex-start" },
   mediaTile: {
     width: "48%",
     aspectRatio: 9 / 16,
@@ -1253,17 +1189,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     position: "relative",
-  },
-  // TEMPORARY — loud, impossible-to-miss diagnostic border/background
-  // layered on top of mediaTile's real (subtle, near-invisible-on-black)
-  // styling, so a screenshot can tell apart "the box is genuinely not
-  // there" from "the box is there but its contents aren't painting" — the
-  // two very different bugs this round is trying to distinguish between.
-  // Remove alongside the rest of the debug overlay.
-  mediaTileDebugBg: {
-    backgroundColor: "#00ff00",
-    borderWidth: 3,
-    borderColor: "#ff00ff",
   },
   mediaTileOverlay: {
     position: "absolute",
