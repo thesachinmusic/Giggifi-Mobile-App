@@ -379,7 +379,7 @@ export default function ArtistDetailScreen() {
           {activeTab === "about" ? (
             <AboutTab artist={artist} />
           ) : activeTab === "media" ? (
-            <MediaTab videos={videos} c1={c1} c2={c2} onOpenVideo={setFullscreenVideoUri} />
+            <MediaTab videos={videos} c1={c1} c2={c2} onOpenVideo={setFullscreenVideoUri} artist={artist} />
           ) : activeTab === "reviews" ? (
             <ReviewsTab reviews={artist.recentReviews ?? []} />
           ) : (
@@ -693,28 +693,55 @@ function AboutTab({ artist }: { artist: ArtistSummary }) {
 
 // ─── Media tab ──────────────────────────────────────────────────────────────
 
+// TEMPORARY — diagnostic overlay for the Media-tab-empty investigation
+// (3rd round). Shows exactly what this screen actually received at
+// runtime, on the real device, since two rounds of code-review-only fixes
+// weren't enough to confirm or rule out a render-path bug. Remove once
+// Sachin confirms videos are showing correctly and sends back a screenshot
+// of this box for the record.
+function MediaDebugBox({ artist, videosCount }: { artist: ArtistSummary; videosCount: number }) {
+  return (
+    <View style={styles.debugBox}>
+      <Text style={styles.debugTitle}>DEBUG — remove after confirming</Text>
+      <Text style={styles.debugLine}>artist.id: {artist.id}</Text>
+      <Text style={styles.debugLine}>introVideoUrl: {artist.introVideoUrl ?? "null"}</Text>
+      <Text style={styles.debugLine}>showreelUrl: {artist.showreelUrl ?? "null"}</Text>
+      <Text style={styles.debugLine}>
+        performanceVideos: {artist.performanceVideos === undefined ? "undefined (field missing from response!)" : JSON.stringify(artist.performanceVideos)}
+      </Text>
+      <Text style={styles.debugLine}>computed videos[] length: {videosCount}</Text>
+    </View>
+  );
+}
+
 function MediaTab({
   videos,
   c1,
   c2,
   onOpenVideo,
+  artist,
 }: {
   videos: { url: string; label: string }[];
   c1: string;
   c2: string;
   onOpenVideo: (url: string) => void;
+  artist: ArtistSummary;
 }) {
   if (videos.length === 0) {
     return (
-      <View style={styles.mediaEmpty}>
-        <Feather name="video-off" size={22} color={colors.textDim} />
-        <Text style={styles.mediaEmptyText}>No videos yet.</Text>
+      <View style={styles.tabContent}>
+        <MediaDebugBox artist={artist} videosCount={videos.length} />
+        <View style={styles.mediaEmpty}>
+          <Feather name="video-off" size={22} color={colors.textDim} />
+          <Text style={styles.mediaEmptyText}>No videos yet.</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.tabContent}>
+      <MediaDebugBox artist={artist} videosCount={videos.length} />
       <View style={styles.mediaGrid}>
         {videos.map((v) => {
           const thumb = cloudinaryThumb(v.url);
@@ -1130,6 +1157,16 @@ const styles = StyleSheet.create({
   tabPillText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textMute },
   tabPillTextActive: { color: "#fff", fontFamily: fonts.bodySemiBold },
   tabContent: { marginBottom: spacing.lg },
+  debugBox: {
+    marginBottom: spacing.md,
+    padding: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: "#3d2a00",
+    borderWidth: 1,
+    borderColor: colors.orange,
+  },
+  debugTitle: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.orange, marginBottom: 4 },
+  debugLine: { fontFamily: fonts.mono, fontSize: 10, color: "#ffd699", lineHeight: 14 },
   aboutBlock: { marginBottom: spacing.lg },
   aboutBlockLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 0.5, marginBottom: spacing.xs },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
