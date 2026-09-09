@@ -428,6 +428,22 @@ export function fetchArtists(params: ListingParams = {}, signal?: AbortSignal) {
   );
 }
 
+// Tag-group discovery (e.g. "devotional") — every artist with a video
+// tagged into that group, not the single-tag Home Seasonal Picks. See
+// GET /api/mobile/artist/by-group on the website; unknown/missing group
+// is a 400, not an empty list — surfaced to the caller via request()'s
+// existing ApiError handling.
+export interface TagGroupResult {
+  video: { url: string; tags: string[] };
+  artist: ArtistSummary;
+}
+
+export function fetchArtistsByGroup(group: string) {
+  return request<{ group: { key: string; label: string }; results: TagGroupResult[] }>(
+    `/api/mobile/artist/by-group?group=${encodeURIComponent(group)}`,
+  );
+}
+
 export function fetchArtist(id: string) {
   return request<{ artist: ArtistSummary }>(`/api/mobile/artist/${id}`);
 }

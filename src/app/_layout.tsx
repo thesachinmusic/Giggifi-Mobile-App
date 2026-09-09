@@ -244,6 +244,19 @@ function RootLayoutContent() {
                       headerBackTitle: "Back",
                     }}
                   />
+                  {/* headerTitle deliberately omitted here — the screen sets
+                      it itself via <Stack.Screen options={{ title }} />
+                      once the group's real label loads, same composability
+                      expo-router already supports for every screen below. */}
+                  <Stack.Screen
+                    name="discover/[group]"
+                    options={{
+                      headerShown: true,
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
                 </Stack>
               </NotificationsProvider>
             </VideoMuteProvider>

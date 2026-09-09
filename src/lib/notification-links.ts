@@ -10,6 +10,12 @@ const ALLOWED = [
   /^\/vendor\/[^/]+$/,
   /^\/booker-profile$/,
   /^\/notifications$/,
+  // Tag-group discovery (app/discover/[group].tsx) — same shape-trust as
+  // the other dynamic-segment patterns above; which `group` values are
+  // actually valid is the backend's TAG_GROUPS config to enforce
+  // (GET /api/mobile/artist/by-group 400s on an unknown one), not this
+  // allowlist's job.
+  /^\/discover\/[^/]+$/,
 ];
 
 export function resolveNotificationHref(url: unknown): Href | null {
