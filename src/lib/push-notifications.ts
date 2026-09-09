@@ -17,6 +17,18 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Cross-platform runtime API (no native config/build needed either side) —
+// matches the "giggifi-cta" categoryId the backend attaches whenever a
+// push has an actionUrl (see expo-push.ts). Registered once at import
+// time, same as the handler above; idempotent, safe to re-run.
+// notification-router.ts already treats a button tap identically to a
+// body tap (it never inspects actionIdentifier, just reads the
+// notification's own actionUrl either way), so no separate navigation
+// path is needed for this.
+Notifications.setNotificationCategoryAsync("giggifi-cta", [
+  { identifier: "view", buttonTitle: "View", options: { opensAppToForeground: true } },
+]).catch((err) => captureError(err, "notification-category-register"));
+
 // Six categories matching exactly what the backend sends as `channelId` in
 // the Expo push payload (website repo: lib/notifications/channels/expo-push.ts)
 // — a marketing offer must never interrupt at the same level as a payment
