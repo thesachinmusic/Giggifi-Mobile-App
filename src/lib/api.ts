@@ -119,6 +119,14 @@ export interface SessionUser {
   onboardingState: string | null;
   hasArtistProfile: boolean;
   hasBookerProfile: boolean;
+  // Soft, self-reported profile-completion fields — undefined on any
+  // response shape that doesn't select them, same convention as
+  // performanceVideos elsewhere in this file. dateOfBirth is set via a
+  // separate endpoint (confirmDateOfBirth below), not updateProfile.
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  religion?: string | null;
+  anniversary?: string | null;
 }
 
 export interface ReviewSummary {
@@ -917,10 +925,22 @@ export function respondToBooking(id: string, action: "accept_quote" | "cancel_by
 
 // ─── Profile ───
 
-export function updateProfile(input: { name?: string; image?: string }) {
+export function updateProfile(input: { name?: string; image?: string; email?: string; gender?: string; religion?: string; anniversary?: string }) {
   return request<{ success: true; user: SessionUser }>("/api/mobile/profile", {
     method: "PATCH",
     body: JSON.stringify(input),
+  });
+}
+
+// Date of birth goes through this dedicated endpoint, not updateProfile —
+// it's the one place the real under-18 block (Play Store/DPDP compliance)
+// is enforced; an invalid/too-young date is deliberately rejected and
+// never persisted (see the website route's own comment). Already
+// mobile-ready via Bearer token, shared with the website's own age gate.
+export function confirmDateOfBirth(dateOfBirth: string) {
+  return request<{ success: true }>("/api/auth/confirm-dob", {
+    method: "POST",
+    body: JSON.stringify({ dateOfBirth }),
   });
 }
 

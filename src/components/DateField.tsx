@@ -9,9 +9,14 @@ interface Props {
   value: Date | null;
   onChange: (date: Date) => void;
   minimumDate?: Date;
+  // Undefined by default (no upper bound) — every existing caller here
+  // schedules a future event, which the default minimumDate below already
+  // handles; a past-dates field (birthday, anniversary) passes both this
+  // and its own minimumDate explicitly.
+  maximumDate?: Date;
 }
 
-export function DateField({ label, value, onChange, minimumDate }: Props) {
+export function DateField({ label, value, onChange, minimumDate, maximumDate }: Props) {
   // Computed per render, not at module load — a module-level tomorrow would
   // go stale in an app left open overnight and start accepting past dates.
   const defaultMinimumDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -44,14 +49,14 @@ export function DateField({ label, value, onChange, minimumDate }: Props) {
       </Pressable>
 
       {open && Platform.OS === "android" ? (
-        <DateTimePicker value={draft} mode="date" minimumDate={effectiveMinimumDate} onChange={handleChange} />
+        <DateTimePicker value={draft} mode="date" minimumDate={effectiveMinimumDate} maximumDate={maximumDate} onChange={handleChange} />
       ) : null}
 
       {Platform.OS === "ios" ? (
         <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-              <DateTimePicker value={draft} mode="date" display="inline" minimumDate={effectiveMinimumDate} onChange={handleChange} themeVariant="dark" />
+              <DateTimePicker value={draft} mode="date" display="inline" minimumDate={effectiveMinimumDate} maximumDate={maximumDate} onChange={handleChange} themeVariant="dark" />
               <Pressable
                 style={styles.doneButton}
                 onPress={() => {

@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { colors } from "@/theme";
 
 export default function Index() {
-  const { isLoading } = useAuth();
+  const { isLoading, hasStoredSession } = useAuth();
 
   if (isLoading) {
     return (
@@ -14,9 +14,17 @@ export default function Index() {
     );
   }
 
-  // No login wall — browsing (artists, Reels, Quick Moments) is open to
-  // everyone, logged in or not. (tabs) itself has no auth guard; a phone/
-  // OTP verification is only ever asked for inline, at the moment someone
-  // actually tries to book/enquire (see artist/[id].tsx, plan-my-event.tsx).
-  return <Redirect href="/(tabs)" />;
+  // App-only gate (the website stays login-free — no equivalent wall
+  // there): a fresh install, or any other logged-out state (explicit
+  // logout, expired 30-day token), lands on /verify before Home is
+  // reachable at all. hasStoredSession is the same signal every other
+  // logged-in-vs-guest check in this app already uses (see auth-context.tsx
+  // and profile.tsx's own logged-out card) — deliberately not a separate
+  // "have I launched before" flag, since that would gate the wrong thing
+  // for someone who verified once and later logged out. Once verified,
+  // this never shows again until the token actually expires or the user
+  // explicitly logs out (same existing session-persistence mechanism,
+  // nothing new here) — an existing logged-in session on app update skips
+  // straight past this exactly as before.
+  return <Redirect href={hasStoredSession ? "/(tabs)" : "/verify"} />;
 }

@@ -29,6 +29,7 @@ import { HomeCityControl } from "@/components/HomeCityControl";
 import { SeasonalPicksRail } from "@/components/SeasonalPicksRail";
 import { RealEventsRail } from "@/components/RealEventsRail";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { ProfileCompletionBadge } from "@/components/ProfileCompletionBadge";
 import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
@@ -280,6 +281,7 @@ export default function HomeScreen() {
           </View>
 
           <AnnouncementBanner />
+          <ProfileCompletionBadge />
 
           <View style={styles.cityEventRow}>
             <HomeCityControl city={homeCity} onChange={handleCityChange} />

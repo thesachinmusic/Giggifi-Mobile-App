@@ -137,6 +137,14 @@ function RootLayoutContent() {
                     contentStyle: { backgroundColor: colors.ink },
                   }}
                 >
+                  {/* Mandatory phone/OTP gate for a fresh install or any
+                      other logged-out state — see index.tsx's redirect and
+                      this screen's own top comment. gestureEnabled: false
+                      because index.tsx replaces its own history entry, so
+                      there's no meaningful screen underneath to swipe back
+                      to; hardware/edge-swipe back should do nothing, not
+                      reveal a blank frame. */}
+                  <Stack.Screen name="verify" options={{ headerShown: false, gestureEnabled: false }} />
                   <Stack.Screen name="(tabs)" />
                   {/* headerShown: false, not headerTransparent — a
                       headerTransparent native header floats its own
@@ -166,6 +174,16 @@ function RootLayoutContent() {
                     options={{
                       headerShown: true,
                       headerTitle: "My Profile",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="edit-profile"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Edit Profile",
                       headerTintColor: colors.text,
                       headerStyle: { backgroundColor: colors.ink },
                       headerBackTitle: "Back",
