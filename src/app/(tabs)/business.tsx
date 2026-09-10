@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
@@ -223,6 +224,17 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
         </View>
 
         <ScrollView contentContainerStyle={styles.dealsScroll} showsVerticalScrollIndicator={false}>
+          <Pressable style={styles.orgEntryCard} onPress={() => router.push("/organizations")}>
+            <View style={styles.orgEntryIcon}>
+              <Feather name="users" size={16} color={colors.purple} />
+            </View>
+            <View style={styles.orgEntryText}>
+              <Text style={styles.orgEntryTitle}>Business Account</Text>
+              <Text style={styles.orgEntrySub}>Team members, billing & GSTIN, multi-outlet bookings</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMute} />
+          </Pressable>
+
           <View style={styles.disclaimerBox}>
             <Feather name="info" size={13} color={colors.textMute} />
             <Text style={styles.disclaimerText}>Example deals — final terms to be confirmed.</Text>
@@ -334,6 +346,28 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   disclaimerText: { flex: 1, fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute, fontStyle: "italic" },
+  orgEntryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: "rgba(168,85,247,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.25)",
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  orgEntryIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(168,85,247,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orgEntryText: { flex: 1, gap: 2 },
+  orgEntryTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text },
+  orgEntrySub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute },
   dealCard: { padding: spacing.md, gap: 6, marginBottom: spacing.sm },
   dealTagPill: {
     alignSelf: "flex-start",

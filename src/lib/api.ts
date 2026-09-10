@@ -1014,6 +1014,95 @@ export function confirmDateOfBirth(dateOfBirth: string) {
   });
 }
 
+// ─── Business Accounts (Organizations) ───
+
+export type OrganizationType = "RESTAURANT" | "EVENT_COMPANY" | "CORPORATE";
+export type OrganizationMemberRole = "OWNER" | "ADMIN" | "BOOKER";
+export type OrganizationMemberStatus = "INVITED" | "ACTIVE" | "REMOVED";
+export type NetTermsStatus = "NOT_ELIGIBLE" | "PENDING_APPROVAL" | "APPROVED";
+
+export interface OrganizationSummary {
+  id: string;
+  name: string;
+  type: OrganizationType;
+  role: OrganizationMemberRole;
+}
+
+export interface OrganizationMemberInfo {
+  id: string;
+  userId: string;
+  name: string | null;
+  phone: string | null;
+  role: OrganizationMemberRole;
+  status: OrganizationMemberStatus;
+  joinedAt: string | null;
+}
+
+export interface OrganizationDetail {
+  id: string;
+  name: string;
+  type: OrganizationType;
+  myRole: OrganizationMemberRole;
+  canSeeBilling: boolean;
+  members: OrganizationMemberInfo[];
+}
+
+export function fetchMyOrganizations() {
+  return request<{ organizations: OrganizationSummary[] }>("/api/mobile/organizations");
+}
+
+export function createOrganization(input: { name: string; type: OrganizationType; gstin?: string }) {
+  return request<{ organization: OrganizationSummary & { gstin: string | null; netTermsStatus: NetTermsStatus } }>(
+    "/api/mobile/organizations",
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function fetchOrganization(id: string) {
+  return request<{ organization: OrganizationDetail }>(`/api/mobile/organizations/${id}`);
+}
+
+export function inviteOrganizationMember(organizationId: string, input: { phone: string; role: "ADMIN" | "BOOKER" }) {
+  return request<{ member: { id: string; userId: string; role: OrganizationMemberRole; status: OrganizationMemberStatus } }>(
+    `/api/mobile/organizations/${organizationId}/invite`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export interface OrganizationInvite {
+  memberId: string;
+  organizationId: string;
+  organizationName: string;
+  organizationType: OrganizationType;
+  role: OrganizationMemberRole;
+  invitedAt: string;
+}
+
+export function fetchMyOrganizationInvites() {
+  return request<{ invites: OrganizationInvite[] }>("/api/mobile/organizations/invites/mine");
+}
+
+export function acceptOrganizationInvite(memberId: string) {
+  return request<{ member: { id: string; organizationId: string; status: OrganizationMemberStatus } }>(
+    `/api/mobile/organizations/invites/${memberId}/accept`,
+    { method: "POST" },
+  );
+}
+
+export interface OrganizationBilling {
+  id: string;
+  gstin: string | null;
+  billingContactName: string | null;
+  billingContactEmail: string | null;
+  billingContactPhone: string | null;
+  netTermsStatus: NetTermsStatus;
+  netTermsApprovedAt: string | null;
+}
+
+export function fetchOrganizationBilling(organizationId: string) {
+  return request<{ billing: OrganizationBilling }>(`/api/mobile/organizations/${organizationId}/billing`);
+}
+
 export interface BookerProfile {
   id: string;
   fullName: string;

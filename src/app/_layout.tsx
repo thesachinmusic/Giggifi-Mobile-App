@@ -299,6 +299,26 @@ function RootLayoutContent() {
                       headerBackTitle: "Back",
                     }}
                   />
+                  <Stack.Screen
+                    name="organizations/index"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Business Account",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="organizations/[id]"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
                 </Stack>
               </NotificationsProvider>
             </VideoMuteProvider>
