@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, T
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import RazorpayCheckout from "react-native-razorpay";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
@@ -20,9 +20,11 @@ import {
   verifyRazorpayPayment,
   respondToBooking,
   submitReview,
+  fetchBackupMatchForBooking,
   ApiError,
   type BookingDetail,
   type QuickMomentLocation,
+  type BackupMatchAttempt,
 } from "@/lib/api";
 import { PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
 import { HELPLINE_NUMBER } from "@/lib/constants";
@@ -30,6 +32,7 @@ import { hapticSuccess } from "@/lib/haptics";
 import { QUICK_MOMENT_FORMAT_LABEL } from "@/lib/quick-moments";
 import { haversineKm, formatTimeAgo } from "@/lib/geo";
 import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
+import { captureError } from "@/lib/telemetry";
 import { clearPendingPayment, getPendingPayment, setPendingPayment, type PendingPayment } from "@/lib/pending-payment-storage";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -53,6 +56,7 @@ export default function BookingDetailScreen() {
   const [responding, setResponding] = useState<"accept" | "decline" | null>(null);
   const [respondError, setRespondError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [backupAttempt, setBackupAttempt] = useState<BackupMatchAttempt | null>(null);
 
   // load() is shared across several call sites (direct focus call, two
   // await-chained calls inside the pending-payment recovery IIFE below, and
@@ -77,6 +81,18 @@ export default function BookingDetailScreen() {
       if (mountedRef.current) setLoading(false);
     }
   }, [id]);
+
+  // Backup-Artist Guarantee — a booker reopening this booking later (not
+  // just tapping the original push notification) still discovers a real
+  // backup-match attempt if their artist cancelled, instead of silence.
+  useEffect(() => {
+    if (!id || booking?.status !== "CANCELLED_BY_ARTIST" || booking.viewerRole !== "BOOKER") return;
+    let cancelled = false;
+    fetchBackupMatchForBooking(id)
+      .then((res) => { if (!cancelled) setBackupAttempt(res.attempt); })
+      .catch((err) => captureError(err, "backup-match-for-booking"));
+    return () => { cancelled = true; };
+  }, [id, booking?.status, booking?.viewerRole]);
 
   // Every time this screen opens: refresh the booking outright (fixes the
   // general staleness case — e.g. an artist's quote arriving while this
@@ -307,6 +323,18 @@ export default function BookingDetailScreen() {
               <SummaryRow icon="shield" label="Payment" value={PAYMENT_STATUS_LABEL[booking.payment.status] ?? booking.payment.status} />
             ) : null}
           </GlassCard>
+
+          {backupAttempt && backupAttempt.status !== "RESOLVED" ? (
+            <Pressable onPress={() => router.push({ pathname: "/backup-match/[id]", params: { id: backupAttempt.id } })}>
+              <GlassCard style={styles.backupBanner}>
+                <Feather name={backupAttempt.status === "AUTO_MATCHED" ? "refresh-cw" : "clock"} size={16} color={backupAttempt.status === "AUTO_MATCHED" ? colors.purple : "#f59e0b"} />
+                <Text style={styles.backupBannerText}>
+                  {backupAttempt.status === "AUTO_MATCHED" ? "We found a replacement artist — review and confirm" : "We're working on finding you a backup artist"}
+                </Text>
+                <Feather name="chevron-right" size={16} color={colors.textMute} />
+              </GlassCard>
+            </Pressable>
+          ) : null}
 
           {booking.viewerRole === "BOOKER" ? (
             <View style={styles.equipmentNote}>
@@ -680,6 +708,11 @@ const styles = StyleSheet.create({
   },
   eventName: { flex: 1, fontFamily: fonts.display, fontSize: 22, color: colors.text },
   summaryCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
+  backupBanner: {
+    flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    marginHorizontal: spacing.lg, marginTop: -spacing.sm, marginBottom: spacing.lg,
+  },
+  backupBannerText: { flex: 1, fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.text },
   equipmentNote: {
     flexDirection: "row", gap: 8, alignItems: "flex-start",
     marginHorizontal: spacing.lg, marginBottom: spacing.lg,

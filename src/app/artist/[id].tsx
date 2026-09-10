@@ -17,7 +17,7 @@ import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
 import { FullScreenVideoPlayer } from "@/components/FullScreenVideoPlayer";
 import { Skeleton } from "@/components/Skeleton";
-import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, ApiError, type ArtistSummary, type QuickMomentFormat, type EventPlanSummary } from "@/lib/api";
+import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, fetchBackupGuaranteeStatus, ApiError, type ArtistSummary, type QuickMomentFormat, type EventPlanSummary, type BackupGuaranteeStatus } from "@/lib/api";
 import { isValidEmail } from "@/lib/format";
 import { QUICK_MOMENT_FORMATS } from "@/lib/quick-moments";
 import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
@@ -48,6 +48,7 @@ export default function ArtistDetailScreen() {
   const { refreshSession } = useAuth();
   const insets = useSafeAreaInsets();
   const [artist, setArtist] = useState<ArtistSummary | null>(null);
+  const [guaranteeStatus, setGuaranteeStatus] = useState<BackupGuaranteeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<ProfileTab>("about");
@@ -140,6 +141,9 @@ export default function ArtistDetailScreen() {
         if (!mountedRef.current) return;
         setArtist(result);
         setEventCity(result.city ?? "");
+        fetchBackupGuaranteeStatus(result.id)
+          .then((status) => { if (mountedRef.current) setGuaranteeStatus(status); })
+          .catch((err) => captureError(err, "backup-guarantee-status"));
       })
       .catch((err) => {
         if (mountedRef.current) setError(err instanceof ApiError ? err.message : "Couldn't load this artist.");
@@ -545,6 +549,15 @@ export default function ArtistDetailScreen() {
                 <Feather name="shield" size={16} color={colors.purple} />
                 <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
               </View>
+
+              {/* Scoped guarantee — only ever shown when the real 3+-artist
+                  depth check says so. No unconditional "guaranteed" copy. */}
+              {guaranteeStatus?.eligible ? (
+                <View style={styles.guaranteeRow}>
+                  <Feather name="shield" size={14} color={colors.ok} />
+                  <Text style={styles.guaranteeText}>Backup-Artist Guarantee — if they ever have to cancel, we'll help find a real replacement.</Text>
+                </View>
+              ) : null}
 
               {artist.ratePerEvent ? (
                 <Pressable
@@ -1366,6 +1379,8 @@ const styles = StyleSheet.create({
   escrowText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
   recurringLink: { flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "center", paddingTop: spacing.sm },
   recurringLinkText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.purple },
+  guaranteeRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingTop: spacing.sm },
+  guaranteeText: { flex: 1, fontFamily: fonts.body, fontSize: 11.5, lineHeight: 16, color: colors.textMute },
   equipmentNote: {
     flexDirection: "row", gap: 8, alignItems: "flex-start",
     backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm,

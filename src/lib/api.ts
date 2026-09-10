@@ -1331,6 +1331,58 @@ export function reconfirmRecurringSeriesRate(id: string, newRate?: number) {
   });
 }
 
+// ─── Backup-Artist Guarantee ───
+// Scoped honesty: guarantee messaging is only ever shown when the real
+// 3+-artist depth check says so. Price transparency: a replacement is only
+// ever booked once the client explicitly approves this screen's price.
+
+export type BackupMatchStatus = "AUTO_MATCHED" | "ESCALATED_NO_MATCH" | "RESOLVED";
+
+export interface BackupMatchAttempt {
+  id: string;
+  status: BackupMatchStatus;
+  noticeWindowHours: number;
+  createdAt: string;
+  resolvedAt: string | null;
+  newBookingId: string | null;
+  originalBooking: {
+    id: string;
+    eventName: string;
+    eventDate: string;
+    eventCity: string;
+    quotedPrice: number | null;
+  };
+  cancelledArtist: { stageName: string | null; fullName: string | null };
+  matchedArtist: { id: string; stageName: string | null; fullName: string | null; ratePerEvent: number | null; profileImageUrl: string | null } | null;
+}
+
+export function fetchBackupMatchAttempt(id: string) {
+  return request<{ attempt: BackupMatchAttempt }>(`/api/mobile/backup-match/${id}`);
+}
+
+export function fetchBackupMatchForBooking(bookingId: string) {
+  return request<{ attempt: BackupMatchAttempt | null }>(`/api/mobile/backup-match/for-booking/${bookingId}`);
+}
+
+export function approveBackupMatch(attemptId: string) {
+  return request<{ success: true; bookingId: string }>(`/api/mobile/backup-match/${attemptId}/approve`, { method: "POST" });
+}
+
+export function declineBackupMatch(attemptId: string) {
+  return request<{ success: true }>(`/api/mobile/backup-match/${attemptId}/decline`, { method: "POST" });
+}
+
+export interface BackupGuaranteeStatus {
+  eligible: boolean;
+  depth: number;
+  genre: string | null;
+  city: string | null;
+}
+
+export function fetchBackupGuaranteeStatus(artistId: string) {
+  return request<BackupGuaranteeStatus>(`/api/mobile/backup-guarantee/status?artistId=${encodeURIComponent(artistId)}`);
+}
+
 export interface BookerProfile {
   id: string;
   fullName: string;
