@@ -349,6 +349,36 @@ function RootLayoutContent() {
                       headerBackTitle: "Back",
                     }}
                   />
+                  <Stack.Screen
+                    name="recurring-series/index"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Recurring Bookings",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="recurring-series/new"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "New Recurring Booking",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="recurring-series/[id]"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
                 </Stack>
               </NotificationsProvider>
             </VideoMuteProvider>

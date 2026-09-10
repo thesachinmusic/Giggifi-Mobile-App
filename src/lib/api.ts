@@ -1248,6 +1248,89 @@ export function acceptQuoteResponse(responseId: string) {
   });
 }
 
+// ─── Recurring Slots ───
+// Manual-confirm-per-occurrence only — this app never auto-charges a saved
+// payment method. The booker still pays each occurrence individually
+// through the normal /booking/[id] checkout, same as any other booking.
+
+export type RecurringCadence = "WEEKLY" | "BIWEEKLY" | "MONTHLY";
+export type RecurringSeriesStatus = "ACTIVE" | "PAUSED" | "CANCELLED";
+export type RecurringOccurrenceStatus = "PENDING_ARTIST_ACCEPTANCE" | "ACCEPTED" | "DECLINED_BY_ARTIST" | "SKIPPED" | "BACKUP_FILLED" | "FULFILLED";
+
+export interface RecurringOccurrenceSummary {
+  id: string;
+  scheduledDate: string;
+  status: RecurringOccurrenceStatus;
+  bookingId: string | null;
+  declineReason: string | null;
+  booking?: { id: string; status: string; totalAmount: number | null; invoiceUrl: string | null } | null;
+}
+
+export interface RecurringSeriesSummary {
+  id: string;
+  cadence: RecurringCadence;
+  dayOfWeek: number;
+  time: string;
+  eventName: string;
+  eventCity: string;
+  rate: number;
+  startDate: string;
+  endDate: string | null;
+  status: RecurringSeriesStatus;
+  rateLockExpiresAt: string;
+  artist: { id: string; stageName: string | null; fullName: string | null; profileImageUrl: string | null };
+  occurrences: RecurringOccurrenceSummary[];
+}
+
+export function fetchMyRecurringSeries() {
+  return request<{ series: RecurringSeriesSummary[] }>("/api/mobile/recurring-series");
+}
+
+export function fetchRecurringSeriesDetail(id: string) {
+  return request<{ series: RecurringSeriesSummary }>(`/api/mobile/recurring-series/${id}`);
+}
+
+export function createRecurringSeries(input: {
+  artistId: string;
+  cadence: RecurringCadence;
+  dayOfWeek: number;
+  time: string;
+  eventName: string;
+  eventCity: string;
+  startDate: string;
+  endDate?: string;
+}) {
+  return request<{ success: true; series: { id: string } }>("/api/mobile/recurring-series", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function pauseRecurringSeries(id: string) {
+  return request<{ success: true }>(`/api/mobile/recurring-series/${id}/pause`, { method: "POST" });
+}
+
+export function resumeRecurringSeries(id: string) {
+  return request<{ success: true }>(`/api/mobile/recurring-series/${id}/resume`, { method: "POST" });
+}
+
+export function cancelRecurringSeries(id: string) {
+  return request<{ success: true }>(`/api/mobile/recurring-series/${id}/cancel`, { method: "POST" });
+}
+
+export function skipNextRecurringOccurrence(id: string) {
+  return request<{ success: true; occurrence: RecurringOccurrenceSummary }>(`/api/mobile/recurring-series/${id}/skip-next`, {
+    method: "POST",
+  });
+}
+
+export function reconfirmRecurringSeriesRate(id: string, newRate?: number) {
+  return request<{ success: true; series: RecurringSeriesSummary }>(`/api/mobile/recurring-series/${id}/reconfirm`, {
+    method: "POST",
+    body: JSON.stringify({ newRate }),
+  });
+}
+
 export interface BookerProfile {
   id: string;
   fullName: string;

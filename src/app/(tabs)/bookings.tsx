@@ -126,7 +126,13 @@ export default function BookingsScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <Text style={styles.title}>Bookings</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Bookings</Text>
+          <Pressable style={styles.recurringButton} onPress={() => router.push("/recurring-series")} hitSlop={8}>
+            <Feather name="repeat" size={16} color={colors.purple} />
+            <Text style={styles.recurringButtonText}>Recurring</Text>
+          </Pressable>
+        </View>
 
         {oemGuidance ? (
           <View style={styles.oemCardWrap}>
@@ -353,13 +359,30 @@ function LinearGradientFallback({ c1, initial }: { c1: string; c2: string; initi
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+  },
   title: {
     fontFamily: fonts.display,
     fontSize: 26,
     color: colors.text,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
   },
+  recurringButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "rgba(255,255,255,0.035)",
+  },
+  recurringButtonText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.purple },
   oemCardWrap: { paddingHorizontal: spacing.lg },
   filterRow: {
     flexDirection: "row",

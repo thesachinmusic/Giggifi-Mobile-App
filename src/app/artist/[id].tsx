@@ -545,6 +545,21 @@ export default function ArtistDetailScreen() {
                 <Feather name="shield" size={16} color={colors.purple} />
                 <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
               </View>
+
+              {artist.ratePerEvent ? (
+                <Pressable
+                  style={styles.recurringLink}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/recurring-series/new",
+                      params: { artistId: artist.id, artistName: name, ratePerEvent: String(artist.ratePerEvent) },
+                    })
+                  }
+                >
+                  <Feather name="repeat" size={14} color={colors.purple} />
+                  <Text style={styles.recurringLinkText}>Book {name.split(" ")[0]} on a recurring schedule</Text>
+                </Pressable>
+              ) : null}
             </GlassCard>
 
             <AvailabilityCalendar artistId={artist.id} />
@@ -1349,6 +1364,8 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
   },
   escrowText: { flex: 1, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
+  recurringLink: { flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "center", paddingTop: spacing.sm },
+  recurringLinkText: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.purple },
   equipmentNote: {
     flexDirection: "row", gap: 8, alignItems: "flex-start",
     backgroundColor: colors.ink2, borderWidth: 1, borderColor: colors.line, borderRadius: radii.sm,
