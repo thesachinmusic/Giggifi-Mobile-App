@@ -734,6 +734,75 @@ export function fetchBooking(id: string) {
   return request<{ booking: BookingDetail }>(`/api/mobile/booking/${id}`);
 }
 
+// ─── Book Again / Your Regulars ───
+
+export interface RebookArtist {
+  id: string;
+  stageName: string | null;
+  performerType: string | null;
+  profileImageUrl: string | null;
+  city: string | null;
+  state?: string | null;
+  // Always fetched fresh at tap-time — never the quotedPrice/totalAmount
+  // frozen on the old booking. See the website route's own comment.
+  currentRate: number | null;
+  priceNegotiable?: boolean;
+  availability?: boolean;
+}
+
+export interface RebookPrefill {
+  eventType: string;
+  eventCity: string;
+  eventState: string | null;
+  venueType: string | null;
+  venueName: string | null;
+  duration: number;
+  audienceSize: number;
+  languagePref: string[];
+}
+
+export interface RebookCheckResult {
+  eligible: boolean;
+  reason: string | null;
+  artist: RebookArtist | null;
+  prefill: RebookPrefill | null;
+}
+
+// Step 1 of Book Again — live eligibility + current rate + what to
+// pre-fill, for one specific completed booking. Never creates anything;
+// the actual new request still goes through sendEnquiry() -> the normal
+// enquiry flow, so the artist always has to accept it again.
+export function fetchRebookCheck(originalBookingId: string) {
+  return request<RebookCheckResult>(`/api/mobile/booking/${originalBookingId}/rebook-check`);
+}
+
+export interface RegularArtistEntry {
+  artist: RebookArtist & { eligible: boolean };
+  bookingCount: number;
+  lastBookingId: string;
+  lastEventDate: string;
+}
+
+// "Your Regulars" — artists with 2+ completed bookings with this client in
+// the last 6 months. Always a live server-computed list, never curated.
+export function fetchRegulars() {
+  return request<{ regulars: RegularArtistEntry[] }>("/api/mobile/bookings/regulars");
+}
+
+export interface DayAvailability {
+  globallyAvailable: boolean;
+  dates: Record<string, "AVAILABLE" | "PENDING" | "UNAVAILABLE">;
+  bookingLockedDates: string[];
+}
+
+// Same public, unauthenticated calendar endpoint AvailabilityCalendar uses
+// (GET /api/artist/[id]/availability) — reused here (not a separate
+// availability rule) for the real pre-submit slot check Book Again needs:
+// a specific picked date, not a whole month.
+export function fetchArtistAvailability(artistId: string, from: string, to: string) {
+  return request<DayAvailability>(`/api/artist/${artistId}/availability?from=${from}&to=${to}`, {}, false);
+}
+
 // ─── My Event Hub ───
 
 export interface EventPlanSummary {
@@ -898,6 +967,7 @@ export function sendEnquiry(input: {
   quotedPrice?: number;
   venueName?: string;
   venueAddress?: string;
+  venueType?: string;
   languagePref?: string[];
   eventPlanId?: string;
 }) {

@@ -276,6 +276,16 @@ function RootLayoutContent() {
                       headerBackTitle: "Back",
                     }}
                   />
+                  <Stack.Screen
+                    name="booking/rebook"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Book Again",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
                   {/* headerTitle deliberately omitted here — the screen sets
                       it itself via <Stack.Screen options={{ title }} />
                       once the group's real label loads, same composability
