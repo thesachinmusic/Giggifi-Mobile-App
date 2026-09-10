@@ -7,7 +7,7 @@ import * as Sentry from "@sentry/react-native";
 import * as SplashScreen from "expo-splash-screen";
 import * as Updates from "expo-updates";
 import { StatusBar } from "expo-status-bar";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { SavedArtistsProvider } from "@/lib/saved-artists-context";
 import { NotificationsProvider } from "@/lib/notifications-context";
 import { VideoMuteProvider } from "@/lib/video-mute-context";
@@ -19,6 +19,7 @@ import { useAppForeground } from "@/lib/use-app-foreground";
 import { initTelemetry, captureError } from "@/lib/telemetry";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { IntroSplash } from "@/components/IntroSplash";
+import { AgeGateScreen } from "@/components/AgeGateScreen";
 import { useAppFonts } from "@/theme/typography";
 import { colors } from "@/theme";
 
@@ -29,6 +30,19 @@ SplashScreen.preventAutoHideAsync().catch((err) => captureError(err, "splash-pre
 function PushRegistrar() {
   usePushRegistration();
   return null;
+}
+
+// Full-screen, non-dismissable overlay enforcing the 18+ requirement
+// (Play Store / legal) -- mirrors the website's own needsAgeGate check in
+// components/giggifi-app.tsx. Rendered as the last child inside
+// AuthProvider so it sits on top of the Stack navigator and every modal
+// screen in it once a logged-in user has no dateOfBirth on file; returns
+// null the rest of the time (logged out, still loading, or already has a
+// DOB on record), so it never blocks the phone/OTP flow itself.
+function AgeGate() {
+  const { user, isLoading } = useAuth();
+  if (isLoading || !user || user.dateOfBirth) return null;
+  return <AgeGateScreen />;
 }
 
 // Confirmed root cause of "OTA published but nothing changes on device even
@@ -279,6 +293,7 @@ function RootLayoutContent() {
               </NotificationsProvider>
             </VideoMuteProvider>
           </SavedArtistsProvider>
+        <AgeGate />
         </AuthProvider>
       </BottomSheetModalProvider>
       {showIntro ? <IntroSplash onFinish={() => setShowIntro(false)} /> : null}
