@@ -319,6 +319,36 @@ function RootLayoutContent() {
                       headerBackTitle: "Back",
                     }}
                   />
+                  <Stack.Screen
+                    name="quote-requests/index"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Get a Quote",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="quote-requests/new"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "New Request",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="quote-requests/[id]"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
                 </Stack>
               </NotificationsProvider>
             </VideoMuteProvider>

@@ -1103,6 +1103,151 @@ export function fetchOrganizationBilling(organizationId: string) {
   return request<{ billing: OrganizationBilling }>(`/api/mobile/organizations/${organizationId}/billing`);
 }
 
+// ─── Get a Quote (RFP) ───
+// One event, one or more independently-quotable performer needs — build a
+// request once instead of enquiring artist-by-artist. Distinct from
+// sendEnquiry() above, which stays the single-artist flow, unchanged.
+
+export type QuoteRequestStatus = "OPEN" | "PARTIALLY_FULFILLED" | "FULFILLED" | "EXPIRED" | "CANCELLED";
+export type QuoteLineItemStatus = "OPEN" | "WIDENED" | "FULFILLED" | "EXPIRED";
+export type QuoteResponseStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED";
+
+// Same category vocabulary the backend matches against
+// (lib/enquiry-categories.ts) — keep in sync with that file.
+export const QUOTE_CATEGORIES = [
+  "Singer",
+  "Live Band",
+  "DJ",
+  "Comedian / Stand-Up",
+  "Anchor / Emcee",
+  "Dancer",
+  "Instrumentalist",
+  "Magician",
+  "Photo / Video",
+  "Celebrity",
+  "Other",
+] as const;
+
+export interface QuoteRequestLineItemInput {
+  category: string;
+  genre?: string;
+  quantity?: number;
+  notes?: string;
+}
+
+export interface QuoteRequestLineItemSummary {
+  id: string;
+  quoteRequestId: string;
+  category: string;
+  genre: string | null;
+  quantity: number;
+  notes: string | null;
+  status: QuoteLineItemStatus;
+  widenedAt: string | null;
+  widenedReason: string | null;
+  createdAt: string;
+  _count: { responses: number };
+}
+
+export interface QuoteRequestListItem {
+  id: string;
+  eventName: string;
+  eventType: string;
+  eventDate: string;
+  eventCity: string;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  status: QuoteRequestStatus;
+  responseDeadline: string;
+  createdAt: string;
+  lineItems: QuoteRequestLineItemSummary[];
+}
+
+export interface QuoteResponseWithArtist {
+  id: string;
+  lineItemId: string;
+  quotedPrice: number;
+  message: string | null;
+  status: QuoteResponseStatus;
+  bookingId: string | null;
+  createdAt: string;
+  artist: { id: string; stageName: string | null; fullName: string | null; profileImageUrl: string | null };
+}
+
+export interface QuoteRequestLineItemDetail {
+  id: string;
+  category: string;
+  genre: string | null;
+  quantity: number;
+  notes: string | null;
+  status: QuoteLineItemStatus;
+  widenedAt: string | null;
+  widenedReason: string | null;
+  responses: QuoteResponseWithArtist[];
+}
+
+export interface QuoteRequestBookingSummary {
+  id: string;
+  status: string;
+  totalAmount: number | null;
+  invoiceUrl: string | null;
+  invoiceNumber: string | null;
+  quoteResponse: { lineItemId: string } | null;
+}
+
+export interface QuoteRequestDetail {
+  id: string;
+  eventName: string;
+  eventType: string;
+  eventDate: string;
+  eventCity: string;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  status: QuoteRequestStatus;
+  responseDeadline: string;
+  createdAt: string;
+  lineItems: QuoteRequestLineItemDetail[];
+  bookings: QuoteRequestBookingSummary[];
+}
+
+export interface QuoteBillingSummary {
+  totalAmount: number;
+  bookingsCount: number;
+  allPaid: boolean;
+}
+
+export function fetchMyQuoteRequests() {
+  return request<{ quoteRequests: QuoteRequestListItem[] }>("/api/mobile/quote-requests");
+}
+
+export function createQuoteRequest(input: {
+  eventName: string;
+  eventType: string;
+  eventDate: string;
+  eventCity: string;
+  budgetMin?: number;
+  budgetMax?: number;
+  organizationId?: string;
+  lineItems: QuoteRequestLineItemInput[];
+}) {
+  return request<{ success: true; quoteRequest: { id: string } }>("/api/mobile/quote-requests", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchQuoteRequest(id: string) {
+  return request<{ quoteRequest: QuoteRequestDetail; billingSummary: QuoteBillingSummary }>(
+    `/api/mobile/quote-requests/${id}`,
+  );
+}
+
+export function acceptQuoteResponse(responseId: string) {
+  return request<{ success: true; bookingId: string }>(`/api/mobile/quote-requests/responses/${responseId}/accept`, {
+    method: "POST",
+  });
+}
+
 export interface BookerProfile {
   id: string;
   fullName: string;

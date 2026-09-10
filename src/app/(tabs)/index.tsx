@@ -300,6 +300,19 @@ export default function HomeScreen() {
             <SearchBarStatic label="Search artists, DJs, bands…" onPress={() => router.push("/(tabs)/browse")} />
           </View>
 
+          {/* Get a Quote (RFP) — for a multi-performer event, describe every
+              need in one request instead of enquiring artist-by-artist. */}
+          <Pressable style={styles.quoteStrip} onPress={() => router.push("/quote-requests")}>
+            <View style={styles.quoteStripIcon}>
+              <Feather name="file-text" size={16} color="#fff" />
+            </View>
+            <View style={styles.reelsStripBody}>
+              <Text style={styles.reelsStripTitle}>Get a Quote</Text>
+              <Text style={styles.reelsStripSub}>Multiple performers for one event? Ask once, compare quotes.</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.textMute} />
+          </Pressable>
+
           <View style={styles.section}>
             <SectionHeader
               title={browseVertical === "artist" ? "Artists" : "Vendors"}
@@ -722,4 +735,25 @@ const styles = StyleSheet.create({
   reelsStripBody: { flex: 1, gap: 2 },
   reelsStripTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.text },
   reelsStripSub: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute },
+  quoteStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: "rgba(255,255,255,0.035)",
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  quoteStripIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.purple,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });
