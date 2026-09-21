@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, radii, shadows, spacing, visualColors } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
 import { DURATION_MULTIPLIERS, DURATION_OPTIONS, isSoloPerformerType } from "@/lib/duration-pricing";
 import { RatingBadge } from "@/components/RatingBadge";
@@ -45,7 +45,10 @@ export function ArtistCard({ artist, vendor, onPress, width, travelBadge }: List
   const displayPrice = solo && price ? Math.round(price * MIN_DURATION_MULTIPLIER) : price;
 
   return (
-    <Pressable onPress={onPress} style={[styles.card, isFeatured ? styles.cardFeatured : null, width ? { width } : styles.cardFlex]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, isFeatured ? styles.cardFeatured : null, width ? { width } : styles.cardFlex, pressed && styles.cardPressed]}
+    >
       <View style={styles.imageWrap}>
         {image ? (
           <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -111,7 +114,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
+    ...shadows.soft,
   },
+  cardPressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
   cardFlex: {
     flex: 1,
   },
@@ -198,7 +203,7 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
-    fontFamily: fonts.display,
+    fontFamily: fonts.displayBold,
     fontSize: 17,
     color: colors.text,
   },
@@ -227,7 +232,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: fonts.mono,
     fontSize: 12,
-    color: colors.text,
+    color: visualColors.orange,
   },
   priceUnit: {
     color: colors.textMute,

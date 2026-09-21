@@ -10,10 +10,11 @@ import { ArtistCard } from "@/components/ArtistCard";
 import { SortSheet } from "@/components/SortSheet";
 import { FilterSheet } from "@/components/FilterSheet";
 import { Skeleton } from "@/components/Skeleton";
+import { GradientText } from "@/components/GradientText";
 import { fetchArtists, fetchFeatured, fetchVendors, type ArtistSummary, type ListingParams, type VendorSummary } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, radii, shadows, spacing, visualColors, withAlpha } from "@/theme";
 import { countActiveFilters, DEFAULT_FILTERS, SORT_OPTIONS, type FilterState, type SortOption } from "@/lib/sort-filter";
 import { hapticSelect } from "@/lib/haptics";
 import { addRecentSearch, clearRecentSearches, getRecentSearches } from "@/lib/recent-searches-storage";
@@ -228,7 +229,9 @@ export default function BrowseScreen() {
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <Text style={styles.title}>Browse {vertical === "artist" ? "Artists" : "Vendors"}</Text>
+        <View style={styles.titleWrap}>
+          <GradientText style={styles.title}>Browse {vertical === "artist" ? "Artists" : "Vendors"}</GradientText>
+        </View>
 
         <View style={styles.verticalToggle}>
           <Pressable style={[styles.verticalTab, vertical === "artist" && styles.verticalTabActive]} onPress={() => switchVertical("artist")}>
@@ -312,11 +315,11 @@ export default function BrowseScreen() {
         />
 
         <View style={styles.toolbar}>
-          <Pressable style={styles.toolbarButton} onPress={() => sortSheetRef.current?.present()}>
+          <Pressable style={({ pressed }) => [styles.toolbarButton, pressed && styles.pressed]} onPress={() => sortSheetRef.current?.present()}>
             <Feather name="sliders" size={13} color={colors.textDim} />
             <Text style={styles.toolbarText} numberOfLines={1}>{sortLabel}</Text>
           </Pressable>
-          <Pressable style={styles.toolbarButton} onPress={() => filterSheetRef.current?.present()}>
+          <Pressable style={({ pressed }) => [styles.toolbarButton, pressed && styles.pressed]} onPress={() => filterSheetRef.current?.present()}>
             <Feather name="filter" size={13} color={colors.textDim} />
             <Text style={styles.toolbarText}>Filter</Text>
             {activeFilterCount > 0 ? (
@@ -367,8 +370,8 @@ export default function BrowseScreen() {
               featuredArtists.length > 0 && category === ALL && !search ? (
                 <View style={styles.featuredSection}>
                   <View style={styles.featuredHeader}>
-                    <Feather name="zap" size={13} color={colors.orange} />
-                    <Text style={styles.featuredHeaderTitle}>Featured Artists</Text>
+                    <Feather name="zap" size={13} color={visualColors.orange} />
+                    <GradientText style={styles.featuredHeaderTitle}>Featured Artists</GradientText>
                     <Text style={styles.featuredHeaderSub}>Sponsored</Text>
                   </View>
                   <FlatList
@@ -448,7 +451,7 @@ function LoadMoreFooter({ loading }: { loading: boolean }) {
 function EmptyState({ label }: { label: string }) {
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.muted}>No {label} match yet — try another filter.</Text>
+      <Text style={styles.muted}>{label === "artists" ? "The stage is empty for this filter — try another." : `No ${label} match yet — try another filter.`}</Text>
       <Pressable style={styles.emptyCta} onPress={() => router.push("/ask-giggfi")}>
         <Feather name="zap" size={13} color={colors.pink} />
         <Text style={styles.emptyCtaText}>Let GiggiFi find you a match instead</Text>
@@ -472,9 +475,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   featuredHeaderTitle: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 15,
-    color: colors.text,
+    fontFamily: fonts.displayBold,
+    fontSize: 16,
+    letterSpacing: -0.1,
   },
   featuredHeaderSub: {
     marginLeft: "auto",
@@ -486,12 +489,11 @@ const styles = StyleSheet.create({
   featuredRow: {
     gap: spacing.sm,
   },
+  titleWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 26,
-    color: colors.text,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
+    fontFamily: fonts.displayBold,
+    fontSize: 28,
+    letterSpacing: -0.3,
   },
   verticalToggle: {
     flexDirection: "row",
@@ -532,9 +534,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     backgroundColor: colors.ink2,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: withAlpha(visualColors.pink, 0.28),
     borderRadius: radii.pill,
     marginBottom: spacing.md,
+    ...shadows.soft,
   },
   searchInput: {
     flex: 1,
@@ -614,6 +617,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMute,
   },
+  pressed: { opacity: 0.7 },
   errorScroll: { flexGrow: 1, alignItems: "center", paddingTop: spacing.xl },
   retryButton: {
     marginTop: spacing.md,

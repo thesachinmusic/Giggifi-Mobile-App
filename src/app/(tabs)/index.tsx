@@ -31,13 +31,16 @@ import { RealEventsRail } from "@/components/RealEventsRail";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { ProfileCompletionBadge } from "@/components/ProfileCompletionBadge";
 import { Skeleton } from "@/components/Skeleton";
+import { GradientText } from "@/components/GradientText";
+import { SoundwaveDivider } from "@/components/SoundwaveDivider";
+import { FadeInView } from "@/components/FadeInView";
 import { useAuth } from "@/lib/auth-context";
 import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
 import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, gradients, radii, spacing } from "@/theme";
+import { colors, fonts, gradients, radii, shadows, spacing, visualColors, withAlpha } from "@/theme";
 
 type BrowseVertical = "artist" | "vendor";
 
@@ -277,7 +280,7 @@ export default function HomeScreen() {
               <Text style={styles.eyebrow}>GIGGIFI</Text>
               <NotificationBell />
             </View>
-            <Text style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who&apos;s the act tonight?</Text>
+            <GradientText style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who&apos;s the act tonight?</GradientText>
           </View>
 
           <AnnouncementBanner />
@@ -285,7 +288,7 @@ export default function HomeScreen() {
 
           <View style={styles.cityEventRow}>
             <HomeCityControl city={homeCity} onChange={handleCityChange} />
-            <Pressable style={styles.eventHubCard} onPress={() => router.push("/my-event")}>
+            <Pressable style={({ pressed }) => [styles.eventHubCard, pressed && styles.pressed]} onPress={() => router.push("/my-event")}>
               <View style={styles.eventHubIcon}>
                 <Feather name="calendar" size={14} color={colors.purple} />
               </View>
@@ -302,19 +305,22 @@ export default function HomeScreen() {
 
           {/* Get a Quote (RFP) — for a multi-performer event, describe every
               need in one request instead of enquiring artist-by-artist. */}
-          <Pressable style={styles.quoteStrip} onPress={() => router.push("/quote-requests")}>
-            <View style={styles.quoteStripIcon}>
-              <Feather name="file-text" size={16} color="#fff" />
-            </View>
-            <View style={styles.reelsStripBody}>
-              <Text style={styles.reelsStripTitle}>Get a Quote</Text>
-              <Text style={styles.reelsStripSub}>Multiple performers for one event? Ask once, compare quotes.</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMute} />
-          </Pressable>
+          <FadeInView delay={80}>
+            <Pressable style={({ pressed }) => [styles.quoteStrip, pressed && styles.pressed]} onPress={() => router.push("/quote-requests")}>
+              <View style={styles.quoteStripIcon}>
+                <Feather name="file-text" size={16} color="#fff" />
+              </View>
+              <View style={styles.reelsStripBody}>
+                <Text style={styles.reelsStripTitle}>Get a Quote</Text>
+                <Text style={styles.reelsStripSub}>Multiple performers for one event? Ask once, compare quotes.</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={colors.textMute} />
+            </Pressable>
+          </FadeInView>
 
           <View style={styles.section}>
             <SectionHeader
+              icon={browseVertical === "artist" ? "mic" : "briefcase"}
               title={browseVertical === "artist" ? "Artists" : "Vendors"}
               sub={browseVertical === "artist" ? "Performers for your event" : "Everything else for the day"}
               onSeeAll={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: browseVertical } })}
@@ -341,7 +347,7 @@ export default function HomeScreen() {
               after category browsing). Flagged back for an explicit call. */}
           {saved.length > 0 ? (
             <View style={styles.section}>
-              <SectionHeader title="Saved for you" />
+              <SectionHeader icon="heart" title="Saved for you" />
               <FlatList
                 data={saved}
                 horizontal
@@ -365,7 +371,7 @@ export default function HomeScreen() {
               (same destination, same intent; keeping both would have been
               a duplicate "go watch Reels" prompt on one screen). Position
               per the corrected Home order: directly above the offer cards. */}
-          <Pressable style={styles.reelsStrip} onPress={() => router.push("/(tabs)/reels")}>
+          <Pressable style={({ pressed }) => [styles.reelsStrip, pressed && styles.pressed]} onPress={() => router.push("/(tabs)/reels")}>
             <View style={styles.reelsStripPlay}>
               <Feather name="play" size={14} color="#fff" />
             </View>
@@ -385,13 +391,14 @@ export default function HomeScreen() {
               which itself decides form-vs-deals. Static, no dependency on
               artists/featured/trending, so it no longer needs to sit behind
               the loading/error branch below. */}
-          <Pressable style={styles.businessPromo} onPress={() => router.push("/(tabs)/business")}>
+          <Pressable style={({ pressed }) => [styles.businessPromo, pressed && styles.pressed]} onPress={() => router.push("/(tabs)/business")}>
             <LinearGradient colors={[colors.purple, colors.orange]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessPromoGradient}>
+              <View style={styles.businessPromoGlow} pointerEvents="none" />
               <View style={styles.businessPromoBadge}>
                 <Feather name="briefcase" size={11} color="#fff" />
                 <Text style={styles.businessPromoBadgeText}>FOR BUSINESSES</Text>
               </View>
-              <Text style={styles.businessPromoTitle}>Curated for Restaurants{"\n"}& Event Companies</Text>
+              <Text style={styles.businessPromoTitle}>Curated for <Text style={styles.businessPromoKeyword}>Restaurants</Text>{"\n"}& Event Companies</Text>
               <Text style={styles.businessPromoSub}>Recurring bookings, business deals & invoicing.</Text>
               <View style={styles.businessPromoCta}>
                 <Text style={styles.businessPromoCtaText}>See business deals</Text>
@@ -400,17 +407,19 @@ export default function HomeScreen() {
             </LinearGradient>
           </Pressable>
 
+          <SoundwaveDivider />
+
           {loading ? (
             <>
               <View style={styles.section}>
-                <SectionHeader title="Fresh picks for you" sub="Handpicked for you — watch before you book" />
+                <SectionHeader icon="zap" title="Fresh picks for you" sub="Handpicked for you — watch before you book" />
                 <View style={[styles.featuredRow, styles.skeletonRow]}>
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
                 </View>
               </View>
               <View style={styles.section}>
-                <SectionHeader title="Featured Artists" sub="Watch before you book" />
+                <SectionHeader icon="star" title="Featured Artists" sub="Watch before you book" />
                 <View style={[styles.artistRow, styles.skeletonRow]}>
                   {[0, 1, 2].map((i) => (
                     <View key={i} style={styles.skeletonCard}>
@@ -448,6 +457,7 @@ export default function HomeScreen() {
                   }}
                 >
                   <SectionHeader
+                    icon="zap"
                     title="Fresh picks for you"
                     sub="Handpicked for you — watch before you book"
                     onSeeAll={() => router.push({ pathname: "/(tabs)/browse" })}
@@ -485,7 +495,7 @@ export default function HomeScreen() {
                     featuredSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
                   }}
                 >
-                  <SectionHeader title="Featured Artists" sub="Watch before you book" />
+                  <SectionHeader icon="star" title="Featured Artists" sub="Watch before you book" />
                   <FlatList
                     data={featured}
                     horizontal
@@ -517,11 +527,11 @@ export default function HomeScreen() {
                   after Featured Artists). Flagged back for an explicit
                   call. */}
               <View style={styles.section}>
-                <SectionHeader title="Popular right now" onSeeAll={() => router.push("/(tabs)/browse")} />
+                <SectionHeader icon="trending-up" title="Popular right now" onSeeAll={() => router.push("/(tabs)/browse")} />
                 {popular.length === 0 ? (
                   <View style={styles.railEmpty}>
                     <Feather name="music" size={22} color={colors.textMute} />
-                    <Text style={styles.muted}>No artists live yet — check back soon.</Text>
+                    <Text style={styles.muted}>The stage is quiet for now — check back soon.</Text>
                   </View>
                 ) : (
                   <FlatList
@@ -587,11 +597,12 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 28,
-    lineHeight: 32,
-    color: colors.text,
+    fontFamily: fonts.displayBold,
+    fontSize: 30,
+    lineHeight: 34,
+    letterSpacing: -0.3,
   },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   cityEventRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -685,7 +696,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: withAlpha(visualColors.violet, 0.28),
+    ...shadows.soft,
   },
   eventHubIcon: {
     width: 30,
@@ -698,8 +710,20 @@ const styles = StyleSheet.create({
   eventHubTextWrap: { flex: 1 },
   eventHubTitle: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.text },
   eventHubSub: { fontFamily: fonts.body, fontSize: 10, color: colors.textMute, marginTop: 1 },
-  businessPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.xl, borderRadius: radii.xl, overflow: "hidden" },
-  businessPromoGradient: { padding: spacing.lg, gap: spacing.sm },
+  // Shadow sits on the outer Pressable; the gradient inside does the clipping
+  // (a clipped view can't cast an iOS shadow).
+  businessPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, borderRadius: radii.xl, ...shadows.hero },
+  businessPromoGradient: { padding: spacing.lg, gap: spacing.sm, borderRadius: radii.xl, overflow: "hidden" },
+  businessPromoGlow: {
+    position: "absolute",
+    right: -50,
+    top: -50,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  businessPromoKeyword: { color: "#FFE9A8" },
   businessPromoBadge: {
     flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill, backgroundColor: "rgba(255,255,255,0.18)",
@@ -722,7 +746,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: withAlpha(visualColors.pink, 0.3),
+    ...shadows.soft,
   },
   reelsStripPlay: {
     width: 34,
@@ -746,7 +771,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: withAlpha(visualColors.violet, 0.3),
+    ...shadows.soft,
   },
   quoteStripIcon: {
     width: 34,
