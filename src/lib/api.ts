@@ -146,6 +146,16 @@ export interface RepertoireData {
   groups: { moodTag: string; songs: { id: string; title: string }[] }[];
 }
 
+// An artist's live offer as shown on a card/profile badge — display only. The
+// server sends at most one, already date-checked (null once it has expired).
+export interface ArtistOfferBadge {
+  id: string;
+  title: string;
+  discountType: "PERCENTAGE" | "FLAT_AMOUNT" | "FREEBIE";
+  discountValue: number;
+  endsAt: string | null;
+}
+
 export interface ArtistSummary {
   id: string;
   stageName: string | null;
@@ -180,6 +190,7 @@ export interface ArtistSummary {
   reviewCount?: number;
   recentReviews?: ReviewSummary[];
   isFeatured?: boolean;
+  activeOffer?: ArtistOfferBadge | null;
   // Quick Moments — undefined on list endpoints that don't select these.
   quickMomentsEnabled?: boolean;
   quickMomentsPricePerSlot?: number | null;

@@ -9,6 +9,7 @@ import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
 import { useVideoMute } from "@/lib/video-mute-context";
 import type { ArtistSummary } from "@/lib/api";
+import { OfferBadge } from "@/components/OfferBadge";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 export const FEATURED_CARD_WIDTH = SCREEN_WIDTH * 0.62;
@@ -156,6 +157,8 @@ export function FeaturedArtistCard({ artist, isActive, onOpenVideo, onViewProfil
         </View>
       ) : null}
 
+      {artist.activeOffer ? <OfferBadge offer={artist.activeOffer} style={styles.offerBadge} /> : null}
+
       <View style={styles.info} pointerEvents="box-none">
         <Text style={styles.name} numberOfLines={1}>{name}</Text>
         <View style={styles.metaRow}>
@@ -205,6 +208,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Just under the category tag (top-left).
+  offerBadge: { position: "absolute", top: 46, left: 14 },
   tag: {
     position: "absolute",
     top: 14,

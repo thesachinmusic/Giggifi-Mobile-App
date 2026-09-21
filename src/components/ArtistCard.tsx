@@ -6,6 +6,7 @@ import { colors, fonts, radii, shadows, spacing, visualColors } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
 import { DURATION_MULTIPLIERS, DURATION_OPTIONS, isSoloPerformerType } from "@/lib/duration-pricing";
 import { RatingBadge } from "@/components/RatingBadge";
+import { OfferBadge } from "@/components/OfferBadge";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import type { ArtistSummary, VendorSummary } from "@/lib/api";
 
@@ -72,6 +73,7 @@ export function ArtistCard({ artist, vendor, onPress, width, travelBadge }: List
               <Text style={styles.featuredText}>FEATURED</Text>
             </View>
           ) : null}
+          {artist?.activeOffer ? <OfferBadge offer={artist.activeOffer} style={styles.offerBadge} /> : null}
           {artist ? (
             <Pressable
               hitSlop={11}
@@ -188,6 +190,10 @@ const styles = StyleSheet.create({
     color: "#000",
     letterSpacing: 0.5,
   },
+  // Bottom-left of the photo, clear of the category/Featured tags stacked at
+  // the top-left and the save button at the top-right — so a Featured artist
+  // with a live offer shows both badges together.
+  offerBadge: { position: "absolute", bottom: 10, left: 12 },
   saveButton: {
     position: "absolute",
     top: 10,

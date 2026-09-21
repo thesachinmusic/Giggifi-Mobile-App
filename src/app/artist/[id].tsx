@@ -31,6 +31,7 @@ import { useOffersOptIn } from "@/lib/use-offers-optin";
 import { OffersOptInSheet } from "@/components/OffersOptInSheet";
 import { captureError } from "@/lib/telemetry";
 import { cloudinaryThumb } from "@/lib/video-thumb";
+import { OfferBadge } from "@/components/OfferBadge";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -338,6 +339,17 @@ export default function ArtistDetailScreen() {
 
         <View style={styles.body} onLayout={(e) => setBodyY(e.nativeEvent.layout.y)}>
           {artist.performerType ? <Text style={styles.tagline}>{artist.performerType.toUpperCase()}</Text> : null}
+          {artist.isFeatured || artist.activeOffer ? (
+            <View style={styles.badgeRow}>
+              {artist.isFeatured ? (
+                <View style={styles.featuredBadge}>
+                  <Feather name="zap" size={10} color="#000" />
+                  <Text style={styles.featuredBadgeText}>FEATURED</Text>
+                </View>
+              ) : null}
+              {artist.activeOffer ? <OfferBadge offer={artist.activeOffer} /> : null}
+            </View>
+          ) : null}
           <View style={styles.nameRow}>
             <Text style={styles.name}>{name}</Text>
             <RatingBadge rating={artist.avgRating} size={15} />
@@ -1088,6 +1100,17 @@ const styles = StyleSheet.create({
   skeletonLoc: { marginBottom: spacing.lg },
   skeletonPriceCard: { marginTop: spacing.md },
   body: { padding: spacing.lg, marginTop: -radii.xl, backgroundColor: colors.ink, borderTopLeftRadius: radii.xl * 1.5, borderTopRightRadius: radii.xl * 1.5 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.sm },
+  featuredBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.orange,
+  },
+  featuredBadgeText: { fontFamily: fonts.mono, fontSize: 9, color: "#000", letterSpacing: 0.5 },
   tagline: {
     fontFamily: fonts.mono,
     fontSize: 12,
