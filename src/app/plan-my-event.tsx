@@ -31,6 +31,7 @@ import {
   matchQuickBooking,
   saveBookerProfile,
   sendEnquiry,
+  fetchActiveOfferId,
   type MatchedArtist,
   type PlaceDetails,
 } from "@/lib/api";
@@ -388,8 +389,12 @@ export default function PlanMyEventScreen() {
       const genderNote = genderPref !== "No preference" ? `Preferred artist gender: ${genderPref}. ` : "";
       const isQuickBooking = bookingMode === "QUICK_BOOKING";
 
+      // The match results don't carry offers, so look the artist's live offer
+      // up here; the server applies the discount itself.
+      const offerId = await fetchActiveOfferId(selectedArtist.id);
       const data = await sendEnquiry({
         artistId: selectedArtist.id,
+        offerId,
         eventName: `${eventType} — ${user?.name?.trim() || "Client"}`,
         eventType,
         eventDate: eventDate ? eventDate.toISOString() : undefined,

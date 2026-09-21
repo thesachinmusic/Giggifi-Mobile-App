@@ -32,6 +32,7 @@ import { OffersOptInSheet } from "@/components/OffersOptInSheet";
 import { captureError } from "@/lib/telemetry";
 import { cloudinaryThumb } from "@/lib/video-thumb";
 import { OfferBadge } from "@/components/OfferBadge";
+import { offerBadgeLabel, priceWithOffer } from "@/lib/offer-badge";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -183,6 +184,7 @@ export default function ArtistDetailScreen() {
         budgetAmount: bookingMode === "ENQUIRY" && budgetAmount ? Number(budgetAmount) : undefined,
         quotedPrice: bookingMode === "QUICK_BOOKING" ? priceForDuration ?? undefined : undefined,
         eventPlanId: selectedEventPlanId ?? undefined,
+        offerId: artist.activeOffer?.id,
       });
       if (!mountedRef.current) return;
       setSentBookingId(bookingId);
@@ -312,6 +314,9 @@ export default function ArtistDetailScreen() {
   const solo = isSoloPerformerType(artist.performerType);
   const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
   const adjustedPrice = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
+  // What Book Now actually charges once the artist's live offer is applied
+  // (the server does the real math from the offerId — this is display only).
+  const payablePrice = adjustedPrice ? priceWithOffer(adjustedPrice, artist.activeOffer) : adjustedPrice;
   const featuredUrls = new Set([artist.introVideoUrl, artist.showreelUrl].filter(Boolean));
   const videos = [
     artist.introVideoUrl ? { url: artist.introVideoUrl, label: "Intro" } : null,
@@ -489,7 +494,7 @@ export default function ArtistDetailScreen() {
                       onPress={() => setBookingMode("QUICK_BOOKING")}
                     >
                       <Text style={[styles.modeTabText, bookingMode === "QUICK_BOOKING" && styles.modeTabTextActive]}>
-                        Book Now{adjustedPrice ? ` — ₹${adjustedPrice.toLocaleString("en-IN")}` : ""}
+                        Book Now{payablePrice ? ` — ₹${payablePrice.toLocaleString("en-IN")}` : ""}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -513,10 +518,16 @@ export default function ArtistDetailScreen() {
                     />
                   ) : (
                     <Text style={styles.bookNowNote}>
-                      You&apos;ll pay the listed price — ₹{adjustedPrice?.toLocaleString("en-IN") ?? "—"}
+                      You&apos;ll pay {artist.activeOffer && payablePrice !== adjustedPrice ? "the offer price" : "the listed price"} — ₹{payablePrice?.toLocaleString("en-IN") ?? "—"}
                       {solo ? ` for ${effectiveDuration} mins` : ""}.
+                      {artist.activeOffer && payablePrice !== adjustedPrice ? ` (${offerBadgeLabel(artist.activeOffer)} applied.)` : ""}
                     </Text>
                   )}
+                  {artist.activeOffer && bookingMode === "ENQUIRY" ? (
+                    <Text style={styles.bookNowNote}>
+                      {offerBadgeLabel(artist.activeOffer)} — {artist.activeOffer.title}. It&apos;s applied when the artist sends their quote.
+                    </Text>
+                  ) : null}
                   {eventPlans.length > 0 ? (
                     <View style={styles.field}>
                       <Text style={styles.fieldLabel}>ATTACH TO AN EVENT (OPTIONAL)</Text>

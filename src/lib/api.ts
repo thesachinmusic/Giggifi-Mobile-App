@@ -467,6 +467,19 @@ export function fetchArtist(id: string) {
   return request<{ artist: ArtistSummary }>(`/api/mobile/artist/${id}`);
 }
 
+// For flows that only hold an artist id (Book Again, the match flow): the id of
+// that artist's live offer, or undefined. Best-effort by design — a failed
+// lookup must never block or delay-fail a booking, it just means no offer is
+// attached.
+export async function fetchActiveOfferId(artistId: string): Promise<string | undefined> {
+  try {
+    const { artist } = await fetchArtist(artistId);
+    return artist.activeOffer?.id;
+  } catch {
+    return undefined;
+  }
+}
+
 export function fetchFeatured() {
   return request<{ artists: ArtistSummary[]; total: number }>("/api/mobile/featured");
 }
@@ -981,6 +994,11 @@ export function sendEnquiry(input: {
   venueType?: string;
   languagePref?: string[];
   eventPlanId?: string;
+  // The artist's live offer (ArtistSummary.activeOffer.id). The server
+  // re-validates it — belongs to this artist, ACTIVE, inside its dates — and
+  // applies the discount itself (immediately for QUICK_BOOKING, at quote time
+  // for an ENQUIRY); a stale or foreign id is silently ignored, never an error.
+  offerId?: string;
 }) {
   return request<{ success: true; bookingId: string }>("/api/mobile/bookings", {
     method: "POST",
