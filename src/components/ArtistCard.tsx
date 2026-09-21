@@ -45,65 +45,70 @@ export function ArtistCard({ artist, vendor, onPress, width, travelBadge }: List
   const displayPrice = solo && price ? Math.round(price * MIN_DURATION_MULTIPLIER) : price;
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, isFeatured ? styles.cardFeatured : null, width ? { width } : styles.cardFlex, pressed && styles.cardPressed]}
-    >
-      <View style={styles.imageWrap}>
-        {image ? (
-          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        ) : (
-          <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill}>
-            <Text style={styles.initial}>{initial}</Text>
-          </LinearGradient>
-        )}
-        {tag ? (
-          <View style={styles.tag}>
-            <Text style={styles.tagText} numberOfLines={1}>{tag.toUpperCase()}</Text>
-          </View>
-        ) : null}
-        {isFeatured ? (
-          <View style={styles.featuredTag}>
-            <Feather name="zap" size={9} color="#000" />
-            <Text style={styles.featuredText}>FEATURED</Text>
-          </View>
-        ) : null}
-        {artist ? (
-          <Pressable
-            hitSlop={11}
-            style={styles.saveButton}
-            onPress={(e) => { e.stopPropagation(); toggle(artist.id); }}
-            accessibilityRole="button"
-            accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
-          >
-            <Feather name="heart" size={14} color={saved ? colors.pink : "#fff"} />
-          </Pressable>
-        ) : null}
-      </View>
-      <View style={styles.body}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>{name}</Text>
-          <RatingBadge rating={rating} />
+    // The card clips its contents (overflow: hidden), and iOS can't cast a
+    // shadow from a clipped view — so the shadow lives on this plain wrapper,
+    // which also carries the width/flex; the Pressable fills it.
+    <View style={[styles.shadowWrap, isFeatured ? styles.shadowWrapFeatured : null, width ? { width } : styles.cardFlex]}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.card, isFeatured ? styles.cardFeatured : null, pressed && styles.cardPressed]}
+      >
+        <View style={styles.imageWrap}>
+          {image ? (
+            <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill}>
+              <Text style={styles.initial}>{initial}</Text>
+            </LinearGradient>
+          )}
+          {tag ? (
+            <View style={styles.tag}>
+              <Text style={styles.tagText} numberOfLines={1}>{tag.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          {isFeatured ? (
+            <View style={styles.featuredTag}>
+              <Feather name="zap" size={9} color="#000" />
+              <Text style={styles.featuredText}>FEATURED</Text>
+            </View>
+          ) : null}
+          {artist ? (
+            <Pressable
+              hitSlop={11}
+              style={styles.saveButton}
+              onPress={(e) => { e.stopPropagation(); toggle(artist.id); }}
+              accessibilityRole="button"
+              accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
+            >
+              <Feather name="heart" size={14} color={saved ? colors.pink : "#fff"} />
+            </Pressable>
+          ) : null}
         </View>
-        {city ? (
-          <View style={styles.row}>
-            <Feather name="map-pin" size={11} color={colors.textMute} />
-            <Text style={styles.loc} numberOfLines={1}>{city}</Text>
+        <View style={styles.body}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            <RatingBadge rating={rating} />
           </View>
-        ) : null}
-        {travelBadge ? (
-          <View style={styles.travelBadge}>
-            <Feather name="navigation" size={9} color={colors.purple} />
-            <Text style={styles.travelBadgeText} numberOfLines={1}>Travels to your city</Text>
-          </View>
-        ) : null}
-        {displayPrice ? (
-          <Text style={styles.price}>
-            {solo ? "From " : ""}₹{displayPrice.toLocaleString("en-IN")} <Text style={styles.priceUnit}>/ event</Text>
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+          {city ? (
+            <View style={styles.row}>
+              <Feather name="map-pin" size={11} color={colors.textMute} />
+              <Text style={styles.loc} numberOfLines={1}>{city}</Text>
+            </View>
+          ) : null}
+          {travelBadge ? (
+            <View style={styles.travelBadge}>
+              <Feather name="navigation" size={9} color={colors.purple} />
+              <Text style={styles.travelBadgeText} numberOfLines={1}>Travels to your city</Text>
+            </View>
+          ) : null}
+          {displayPrice ? (
+            <Text style={styles.price}>
+              {solo ? "From " : ""}₹{displayPrice.toLocaleString("en-IN")} <Text style={styles.priceUnit}>/ event</Text>
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -114,8 +119,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
-    ...shadows.soft,
+    flex: 1,
   },
+  // Opaque fill so Android draws its elevation shadow from the wrapper.
+  shadowWrap: { borderRadius: radii.xl, backgroundColor: colors.surface, ...shadows.soft },
   cardPressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
   cardFlex: {
     flex: 1,
@@ -126,6 +133,8 @@ const styles = StyleSheet.create({
   cardFeatured: {
     borderColor: colors.orange,
     borderWidth: 1.5,
+  },
+  shadowWrapFeatured: {
     shadowColor: colors.orange,
     shadowOpacity: 0.35,
     shadowRadius: 10,
