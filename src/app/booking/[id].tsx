@@ -8,6 +8,7 @@ import RazorpayCheckout from "react-native-razorpay";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
+import { PriceBreakdown, type PriceLine } from "@/components/PriceBreakdown";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { Skeleton } from "@/components/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -278,6 +279,34 @@ export default function BookingDetailScreen() {
   // payable figure has to be computed here rather than read off one field.
   const payableAmount = booking.totalAmount != null ? Math.max(0, booking.totalAmount - booking.firstBookingDiscount) : null;
 
+  // The client's itemised price: the artist's price (after any offer) + service
+  // fee + GST on that fee = the total. Only shown when the numbers add up to the
+  // stored total exactly, so an itemisation is never wrong or partial — anything
+  // else (an older server, a booking priced before these were stored) falls back
+  // to the plain Total row below.
+  const offerDiscount = booking.offerDiscountAmount ?? 0;
+  const canItemise =
+    booking.viewerRole === "BOOKER" &&
+    booking.totalAmount != null &&
+    booking.quotedPrice != null &&
+    booking.platformFee != null &&
+    booking.gstAmount != null &&
+    booking.quotedPrice + booking.platformFee + booking.gstAmount === booking.totalAmount;
+  const priceLines: PriceLine[] = [];
+  if (canItemise) {
+    const originalPrice = booking.quotedPrice! + offerDiscount;
+    if (booking.format === "QUICK_MOMENT" && booking.travelFeeAmount) {
+      priceLines.push({ label: "Performance", amount: originalPrice - booking.travelFeeAmount });
+      priceLines.push({ label: `Travel (${booking.travelDistanceKm?.toFixed(1) ?? "?"} km)`, amount: booking.travelFeeAmount });
+    } else {
+      priceLines.push({ label: "Artist's price", amount: originalPrice });
+    }
+    if (offerDiscount > 0) priceLines.push({ label: "Artist's offer", amount: -offerDiscount });
+    priceLines.push({ label: "Service fee", amount: booking.platformFee! });
+    priceLines.push({ label: "GST (18%) on service fee", amount: booking.gstAmount!, kind: "tax" });
+    if (booking.firstBookingDiscount > 0) priceLines.push({ label: "First booking discount", amount: -booking.firstBookingDiscount });
+  }
+
   return (
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -293,7 +322,7 @@ export default function BookingDetailScreen() {
             <SummaryRow icon="map-pin" label="City" value={booking.eventCity} />
             <SummaryRow icon="calendar" label="Date" value={new Date(booking.eventDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} />
             {booking.venueName ? <SummaryRow icon="home" label="Venue" value={booking.venueName} /> : null}
-            {booking.format === "QUICK_MOMENT" && booking.travelFeeAmount ? (
+            {!canItemise && booking.format === "QUICK_MOMENT" && booking.travelFeeAmount ? (
               <>
                 <SummaryRow
                   icon="music"
@@ -307,13 +336,13 @@ export default function BookingDetailScreen() {
                 />
               </>
             ) : null}
-            {booking.totalAmount ? <SummaryRow icon="credit-card" label="Total" value={`₹${booking.totalAmount.toLocaleString("en-IN")}`} /> : null}
+            {!canItemise && booking.totalAmount ? <SummaryRow icon="credit-card" label="Total" value={`₹${booking.totalAmount.toLocaleString("en-IN")}`} /> : null}
             {/* Deliberately plain — no badge, no "you saved!" copy, no
                 explainer. Sachin's explicit call: small discounts don't
                 move these clients and promoting one looks cheap, so this
                 only ever shows up as a normal line item once it's real
                 money off, exactly like any other line above it. */}
-            {booking.firstBookingDiscount > 0 ? (
+            {!canItemise && booking.firstBookingDiscount > 0 ? (
               <>
                 <SummaryRow icon="tag" label="First booking discount" value={`−₹${booking.firstBookingDiscount.toLocaleString("en-IN")}`} />
                 <SummaryRow icon="check-circle" label="You pay" value={`₹${(payableAmount ?? 0).toLocaleString("en-IN")}`} />
@@ -323,6 +352,8 @@ export default function BookingDetailScreen() {
               <SummaryRow icon="shield" label="Payment" value={PAYMENT_STATUS_LABEL[booking.payment.status] ?? booking.payment.status} />
             ) : null}
           </GlassCard>
+
+          {canItemise && payableAmount != null ? <PriceBreakdown total={payableAmount} lines={priceLines} defaultExpanded /> : null}
 
           {backupAttempt && backupAttempt.status !== "RESOLVED" ? (
             <Pressable onPress={() => router.push({ pathname: "/backup-match/[id]", params: { id: backupAttempt.id } })}>

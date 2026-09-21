@@ -33,6 +33,8 @@ import { captureError } from "@/lib/telemetry";
 import { cloudinaryThumb } from "@/lib/video-thumb";
 import { OfferBadge } from "@/components/OfferBadge";
 import { offerBadgeLabel, priceWithOffer } from "@/lib/offer-badge";
+import { clientPriceBreakdown } from "@/lib/pricing";
+import { PriceBreakdown, type PriceLine } from "@/components/PriceBreakdown";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -314,9 +316,20 @@ export default function ArtistDetailScreen() {
   const solo = isSoloPerformerType(artist.performerType);
   const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
   const adjustedPrice = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
-  // What Book Now actually charges once the artist's live offer is applied
-  // (the server does the real math from the offerId — this is display only).
-  const payablePrice = adjustedPrice ? priceWithOffer(adjustedPrice, artist.activeOffer) : adjustedPrice;
+  // What Book Now costs in total: the artist's price (after their live offer, if
+  // any) + service fee + GST on that fee. The server computes the real amounts
+  // from the offerId — this is display only, from the same formula.
+  const bookNowPrice = adjustedPrice
+    ? clientPriceBreakdown(adjustedPrice, adjustedPrice - priceWithOffer(adjustedPrice, artist.activeOffer))
+    : null;
+  const bookNowLines: PriceLine[] = bookNowPrice
+    ? [
+        { label: "Artist's price", amount: bookNowPrice.artistPrice },
+        ...(bookNowPrice.offerDiscount > 0 ? [{ label: "Artist's offer", amount: -bookNowPrice.offerDiscount }] : []),
+        { label: "Service fee", amount: bookNowPrice.serviceFee },
+        { label: "GST (18%) on service fee", amount: bookNowPrice.gst, kind: "tax" as const },
+      ]
+    : [];
   const featuredUrls = new Set([artist.introVideoUrl, artist.showreelUrl].filter(Boolean));
   const videos = [
     artist.introVideoUrl ? { url: artist.introVideoUrl, label: "Intro" } : null,
@@ -494,7 +507,7 @@ export default function ArtistDetailScreen() {
                       onPress={() => setBookingMode("QUICK_BOOKING")}
                     >
                       <Text style={[styles.modeTabText, bookingMode === "QUICK_BOOKING" && styles.modeTabTextActive]}>
-                        Book Now{payablePrice ? ` — ₹${payablePrice.toLocaleString("en-IN")}` : ""}
+                        Book Now{bookNowPrice ? ` — ₹${bookNowPrice.total.toLocaleString("en-IN")}` : ""}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -517,15 +530,22 @@ export default function ArtistDetailScreen() {
                       keyboardType="number-pad"
                     />
                   ) : (
-                    <Text style={styles.bookNowNote}>
-                      You&apos;ll pay {artist.activeOffer && payablePrice !== adjustedPrice ? "the offer price" : "the listed price"} — ₹{payablePrice?.toLocaleString("en-IN") ?? "—"}
-                      {solo ? ` for ${effectiveDuration} mins` : ""}.
-                      {artist.activeOffer && payablePrice !== adjustedPrice ? ` (${offerBadgeLabel(artist.activeOffer)} applied.)` : ""}
-                    </Text>
+                    bookNowPrice ? (
+                      <>
+                        <PriceBreakdown total={bookNowPrice.total} lines={bookNowLines} />
+                        {solo ? <Text style={styles.bookNowNote}>For {effectiveDuration} mins.</Text> : null}
+                        {artist.activeOffer && bookNowPrice.offerDiscount > 0 ? (
+                          <Text style={styles.bookNowNote}>{offerBadgeLabel(artist.activeOffer)} applied — it comes off the artist&apos;s price.</Text>
+                        ) : null}
+                      </>
+                    ) : (
+                      <Text style={styles.bookNowNote}>This artist prices on request — you&apos;ll get a quote.</Text>
+                    )
                   )}
-                  {artist.activeOffer && bookingMode === "ENQUIRY" ? (
+                  {bookingMode === "ENQUIRY" ? (
                     <Text style={styles.bookNowNote}>
-                      {offerBadgeLabel(artist.activeOffer)} — {artist.activeOffer.title}. It&apos;s applied when the artist sends their quote.
+                      Free to send. If the artist quotes, you&apos;ll see one total up front: their price plus a 10% service fee and 18% GST on that fee.
+                      {artist.activeOffer ? ` ${offerBadgeLabel(artist.activeOffer)} — ${artist.activeOffer.title} — is applied when they quote.` : ""}
                     </Text>
                   ) : null}
                   {eventPlans.length > 0 ? (

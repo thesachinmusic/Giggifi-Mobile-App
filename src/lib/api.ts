@@ -281,6 +281,13 @@ export interface BookingDetail {
   specialRequests: string | null;
   quotedPrice: number | null;
   totalAmount: number | null;
+  // Booker-only price breakdown: quotedPrice (the artist's price after any
+  // offer) + platformFee (the service fee) + gstAmount (18% GST on that fee) =
+  // totalAmount. offerDiscountAmount is what the artist's offer took off. All
+  // null for the artist's own view (and on a server that predates them).
+  platformFee?: number | null;
+  gstAmount?: number | null;
+  offerDiscountAmount?: number | null;
   // Booker-only preview of the same auto-applied discount real order
   // creation uses (see createRazorpayOrder) — 0 when not eligible, or for
   // the artist's own view of this booking. Never shown as a promo/banner
