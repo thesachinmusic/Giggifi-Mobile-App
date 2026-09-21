@@ -322,6 +322,17 @@ export default function ArtistDetailScreen() {
   const bookNowPrice = adjustedPrice
     ? clientPriceBreakdown(adjustedPrice, adjustedPrice - priceWithOffer(adjustedPrice, artist.activeOffer))
     : null;
+  // The offer would take more than half off this booking's price (e.g. a flat
+  // amount against a shorter, cheaper slot), so the server doesn't apply it — the
+  // booking goes ahead at the plain price. Say so wherever the badge is shown
+  // rather than leave a discount badge that quietly does nothing.
+  const offerNotApplicable =
+    bookNowPrice !== null &&
+    artist.activeOffer != null &&
+    artist.activeOffer.discountType !== "FREEBIE" &&
+    adjustedPrice != null &&
+    adjustedPrice - priceWithOffer(adjustedPrice, artist.activeOffer) > 0 &&
+    bookNowPrice.offerDiscount === 0;
   const bookNowLines: PriceLine[] = bookNowPrice
     ? [
         { label: "Artist's price", amount: bookNowPrice.artistPrice },
@@ -367,6 +378,9 @@ export default function ArtistDetailScreen() {
               ) : null}
               {artist.activeOffer ? <OfferBadge offer={artist.activeOffer} /> : null}
             </View>
+          ) : null}
+          {offerNotApplicable && showForm && bookingMode === "QUICK_BOOKING" ? (
+            <Text style={styles.offerNotApplicable}>Offer not applicable for this booking</Text>
           ) : null}
           <View style={styles.nameRow}>
             <Text style={styles.name}>{name}</Text>
@@ -536,6 +550,9 @@ export default function ArtistDetailScreen() {
                         {solo ? <Text style={styles.bookNowNote}>For {effectiveDuration} mins.</Text> : null}
                         {artist.activeOffer && bookNowPrice.offerDiscount > 0 ? (
                           <Text style={styles.bookNowNote}>{offerBadgeLabel(artist.activeOffer)} applied — it comes off the artist&apos;s price.</Text>
+                        ) : null}
+                        {offerNotApplicable ? (
+                          <Text style={styles.bookNowNote}>Offer not applicable for this booking — you&apos;ll book at the artist&apos;s regular price.</Text>
                         ) : null}
                       </>
                     ) : (
@@ -1391,6 +1408,7 @@ const styles = StyleSheet.create({
     color: colors.textMute,
   },
   modeTabTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
+  offerNotApplicable: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute, marginTop: -4, marginBottom: spacing.sm },
   bookNowNote: {
     fontFamily: fonts.body,
     fontSize: 12.5,
