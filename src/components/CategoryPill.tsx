@@ -12,7 +12,7 @@ interface Props {
 export function CategoryPill({ label, emoji, active, onPress }: Props) {
   if (active) {
     return (
-      <Pressable onPress={onPress}>
+      <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
         <LinearGradient colors={gradients.brand} locations={gradients.brandLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.pill}>
           <Text style={styles.labelActive}>{emoji ? `${emoji} ${label}` : label}</Text>
         </LinearGradient>
@@ -20,7 +20,7 @@ export function CategoryPill({ label, emoji, active, onPress }: Props) {
     );
   }
   return (
-    <Pressable onPress={onPress} style={[styles.pill, styles.pillInactive]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.pill, styles.pillInactive, pressed && styles.pressed]}>
       <Text style={styles.label}>{emoji ? `${emoji} ${label}` : label}</Text>
     </Pressable>
   );
@@ -32,6 +32,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: radii.pill,
   },
+  pressed: { opacity: 0.75 },
   pillInactive: {
     borderWidth: 1,
     borderColor: colors.lineStrong,

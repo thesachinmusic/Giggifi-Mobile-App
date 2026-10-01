@@ -6,6 +6,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
+import { PriceBreakdown } from "@/components/PriceBreakdown";
+import { clientPriceBreakdown } from "@/lib/pricing";
 import { DateField } from "@/components/DateField";
 import { TimeField } from "@/components/TimeField";
 import { StateCityField } from "@/components/StateCityField";
@@ -93,24 +95,19 @@ export default function QuickMomentsBookScreen() {
               <Text style={styles.summaryEyebrow}>{QUICK_MOMENT_FORMAT_LABEL[format]?.toUpperCase()}</Text>
               <Text style={styles.summaryName}>{stageName}</Text>
               {pricePerSlot ? <Text style={styles.summaryPrice}>₹{pricePerSlot.toLocaleString("en-IN")} <Text style={styles.summaryPriceUnit}>/ slot</Text></Text> : null}
-              {distanceKm != null ? (
-                <View style={styles.breakdown}>
-                  <View style={styles.breakdownRow}>
-                    <Text style={styles.breakdownLabel}>Performance</Text>
-                    <Text style={styles.breakdownValue}>₹{(pricePerSlot ?? 0).toLocaleString("en-IN")}</Text>
-                  </View>
-                  <View style={styles.breakdownRow}>
-                    <Text style={styles.breakdownLabel}>Travel ({distanceKm.toFixed(1)} km)</Text>
-                    <Text style={styles.breakdownValue}>{travelFee > 0 ? `₹${travelFee.toLocaleString("en-IN")}` : "Free"}</Text>
-                  </View>
-                  <View style={styles.breakdownTotalRow}>
-                    <Text style={styles.breakdownTotalLabel}>Subtotal</Text>
-                    <Text style={styles.breakdownTotalValue}>₹{(totalPrice ?? 0).toLocaleString("en-IN")}</Text>
-                  </View>
-                  <Text style={styles.breakdownNote}>Platform fee & GST added at checkout.</Text>
-                </View>
-              ) : null}
             </GlassCard>
+
+            {distanceKm != null && totalPrice != null ? (
+              <PriceBreakdown
+                total={clientPriceBreakdown(totalPrice).total}
+                lines={[
+                  { label: "Performance", amount: pricePerSlot ?? 0 },
+                  ...(travelFee > 0 ? [{ label: `Travel (${distanceKm.toFixed(1)} km)`, amount: travelFee }] : []),
+                  { label: "Service fee", amount: clientPriceBreakdown(totalPrice).serviceFee },
+                  { label: "GST (18%) on service fee", amount: clientPriceBreakdown(totalPrice).gst, kind: "tax" as const },
+                ]}
+              />
+            ) : null}
 
             <FormLabel text="WHEN" />
             <View style={styles.row}>
@@ -146,7 +143,7 @@ export default function QuickMomentsBookScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Btn
-              label={totalPrice ? `Book for ₹${totalPrice.toLocaleString("en-IN")}` : "Book this Quick Moment"}
+              label={totalPrice ? `Book for ₹${clientPriceBreakdown(totalPrice).total.toLocaleString("en-IN")}` : "Book this Quick Moment"}
               onPress={handleSubmit}
               disabled={!canSubmit}
               loading={submitting}

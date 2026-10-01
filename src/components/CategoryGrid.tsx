@@ -1,6 +1,6 @@
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { accentForCategory, colors, fonts, radii, shadows, spacing, withAlpha } from "@/theme";
 import { CATEGORIES } from "@/lib/categories";
 import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
 
@@ -27,17 +27,27 @@ export function CategoryGrid({ vertical = "artist", limit }: Props) {
       showsHorizontalScrollIndicator={false}
       keyExtractor={(item) => item.label}
       contentContainerStyle={styles.row}
-      renderItem={({ item: category }) => (
-        <Pressable
-          style={styles.item}
-          onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: category.label, vertical } })}
-        >
-          <View style={styles.iconWrap}>
-            <Text style={styles.emoji}>{category.emoji}</Text>
-          </View>
-          <Text style={styles.label} numberOfLines={1}>{category.label}</Text>
-        </Pressable>
-      )}
+      renderItem={({ item: category }) => {
+        // Accent only for artist categories that map cleanly onto one; the
+        // rest (and all vendor categories) keep the neutral tile.
+        const accent = vertical === "artist" ? accentForCategory(category.label) : undefined;
+        return (
+          <Pressable
+            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+            onPress={() => router.push({ pathname: "/(tabs)/browse", params: { category: category.label, vertical } })}
+          >
+            <View
+              style={[
+                styles.iconWrap,
+                accent ? { borderColor: withAlpha(accent, 0.5), backgroundColor: withAlpha(accent, 0.12) } : null,
+              ]}
+            >
+              <Text style={styles.emoji}>{category.emoji}</Text>
+            </View>
+            <Text style={styles.label} numberOfLines={1}>{category.label}</Text>
+          </Pressable>
+        );
+      }}
     />
   );
 }
@@ -52,6 +62,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+  itemPressed: { opacity: 0.75, transform: [{ scale: 0.96 }] },
   iconWrap: {
     width: 60,
     height: 60,
@@ -61,6 +72,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     alignItems: "center",
     justifyContent: "center",
+    ...shadows.soft,
   },
   emoji: {
     fontSize: 26,

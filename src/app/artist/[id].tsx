@@ -31,6 +31,10 @@ import { useOffersOptIn } from "@/lib/use-offers-optin";
 import { OffersOptInSheet } from "@/components/OffersOptInSheet";
 import { captureError } from "@/lib/telemetry";
 import { cloudinaryThumb } from "@/lib/video-thumb";
+import { OfferBadge } from "@/components/OfferBadge";
+import { offerBadgeLabel, priceWithOffer } from "@/lib/offer-badge";
+import { clientPriceBreakdown } from "@/lib/pricing";
+import { PriceBreakdown, type PriceLine } from "@/components/PriceBreakdown";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -182,6 +186,7 @@ export default function ArtistDetailScreen() {
         budgetAmount: bookingMode === "ENQUIRY" && budgetAmount ? Number(budgetAmount) : undefined,
         quotedPrice: bookingMode === "QUICK_BOOKING" ? priceForDuration ?? undefined : undefined,
         eventPlanId: selectedEventPlanId ?? undefined,
+        offerId: artist.activeOffer?.id,
       });
       if (!mountedRef.current) return;
       setSentBookingId(bookingId);
@@ -311,6 +316,31 @@ export default function ArtistDetailScreen() {
   const solo = isSoloPerformerType(artist.performerType);
   const effectiveDuration = duration ?? FULL_SHOW_MINUTES;
   const adjustedPrice = getDurationAdjustedPrice(artist.ratePerEvent, artist.performerType, effectiveDuration);
+  // What Book Now costs in total: the artist's price (after their live offer, if
+  // any) + service fee + GST on that fee. The server computes the real amounts
+  // from the offerId — this is display only, from the same formula.
+  const bookNowPrice = adjustedPrice
+    ? clientPriceBreakdown(adjustedPrice, adjustedPrice - priceWithOffer(adjustedPrice, artist.activeOffer))
+    : null;
+  // The offer would take more than half off this booking's price (e.g. a flat
+  // amount against a shorter, cheaper slot), so the server doesn't apply it — the
+  // booking goes ahead at the plain price. Say so wherever the badge is shown
+  // rather than leave a discount badge that quietly does nothing.
+  const offerNotApplicable =
+    bookNowPrice !== null &&
+    artist.activeOffer != null &&
+    artist.activeOffer.discountType !== "FREEBIE" &&
+    adjustedPrice != null &&
+    adjustedPrice - priceWithOffer(adjustedPrice, artist.activeOffer) > 0 &&
+    bookNowPrice.offerDiscount === 0;
+  const bookNowLines: PriceLine[] = bookNowPrice
+    ? [
+        { label: "Artist's price", amount: bookNowPrice.artistPrice },
+        ...(bookNowPrice.offerDiscount > 0 ? [{ label: "Artist's offer", amount: -bookNowPrice.offerDiscount }] : []),
+        { label: "Service fee", amount: bookNowPrice.serviceFee },
+        { label: "GST (18%) on service fee", amount: bookNowPrice.gst, kind: "tax" as const },
+      ]
+    : [];
   const featuredUrls = new Set([artist.introVideoUrl, artist.showreelUrl].filter(Boolean));
   const videos = [
     artist.introVideoUrl ? { url: artist.introVideoUrl, label: "Intro" } : null,
@@ -338,6 +368,20 @@ export default function ArtistDetailScreen() {
 
         <View style={styles.body} onLayout={(e) => setBodyY(e.nativeEvent.layout.y)}>
           {artist.performerType ? <Text style={styles.tagline}>{artist.performerType.toUpperCase()}</Text> : null}
+          {artist.isFeatured || artist.activeOffer ? (
+            <View style={styles.badgeRow}>
+              {artist.isFeatured ? (
+                <View style={styles.featuredBadge}>
+                  <Feather name="zap" size={10} color="#000" />
+                  <Text style={styles.featuredBadgeText}>FEATURED</Text>
+                </View>
+              ) : null}
+              {artist.activeOffer ? <OfferBadge offer={artist.activeOffer} /> : null}
+            </View>
+          ) : null}
+          {offerNotApplicable && showForm && bookingMode === "QUICK_BOOKING" ? (
+            <Text style={styles.offerNotApplicable}>Offer not applicable for this booking</Text>
+          ) : null}
           <View style={styles.nameRow}>
             <Text style={styles.name}>{name}</Text>
             <RatingBadge rating={artist.avgRating} size={15} />
@@ -477,7 +521,7 @@ export default function ArtistDetailScreen() {
                       onPress={() => setBookingMode("QUICK_BOOKING")}
                     >
                       <Text style={[styles.modeTabText, bookingMode === "QUICK_BOOKING" && styles.modeTabTextActive]}>
-                        Book Now{adjustedPrice ? ` — ₹${adjustedPrice.toLocaleString("en-IN")}` : ""}
+                        Book Now{bookNowPrice ? ` — ₹${bookNowPrice.total.toLocaleString("en-IN")}` : ""}
                       </Text>
                     </Pressable>
                     <Pressable
@@ -500,11 +544,27 @@ export default function ArtistDetailScreen() {
                       keyboardType="number-pad"
                     />
                   ) : (
-                    <Text style={styles.bookNowNote}>
-                      You&apos;ll pay the listed price — ₹{adjustedPrice?.toLocaleString("en-IN") ?? "—"}
-                      {solo ? ` for ${effectiveDuration} mins` : ""}.
-                    </Text>
+                    bookNowPrice ? (
+                      <>
+                        <PriceBreakdown total={bookNowPrice.total} lines={bookNowLines} />
+                        {solo ? <Text style={styles.bookNowNote}>For {effectiveDuration} mins.</Text> : null}
+                        {artist.activeOffer && bookNowPrice.offerDiscount > 0 ? (
+                          <Text style={styles.bookNowNote}>{offerBadgeLabel(artist.activeOffer)} applied — it comes off the artist&apos;s price.</Text>
+                        ) : null}
+                        {offerNotApplicable ? (
+                          <Text style={styles.bookNowNote}>Offer not applicable for this booking — you&apos;ll book at the artist&apos;s regular price.</Text>
+                        ) : null}
+                      </>
+                    ) : (
+                      <Text style={styles.bookNowNote}>This artist prices on request — you&apos;ll get a quote.</Text>
+                    )
                   )}
+                  {bookingMode === "ENQUIRY" ? (
+                    <Text style={styles.bookNowNote}>
+                      Free to send. If the artist quotes, you&apos;ll see one total up front: their price plus a 10% service fee and 18% GST on that fee.
+                      {artist.activeOffer ? ` ${offerBadgeLabel(artist.activeOffer)} — ${artist.activeOffer.title} — is applied when they quote.` : ""}
+                    </Text>
+                  ) : null}
                   {eventPlans.length > 0 ? (
                     <View style={styles.field}>
                       <Text style={styles.fieldLabel}>ATTACH TO AN EVENT (OPTIONAL)</Text>
@@ -1088,6 +1148,17 @@ const styles = StyleSheet.create({
   skeletonLoc: { marginBottom: spacing.lg },
   skeletonPriceCard: { marginTop: spacing.md },
   body: { padding: spacing.lg, marginTop: -radii.xl, backgroundColor: colors.ink, borderTopLeftRadius: radii.xl * 1.5, borderTopRightRadius: radii.xl * 1.5 },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.sm },
+  featuredBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: colors.orange,
+  },
+  featuredBadgeText: { fontFamily: fonts.mono, fontSize: 9, color: "#000", letterSpacing: 0.5 },
   tagline: {
     fontFamily: fonts.mono,
     fontSize: 12,
@@ -1337,6 +1408,7 @@ const styles = StyleSheet.create({
     color: colors.textMute,
   },
   modeTabTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
+  offerNotApplicable: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute, marginTop: -4, marginBottom: spacing.sm },
   bookNowNote: {
     fontFamily: fonts.body,
     fontSize: 12.5,

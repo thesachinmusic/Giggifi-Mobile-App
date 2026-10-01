@@ -146,6 +146,16 @@ export interface RepertoireData {
   groups: { moodTag: string; songs: { id: string; title: string }[] }[];
 }
 
+// An artist's live offer as shown on a card/profile badge — display only. The
+// server sends at most one, already date-checked (null once it has expired).
+export interface ArtistOfferBadge {
+  id: string;
+  title: string;
+  discountType: "PERCENTAGE" | "FLAT_AMOUNT" | "FREEBIE";
+  discountValue: number;
+  endsAt: string | null;
+}
+
 export interface ArtistSummary {
   id: string;
   stageName: string | null;
@@ -180,6 +190,7 @@ export interface ArtistSummary {
   reviewCount?: number;
   recentReviews?: ReviewSummary[];
   isFeatured?: boolean;
+  activeOffer?: ArtistOfferBadge | null;
   // Quick Moments — undefined on list endpoints that don't select these.
   quickMomentsEnabled?: boolean;
   quickMomentsPricePerSlot?: number | null;
@@ -270,6 +281,13 @@ export interface BookingDetail {
   specialRequests: string | null;
   quotedPrice: number | null;
   totalAmount: number | null;
+  // Booker-only price breakdown: quotedPrice (the artist's price after any
+  // offer) + platformFee (the service fee) + gstAmount (18% GST on that fee) =
+  // totalAmount. offerDiscountAmount is what the artist's offer took off. All
+  // null for the artist's own view (and on a server that predates them).
+  platformFee?: number | null;
+  gstAmount?: number | null;
+  offerDiscountAmount?: number | null;
   // Booker-only preview of the same auto-applied discount real order
   // creation uses (see createRazorpayOrder) — 0 when not eligible, or for
   // the artist's own view of this booking. Never shown as a promo/banner
@@ -454,6 +472,19 @@ export function fetchArtistsByGroup(group: string) {
 
 export function fetchArtist(id: string) {
   return request<{ artist: ArtistSummary }>(`/api/mobile/artist/${id}`);
+}
+
+// For flows that only hold an artist id (Book Again, the match flow): the id of
+// that artist's live offer, or undefined. Best-effort by design — a failed
+// lookup must never block or delay-fail a booking, it just means no offer is
+// attached.
+export async function fetchActiveOfferId(artistId: string): Promise<string | undefined> {
+  try {
+    const { artist } = await fetchArtist(artistId);
+    return artist.activeOffer?.id;
+  } catch {
+    return undefined;
+  }
 }
 
 export function fetchFeatured() {
@@ -970,6 +1001,11 @@ export function sendEnquiry(input: {
   venueType?: string;
   languagePref?: string[];
   eventPlanId?: string;
+  // The artist's live offer (ArtistSummary.activeOffer.id). The server
+  // re-validates it — belongs to this artist, ACTIVE, inside its dates — and
+  // applies the discount itself (immediately for QUICK_BOOKING, at quote time
+  // for an ENQUIRY); a stale or foreign id is silently ignored, never an error.
+  offerId?: string;
 }) {
   return request<{ success: true; bookingId: string }>("/api/mobile/bookings", {
     method: "POST",

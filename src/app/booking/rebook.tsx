@@ -15,6 +15,7 @@ import {
   fetchRebookCheck,
   fetchArtistAvailability,
   sendEnquiry,
+  fetchActiveOfferId,
   ApiError,
   type RebookCheckResult,
 } from "@/lib/api";
@@ -120,8 +121,11 @@ export default function RebookScreen() {
     setFormError("");
     try {
       const effectiveDuration = duration ?? check.prefill.duration ?? FULL_SHOW_MINUTES;
+      // The artist's live offer, if any — the server applies it when they quote.
+      const offerId = await fetchActiveOfferId(check.artist.id);
       const { bookingId: newBookingId } = await sendEnquiry({
         artistId: check.artist.id,
+        offerId,
         // Always a fresh ENQUIRY, never QUICK_BOOKING — Book Again must
         // never silently re-confirm; the artist has to accept this exactly
         // like a brand-new request.

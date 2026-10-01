@@ -2,10 +2,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, radii, shadows, spacing, visualColors } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
 import { DURATION_MULTIPLIERS, DURATION_OPTIONS, isSoloPerformerType } from "@/lib/duration-pricing";
 import { RatingBadge } from "@/components/RatingBadge";
+import { OfferBadge } from "@/components/OfferBadge";
 import { useSavedArtists } from "@/lib/saved-artists-context";
 import type { ArtistSummary, VendorSummary } from "@/lib/api";
 
@@ -45,62 +46,71 @@ export function ArtistCard({ artist, vendor, onPress, width, travelBadge }: List
   const displayPrice = solo && price ? Math.round(price * MIN_DURATION_MULTIPLIER) : price;
 
   return (
-    <Pressable onPress={onPress} style={[styles.card, isFeatured ? styles.cardFeatured : null, width ? { width } : styles.cardFlex]}>
-      <View style={styles.imageWrap}>
-        {image ? (
-          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        ) : (
-          <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill}>
-            <Text style={styles.initial}>{initial}</Text>
-          </LinearGradient>
-        )}
-        {tag ? (
-          <View style={styles.tag}>
-            <Text style={styles.tagText} numberOfLines={1}>{tag.toUpperCase()}</Text>
-          </View>
-        ) : null}
-        {isFeatured ? (
-          <View style={styles.featuredTag}>
-            <Feather name="zap" size={9} color="#000" />
-            <Text style={styles.featuredText}>FEATURED</Text>
-          </View>
-        ) : null}
-        {artist ? (
-          <Pressable
-            hitSlop={11}
-            style={styles.saveButton}
-            onPress={(e) => { e.stopPropagation(); toggle(artist.id); }}
-            accessibilityRole="button"
-            accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
-          >
-            <Feather name="heart" size={14} color={saved ? colors.pink : "#fff"} />
-          </Pressable>
-        ) : null}
-      </View>
-      <View style={styles.body}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>{name}</Text>
-          <RatingBadge rating={rating} />
+    // The card clips its contents (overflow: hidden), and iOS can't cast a
+    // shadow from a clipped view — so the shadow lives on this plain wrapper,
+    // which also carries the width/flex; the Pressable fills it.
+    <View style={[styles.shadowWrap, isFeatured ? styles.shadowWrapFeatured : null, width ? { width } : styles.cardFlex]}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.card, isFeatured ? styles.cardFeatured : null, pressed && styles.cardPressed]}
+      >
+        <View style={styles.imageWrap}>
+          {image ? (
+            <Image source={{ uri: image }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill}>
+              <Text style={styles.initial}>{initial}</Text>
+            </LinearGradient>
+          )}
+          {tag ? (
+            <View style={styles.tag}>
+              <Text style={styles.tagText} numberOfLines={1}>{tag.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          {isFeatured ? (
+            <View style={styles.featuredTag}>
+              <Feather name="zap" size={9} color="#000" />
+              <Text style={styles.featuredText}>FEATURED</Text>
+            </View>
+          ) : null}
+          {artist?.activeOffer ? <OfferBadge offer={artist.activeOffer} style={styles.offerBadge} /> : null}
+          {artist ? (
+            <Pressable
+              hitSlop={11}
+              style={styles.saveButton}
+              onPress={(e) => { e.stopPropagation(); toggle(artist.id); }}
+              accessibilityRole="button"
+              accessibilityLabel={saved ? "Remove from saved" : "Save artist"}
+            >
+              <Feather name="heart" size={14} color={saved ? colors.pink : "#fff"} />
+            </Pressable>
+          ) : null}
         </View>
-        {city ? (
-          <View style={styles.row}>
-            <Feather name="map-pin" size={11} color={colors.textMute} />
-            <Text style={styles.loc} numberOfLines={1}>{city}</Text>
+        <View style={styles.body}>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            <RatingBadge rating={rating} />
           </View>
-        ) : null}
-        {travelBadge ? (
-          <View style={styles.travelBadge}>
-            <Feather name="navigation" size={9} color={colors.purple} />
-            <Text style={styles.travelBadgeText} numberOfLines={1}>Travels to your city</Text>
-          </View>
-        ) : null}
-        {displayPrice ? (
-          <Text style={styles.price}>
-            {solo ? "From " : ""}₹{displayPrice.toLocaleString("en-IN")} <Text style={styles.priceUnit}>/ event</Text>
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+          {city ? (
+            <View style={styles.row}>
+              <Feather name="map-pin" size={11} color={colors.textMute} />
+              <Text style={styles.loc} numberOfLines={1}>{city}</Text>
+            </View>
+          ) : null}
+          {travelBadge ? (
+            <View style={styles.travelBadge}>
+              <Feather name="navigation" size={9} color={colors.purple} />
+              <Text style={styles.travelBadgeText} numberOfLines={1}>Travels to your city</Text>
+            </View>
+          ) : null}
+          {displayPrice ? (
+            <Text style={styles.price}>
+              {solo ? "From " : ""}₹{displayPrice.toLocaleString("en-IN")} <Text style={styles.priceUnit}>/ event</Text>
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -111,7 +121,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.line,
+    flex: 1,
   },
+  // Opaque fill so Android draws its elevation shadow from the wrapper.
+  shadowWrap: { borderRadius: radii.xl, backgroundColor: colors.surface, ...shadows.soft },
+  cardPressed: { opacity: 0.88, transform: [{ scale: 0.985 }] },
   cardFlex: {
     flex: 1,
   },
@@ -121,6 +135,8 @@ const styles = StyleSheet.create({
   cardFeatured: {
     borderColor: colors.orange,
     borderWidth: 1.5,
+  },
+  shadowWrapFeatured: {
     shadowColor: colors.orange,
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -174,6 +190,10 @@ const styles = StyleSheet.create({
     color: "#000",
     letterSpacing: 0.5,
   },
+  // Bottom-left of the photo, clear of the category/Featured tags stacked at
+  // the top-left and the save button at the top-right — so a Featured artist
+  // with a live offer shows both badges together.
+  offerBadge: { position: "absolute", bottom: 10, left: 12 },
   saveButton: {
     position: "absolute",
     top: 10,
@@ -198,7 +218,7 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
-    fontFamily: fonts.display,
+    fontFamily: fonts.displayBold,
     fontSize: 17,
     color: colors.text,
   },
@@ -227,7 +247,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: fonts.mono,
     fontSize: 12,
-    color: colors.text,
+    color: visualColors.orange,
   },
   priceUnit: {
     color: colors.textMute,

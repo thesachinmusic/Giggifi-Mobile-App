@@ -31,6 +31,8 @@ import {
   matchQuickBooking,
   saveBookerProfile,
   sendEnquiry,
+  fetchArtist,
+  type ArtistOfferBadge,
   type MatchedArtist,
   type PlaceDetails,
 } from "@/lib/api";
@@ -38,6 +40,9 @@ import { isValidEmail, maskName } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 import { captureError } from "@/lib/telemetry";
 import { DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
+import { clientPriceBreakdown } from "@/lib/pricing";
+import { priceWithOffer } from "@/lib/offer-badge";
+import { PriceBreakdown, type PriceLine } from "@/components/PriceBreakdown";
 import { colors, fonts, gradients, radii, spacing } from "@/theme";
 
 const ARTIST_TYPES = [
@@ -280,6 +285,9 @@ export default function PlanMyEventScreen() {
   const [artists, setArtists] = useState<MatchedArtist[] | null>(null);
   const [genderRelaxed, setGenderRelaxed] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState<MatchedArtist | null>(null);
+  // The chosen artist's live offer (the match results don't carry offers, so it's
+  // looked up when they're picked) — shown in the price and sent with the booking.
+  const [activeOffer, setActiveOffer] = useState<ArtistOfferBadge | null>(null);
   const [previewArtist, setPreviewArtist] = useState<MatchedArtist | null>(null);
 
   // Event Details
@@ -364,6 +372,10 @@ export default function PlanMyEventScreen() {
 
   function selectArtist(a: MatchedArtist) {
     setSelectedArtist(a);
+    setActiveOffer(null);
+    fetchArtist(a.id)
+      .then(({ artist }) => setActiveOffer(artist.activeOffer ?? null))
+      .catch(() => {}); // best-effort — no offer just means the plain price
     setOuterStep(1);
   }
 
@@ -378,6 +390,20 @@ export default function PlanMyEventScreen() {
 
   const selectedArtistName = selectedArtist ? (maskName(selectedArtist.fullName || selectedArtist.stageName) || "Artist") : "";
   const adjustedPrice = selectedArtist ? getDurationAdjustedPrice(selectedArtist.ratePerEvent, artistType, duration) : null;
+  // Book Now's total: the artist's price (after their offer, if any) + service fee
+  // + GST on that fee. Display only — the server computes the real amounts.
+  const bookNowPrice = adjustedPrice
+    ? clientPriceBreakdown(adjustedPrice, adjustedPrice - priceWithOffer(adjustedPrice, activeOffer))
+    : null;
+  const bookNowLines: PriceLine[] = bookNowPrice
+    ? [
+        { label: "Artist's price", amount: bookNowPrice.artistPrice },
+        ...(bookNowPrice.offerDiscount > 0 ? [{ label: "Artist's offer", amount: -bookNowPrice.offerDiscount }] : []),
+        { label: "Service fee", amount: bookNowPrice.serviceFee },
+        { label: "GST (18%) on service fee", amount: bookNowPrice.gst, kind: "tax" as const },
+      ]
+    : [];
+  const bookNowTotalLabel = bookNowPrice ? formatPrice(bookNowPrice.total) : formatPrice(adjustedPrice);
 
   async function submitBooking() {
     if (!selectedArtist) return;
@@ -390,6 +416,8 @@ export default function PlanMyEventScreen() {
 
       const data = await sendEnquiry({
         artistId: selectedArtist.id,
+        // The offer shown in the price above; the server re-validates it.
+        offerId: activeOffer?.id,
         eventName: `${eventType} — ${user?.name?.trim() || "Client"}`,
         eventType,
         eventDate: eventDate ? eventDate.toISOString() : undefined,
@@ -462,7 +490,7 @@ export default function PlanMyEventScreen() {
           <Text style={styles.doneTitle}>{bookingMode === "QUICK_BOOKING" ? "Booking Confirmed!" : "Enquiry Sent!"}</Text>
           <Text style={styles.doneSub}>
             {bookingMode === "QUICK_BOOKING"
-              ? `You're set at ${formatPrice(adjustedPrice)} — complete payment to lock in ${selectedArtistName}.`
+              ? `You're set at ${bookNowTotalLabel} — complete payment to lock in ${selectedArtistName}.`
               : `${selectedArtistName} will review your offer and respond. You'll only be asked to pay once they accept.`}
           </Text>
 
@@ -472,7 +500,7 @@ export default function PlanMyEventScreen() {
               ["Artist", selectedArtistName],
               ["Event", eventType],
               ["City", city],
-              bookingMode === "QUICK_BOOKING" ? ["Price", formatPrice(adjustedPrice)] : ["Your Offer", offerValid ? `₹${offerAmount!.toLocaleString("en-IN")}` : (budget?.display ?? "")],
+              bookingMode === "QUICK_BOOKING" ? ["Total", bookNowTotalLabel] : ["Your Offer", offerValid ? `₹${offerAmount!.toLocaleString("en-IN")}` : (budget?.display ?? "")],
             ].map(([l, v]) => (
               <View key={l} style={styles.doneSummaryRow}>
                 <Text style={styles.doneSummaryLabel}>{l}</Text>
@@ -511,7 +539,7 @@ export default function PlanMyEventScreen() {
 
   const footerLabel =
     outerStep === 0 && innerStep === 3 ? "Find Artists →" :
-    outerStep === 2 ? (submitting ? (bookingMode === "QUICK_BOOKING" ? "Booking…" : "Sending…") : bookingMode === "QUICK_BOOKING" ? `Book Now — ${formatPrice(adjustedPrice)}` : "Send My Offer") :
+    outerStep === 2 ? (submitting ? (bookingMode === "QUICK_BOOKING" ? "Booking…" : "Sending…") : bookingMode === "QUICK_BOOKING" ? `Book Now — ${bookNowTotalLabel}` : "Send My Offer") :
     "Continue →";
 
   function handleFooterPress() {
@@ -735,7 +763,7 @@ export default function PlanMyEventScreen() {
                 <View style={styles.modeToggle}>
                   <Pressable style={[styles.modeTab, bookingMode === "QUICK_BOOKING" && styles.modeTabActive]} onPress={() => setBookingMode("QUICK_BOOKING")}>
                     <Text style={styles.modeTabTitle}>Book Now</Text>
-                    <Text style={styles.modeTabPrice}>{formatPrice(adjustedPrice)}</Text>
+                    <Text style={styles.modeTabPrice}>{bookNowTotalLabel}</Text>
                   </Pressable>
                   <Pressable style={[styles.modeTab, bookingMode === "ENQUIRY" && styles.modeTabActive]} onPress={() => setBookingMode("ENQUIRY")}>
                     <Text style={styles.modeTabTitle}>Send My Offer</Text>
@@ -768,7 +796,7 @@ export default function PlanMyEventScreen() {
                     ["Event", `${eventType}, ${city}`],
                     ["Date", eventDate ? eventDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"],
                     ["Duration", duration ? `${duration} mins` : "—"],
-                    bookingMode === "QUICK_BOOKING" ? ["Price", formatPrice(adjustedPrice)] : ["Your Offer", offerValid ? `₹${offerAmount!.toLocaleString("en-IN")}` : (budget?.display ?? "—")],
+                    bookingMode === "QUICK_BOOKING" ? ["Total", bookNowTotalLabel] : ["Your Offer", offerValid ? `₹${offerAmount!.toLocaleString("en-IN")}` : (budget?.display ?? "—")],
                     ["Venue", venueName || venueAddress || "—"],
                   ].map(([l, v]) => (
                     <View key={l} style={styles.summaryRow}>
@@ -777,6 +805,14 @@ export default function PlanMyEventScreen() {
                     </View>
                   ))}
                 </GlassCard>
+
+                {bookingMode === "QUICK_BOOKING" && bookNowPrice ? (
+                  <PriceBreakdown total={bookNowPrice.total} lines={bookNowLines} />
+                ) : bookingMode === "ENQUIRY" ? (
+                  <Text style={styles.offerHint}>
+                    If the artist quotes, you&apos;ll see one total up front: their price plus a 10% service fee and 18% GST on that fee.
+                  </Text>
+                ) : null}
 
                 <View style={styles.equipmentNote}>
                   <Feather name="info" size={14} color={colors.textMute} style={styles.equipmentNoteIcon} />

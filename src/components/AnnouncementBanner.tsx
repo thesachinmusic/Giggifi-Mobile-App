@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { fetchAnnouncements, type Announcement } from "@/lib/api";
 import { resolveNotificationHref } from "@/lib/notification-links";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, radii, shadows, spacing, visualColors, withAlpha } from "@/theme";
 
 // Home's admin-controlled announcement banner (giggifi.com/admin/
 // announcements) — restored after the "Mix" Home rebuild dropped the old
@@ -52,41 +53,69 @@ export function AnnouncementBanner() {
   }
 
   return (
-    <Pressable style={styles.strip} onPress={handlePress}>
-      {announcement.imageUrl ? (
-        <Image source={{ uri: announcement.imageUrl }} style={styles.thumb} contentFit="cover" />
-      ) : (
-        <View style={styles.iconWrap}>
-          <Feather name="radio" size={14} color="#fff" />
+    <View style={styles.shadowWrap}>
+      <Pressable style={({ pressed }) => [styles.strip, pressed && styles.pressed]} onPress={handlePress}>
+        <LinearGradient
+          colors={[withAlpha(visualColors.orange, 0.22), withAlpha(visualColors.pink, 0.1)]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+        <View style={styles.glow} pointerEvents="none" />
+        {announcement.imageUrl ? (
+          <Image source={{ uri: announcement.imageUrl }} style={styles.thumb} contentFit="cover" />
+        ) : (
+          <View style={styles.iconWrap}>
+            <Feather name="radio" size={15} color={visualColors.ink} />
+          </View>
+        )}
+        <View style={styles.body}>
+          <Text style={styles.title} numberOfLines={1}>{announcement.title}</Text>
+          <Text style={styles.sub} numberOfLines={2}>{announcement.body}</Text>
         </View>
-      )}
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>{announcement.title}</Text>
-        <Text style={styles.sub} numberOfLines={2}>{announcement.body}</Text>
-      </View>
-      {announcement.actionUrl ? <Feather name="chevron-right" size={18} color={colors.textMute} /> : null}
-    </Pressable>
+        {announcement.actionUrl ? <Feather name="chevron-right" size={18} color={colors.textMute} /> : null}
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // GlassCard-style clipping (overflow: hidden) stops iOS casting a shadow, so
+  // the shadow lives on this wrapper and the clipped strip sits inside it.
+  shadowWrap: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderRadius: radii.lg,
+    ...shadows.hero,
+  },
   strip: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
     padding: spacing.md,
     borderRadius: radii.lg,
     backgroundColor: "rgba(255,255,255,0.035)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: withAlpha(visualColors.orange, 0.32),
+    overflow: "hidden",
+  },
+  pressed: { opacity: 0.88 },
+  // Soft corner glow behind the icon — decorative only.
+  glow: {
+    position: "absolute",
+    left: -30,
+    top: -30,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: withAlpha(visualColors.orange, 0.16),
   },
   iconWrap: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.gold,
+    backgroundColor: visualColors.gold,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -96,6 +125,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   body: { flex: 1, gap: 2 },
-  title: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.text },
+  title: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: visualColors.gold },
   sub: { fontFamily: fonts.body, fontSize: 11, lineHeight: 15, color: colors.textMute },
 });
