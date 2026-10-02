@@ -11,10 +11,11 @@ interface Props {
   onClosed: () => void;
 }
 
-// Primes the user for the OS permission prompt AFTER they've sent their
-// first enquiry — not the instant they log in, before they have any reason
-// to say yes. iOS only ever shows its own dialog once, so this sheet is the
-// only chance to make the "why" land before that one shot is spent.
+// Primes the user for the OS permission prompt. Shown when a signed-in user
+// reaches Home (HomePushPrimer) and again after they send an enquiry
+// (artist/[id].tsx), within the 3-decline / 14-day cap. iOS only ever shows
+// its own dialog once, so this sheet is the chance to make the "why" land
+// before that one shot is spent.
 export const PushPrimerSheet = forwardRef<BottomSheetModal, Props>(function PushPrimerSheet({ onEnable, onNotNow, onClosed }, ref) {
   const snapPoints = useMemo(() => ["40%"], []);
 
@@ -32,7 +33,7 @@ export const PushPrimerSheet = forwardRef<BottomSheetModal, Props>(function Push
           <Feather name="bell" size={22} color={colors.pink} />
         </View>
         <Text style={styles.title}>Never miss a reply</Text>
-        <Text style={styles.body}>Get notified the moment an artist replies to your enquiry.</Text>
+        <Text style={styles.body}>Get notified the moment an artist replies, sends a quote or confirms your booking.</Text>
 
         <View style={styles.actions}>
           <Pressable style={styles.dismissButton} onPress={onNotNow}>

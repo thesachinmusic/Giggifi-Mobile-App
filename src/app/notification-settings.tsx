@@ -16,6 +16,8 @@ import {
 import { CATEGORY_META } from "@/lib/notification-category-meta";
 import { CURRENT_MARKETING_CONSENT_VERSION, MARKETING_CONSENT_TEXT } from "@/lib/marketing-consent";
 import { getLanguagePreference, setLanguagePreference, type Language } from "@/lib/local-preferences-storage";
+import { registerDeviceForPushDetailed } from "@/lib/push-notifications";
+import { getPushStatus, type PushStatus } from "@/lib/push-status";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -35,6 +37,8 @@ export default function NotificationSettingsScreen() {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [permission, setPermission] = useState<PermissionStatus>("undetermined");
   const [language, setLanguage] = useState<Language>("en");
+  const [pushStatus, setPushStatus] = useState<PushStatus | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -62,8 +66,23 @@ export default function NotificationSettingsScreen() {
       Notifications.getPermissionsAsync()
         .then(({ status }) => setPermission(status as PermissionStatus))
         .catch((err) => captureError(err, "notification-permission-check-focus"));
+      getPushStatus().then(setPushStatus).catch(() => {});
     }, []),
   );
+
+  async function retryPushRegistration() {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      await registerDeviceForPushDetailed("manual-retry");
+    } finally {
+      // The attempt records its own outcome; re-read it and the OS permission.
+      const [status, perm] = await Promise.all([getPushStatus(), Notifications.getPermissionsAsync().catch(() => null)]);
+      setPushStatus({ ...status });
+      if (perm) setPermission(perm.status as PermissionStatus);
+      setRetrying(false);
+    }
+  }
 
   async function toggleOffer(next: boolean) {
     if (!prefs) return;
@@ -137,6 +156,21 @@ export default function NotificationSettingsScreen() {
             </Pressable>
           ) : null}
 
+          <SectionTitle>Push status</SectionTitle>
+          <GlassCard style={styles.card}>
+            <StatusRow label="OS permission" value={permission === "granted" ? "Granted" : permission === "denied" ? "Denied" : "Not asked yet"} good={permission === "granted"} />
+            <StatusRow label="Registered with GiggiFi" value={pushStatus?.lastOkAt ? "Yes" : "No"} good={Boolean(pushStatus?.lastOkAt)} />
+            <StatusRow label="Last attempt" value={pushStatus?.lastAttemptAt ? new Date(pushStatus.lastAttemptAt).toLocaleString("en-IN") : "Never"} />
+            {pushStatus && pushStatus.ok === false && pushStatus.error ? (
+              <Text style={styles.pushError}>
+                Stopped at “{pushStatus.step}”: {pushStatus.error}
+              </Text>
+            ) : null}
+            <Pressable style={styles.pushRetry} onPress={retryPushRegistration} disabled={retrying}>
+              {retrying ? <ActivityIndicator color={colors.pink} size="small" /> : <Text style={styles.retryButtonText}>Retry now</Text>}
+            </Pressable>
+          </GlassCard>
+
           <SectionTitle>Booking & account</SectionTitle>
           <GlassCard style={styles.card}>
             {LOCKED_CATEGORIES.map((category, i) => {
@@ -200,6 +234,15 @@ export default function NotificationSettingsScreen() {
   );
 }
 
+function StatusRow({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  return (
+    <View style={styles.statusRow}>
+      <Text style={styles.rowNote}>{label}</Text>
+      <Text style={[styles.statusValue, good ? styles.statusGood : null]}>{value}</Text>
+    </View>
+  );
+}
+
 function SectionTitle({ children }: { children: string }) {
   return <Text style={styles.sectionTitle}>{children}</Text>;
 }
@@ -230,6 +273,14 @@ const styles = StyleSheet.create({
   permissionTextWrap: { flex: 1, gap: 2 },
   permissionTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text },
   permissionSub: { fontFamily: fonts.body, fontSize: 12, color: colors.textMute },
+  statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6 },
+  statusValue: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.text },
+  statusGood: { color: colors.ok },
+  pushError: { fontFamily: fonts.body, fontSize: 12, color: colors.orange, lineHeight: 17, marginTop: spacing.xs },
+  pushRetry: {
+    alignSelf: "flex-start", marginTop: spacing.sm, minWidth: 96, minHeight: 36, alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 16, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.pink,
+  },
   sectionTitle: {
     fontFamily: fonts.mono,
     fontSize: 10.5,

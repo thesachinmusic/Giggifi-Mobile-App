@@ -757,8 +757,11 @@ export function updateNotificationPreferences(patch: {
 
 // ─── Bookings ───
 
+// ?as=client: the backend otherwise picks the side from the account's role,
+// so an account whose role is ARTIST (artist + booker profiles) got its
+// artist-side list here and none of the bookings it made as a client.
 export function fetchBookings() {
-  return request<{ bookings: Booking[] }>("/api/mobile/bookings");
+  return request<{ bookings: Booking[] }>("/api/mobile/bookings?as=client");
 }
 
 export function fetchBooking(id: string) {
