@@ -1153,6 +1153,8 @@ export type QuoteResponseStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "EXPIRED
 export const QUOTE_CATEGORIES = [
   "Singer",
   "Live Band",
+  "Sufi",
+  "Bhajan / Jamming",
   "DJ",
   "Comedian / Stand-Up",
   "Anchor / Emcee",
