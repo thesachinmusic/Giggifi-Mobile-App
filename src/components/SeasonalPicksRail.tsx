@@ -3,7 +3,8 @@ import { FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-nat
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { fetchSeasonalPicks, type SeasonalPick } from "@/lib/api";
+import { fetchSeasonIndex, fetchSeasonalPicks, type SeasonalPick } from "@/lib/api";
+import { seasonKeyForTitle } from "@/lib/seasons";
 import { captureError } from "@/lib/telemetry";
 import { GradientText } from "@/components/GradientText";
 import { getSeasonalArt } from "@/components/SeasonalArt";
@@ -38,6 +39,10 @@ function AutoBadge() {
 
 export function SeasonalPicksRail() {
   const [picks, setPicks] = useState<SeasonalPick[]>([]);
+  // Keys of seasons that have a page (artists to show). null = not known — the
+  // season endpoint is missing (older backend) or failed — in which case every
+  // tile behaves as before and opens Browse.
+  const [availableSeasons, setAvailableSeasons] = useState<Set<string> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -46,15 +51,37 @@ export function SeasonalPicksRail() {
     } catch (err) {
       captureError(err, "home-seasonal-picks-fetch");
     }
+    try {
+      const { seasons } = await fetchSeasonIndex();
+      setAvailableSeasons(new Set(seasons.map((x) => x.key)));
+    } catch {
+      setAvailableSeasons(null);
+    }
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  if (picks.length === 0) return null;
+  // A tile whose season is known but has nobody to show is hidden rather than
+  // linking to an empty page. Unknown seasons (no page config) stay as before.
+  const visiblePicks = picks.filter((p) => {
+    const key = seasonKeyForTitle(p.title);
+    return !(availableSeasons && key && !availableSeasons.has(key));
+  });
+  if (visiblePicks.length === 0) return null;
 
-  const activeNames = picks.filter((p) => p.isActive).map((p) => p.title);
+  const openTile = (title: string) => {
+    const key = seasonKeyForTitle(title);
+    if (key && availableSeasons?.has(key)) router.push({ pathname: "/season/[key]", params: { key } });
+    else router.push("/(tabs)/browse");
+  };
+  const openAll = () => {
+    if (availableSeasons && availableSeasons.size > 0) router.push("/season");
+    else router.push("/(tabs)/browse");
+  };
+
+  const activeNames = visiblePicks.filter((p) => p.isActive).map((p) => p.title);
   const hint = activeNames.length > 0
     ? `Auto-updates with the calendar — right now it's ${activeNames.join(", ")}`
     : "Auto-updates with the calendar";
@@ -63,12 +90,12 @@ export function SeasonalPicksRail() {
     <View style={styles.wrap}>
       <View style={styles.header}>
         <GradientText style={styles.heading} colors={HEADING_GRADIENT}>Seasonal Picks</GradientText>
-        <Pressable onPress={() => router.push("/(tabs)/browse")} hitSlop={8}>
+        <Pressable onPress={openAll} hitSlop={8}>
           <Text style={styles.viewAll}>View All ›</Text>
         </Pressable>
       </View>
       <FlatList
-        data={picks}
+        data={visiblePicks}
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
@@ -80,7 +107,7 @@ export function SeasonalPicksRail() {
           // blocking on it.
           const art = getSeasonalArt(item.title);
           return (
-            <Pressable style={styles.card} onPress={() => router.push("/(tabs)/browse")}>
+            <Pressable style={styles.card} onPress={() => openTile(item.title)}>
               {art ? (
                 // Same "image fills, title overlaid on a bottom scrim"
                 // treatment as FeaturedArtistCard. The card's own

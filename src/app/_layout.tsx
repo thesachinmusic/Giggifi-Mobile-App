@@ -299,6 +299,25 @@ function RootLayoutContent() {
                       headerBackTitle: "Back",
                     }}
                   />
+                  {/* Season pages (Seasonal Picks): the screens set their own title. */}
+                  <Stack.Screen
+                    name="season/index"
+                    options={{
+                      headerShown: true,
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="season/[key]"
+                    options={{
+                      headerShown: true,
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
                   <Stack.Screen
                     name="organizations/index"
                     options={{

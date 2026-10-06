@@ -517,6 +517,29 @@ export function fetchSeasonalPicks() {
   return request<{ picks: SeasonalPick[] }>("/api/mobile/seasonal-picks");
 }
 
+// Season pages (GET /api/mobile/season, /api/mobile/season/[key]) — read-only,
+// rule-based. The index lists only seasons that have artists to show.
+export interface SeasonSummary {
+  key: string;
+  label: string;
+  artistCount: number;
+}
+
+export interface SeasonPage {
+  season: { key: string; label: string };
+  artists: ArtistSummary[];
+  vendors: VendorSummary[];
+  lastMinute: { artists: ArtistSummary[]; vendors: VendorSummary[] };
+}
+
+export function fetchSeasonIndex() {
+  return request<{ seasons: SeasonSummary[] }>("/api/mobile/season");
+}
+
+export function fetchSeasonPage(key: string) {
+  return request<SeasonPage>(`/api/mobile/season/${encodeURIComponent(key)}`);
+}
+
 // Home's "From Real Events" rail — admin-approved reviews with real
 // uploaded media only (see app/api/mobile/real-events/route.ts). No
 // booker identity is ever included, by design.
