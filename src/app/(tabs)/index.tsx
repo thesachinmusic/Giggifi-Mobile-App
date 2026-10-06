@@ -13,7 +13,7 @@ import {
   type ViewToken,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
@@ -24,6 +24,7 @@ import { HeroCarousel } from "@/components/HeroCarousel";
 import { HomeQuickTiles } from "@/components/HomeQuickTiles";
 import { CategoryGrid } from "@/components/CategoryGrid";
 import { FeaturedArtistCard, FEATURED_CARD_WIDTH } from "@/components/FeaturedArtistCard";
+import { FeaturedPremiumCard, FEATURED_PREMIUM_CARD_WIDTH } from "@/components/FeaturedPremiumCard";
 import { ArtistCard } from "@/components/ArtistCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -448,30 +449,42 @@ export default function HomeScreen() {
                     featuredSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
                   }}
                 >
-                  <SectionHeader icon="star" title="Featured Artists" sub="Watch before you book" />
-                  <FlatList
-                    data={featured}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(item) => item.id}
-                    contentContainerStyle={styles.featuredRow}
-                    snapToInterval={FEATURED_CARD_WIDTH + spacing.sm}
-                    decelerationRate="fast"
-                    viewabilityConfig={featuredViewability}
-                    onViewableItemsChanged={onFeaturedViewableChanged}
-                    initialNumToRender={2}
-                    maxToRenderPerBatch={2}
-                    windowSize={3}
-                    removeClippedSubviews
-                    renderItem={({ item, index }) => (
-                      <FeaturedArtistCard
-                        artist={item}
-                        isActive={index === activeFeaturedIndex && featuredSectionVisible && focused}
-                        onOpenVideo={() => openVideoFeed(featured, item)}
-                        onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
-                      />
-                    )}
-                  />
+                  <View style={styles.featuredBox}>
+                    <View style={styles.featuredBoxHeader}>
+                      <View style={styles.featuredBoxTitleRow}>
+                        <MaterialCommunityIcons name="crown-outline" size={26} color={mock.amber} />
+                        <View>
+                          <Text style={styles.featuredBoxTitle}>Featured Artists</Text>
+                          <Text style={styles.featuredBoxSub}>Top performers, handpicked for you</Text>
+                        </View>
+                      </View>
+                      <Pressable onPress={() => router.push("/(tabs)/browse")} hitSlop={8}>
+                        <Text style={styles.featuredBoxViewAll}>View All ›</Text>
+                      </Pressable>
+                    </View>
+                    <FlatList
+                      data={featured}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyExtractor={(item) => item.id}
+                      contentContainerStyle={styles.featuredBoxRow}
+                      snapToInterval={FEATURED_PREMIUM_CARD_WIDTH + 10}
+                      decelerationRate="fast"
+                      viewabilityConfig={featuredViewability}
+                      onViewableItemsChanged={onFeaturedViewableChanged}
+                      initialNumToRender={2}
+                      maxToRenderPerBatch={2}
+                      windowSize={3}
+                      removeClippedSubviews
+                      renderItem={({ item }) => (
+                        <FeaturedPremiumCard
+                          artist={item}
+                          onOpenVideo={() => openVideoFeed(featured, item)}
+                          onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
+                        />
+                      )}
+                    />
+                  </View>
                 </View>
               ) : null}
 
@@ -582,6 +595,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginBottom: 10,
   },
+  featuredBox: {
+    marginHorizontal: spacing.md,
+    paddingVertical: 12,
+    paddingLeft: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,190,120,0.18)",
+    backgroundColor: "rgba(255,255,255,0.025)",
+    gap: 10,
+    overflow: "hidden",
+  },
+  featuredBoxHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingRight: 12 },
+  featuredBoxTitleRow: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 1 },
+  featuredBoxTitle: { fontFamily: fonts.displayBold, fontSize: 17, color: colors.text },
+  featuredBoxSub: { fontFamily: fonts.body, fontSize: 11, color: mock.textSoft },
+  featuredBoxViewAll: { fontFamily: fonts.body, fontSize: 12, color: mock.textSoft },
+  featuredBoxRow: { gap: 10, paddingRight: 12 },
   discoverTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   discoverTitle: { fontFamily: fonts.displayBold, fontSize: 19, color: colors.text },
   viewAll: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: "#FF8A9C" },

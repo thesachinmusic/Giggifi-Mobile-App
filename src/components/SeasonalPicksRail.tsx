@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { fetchSeasonalPicks, type SeasonalPick } from "@/lib/api";
 import { captureError } from "@/lib/telemetry";
-import { SectionHeader } from "@/components/SectionHeader";
+import { GradientText } from "@/components/GradientText";
 import { getSeasonalArt } from "@/components/SeasonalArt";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { colors, fonts, mock, spacing } from "@/theme";
 
-const CARD_WIDTH = 130;
-const CARD_HEIGHT = CARD_WIDTH * 1.3;
+const CARD_WIDTH = 124;
+const CARD_HEIGHT = 90;
+
+// Mock heading gradient: white into amber into pink.
+const HEADING_GRADIENT = ["#FFFFFF", "#FFB24A", "#FF5A8A"] as const;
+// No new font package: the italic accent note uses the system serif.
+const SERIF = Platform.select({ ios: "Georgia", default: "serif" });
 
 // Home's "Seasonal Picks" — driven entirely by the website's
 // FestivalCalendarEntry calendar (see getActiveSeasonalPicks), never
@@ -21,6 +26,16 @@ const CARD_HEIGHT = CARD_WIDTH * 1.3;
 // used by "Popular right now"'s onSeeAll and the reels promo elsewhere on
 // this screen, rather than guessing at a category mapping that doesn't
 // exist in the data.
+// Marks the dated (calendar-driven) festival tiles — evergreen tiles such as
+// Wedding or Corporate never carry it.
+function AutoBadge() {
+  return (
+    <View style={styles.autoBadge} pointerEvents="none">
+      <Text style={styles.autoBadgeText}>Auto</Text>
+    </View>
+  );
+}
+
 export function SeasonalPicksRail() {
   const [picks, setPicks] = useState<SeasonalPick[]>([]);
 
@@ -46,7 +61,12 @@ export function SeasonalPicksRail() {
 
   return (
     <View style={styles.wrap}>
-      <SectionHeader title="Seasonal Picks" />
+      <View style={styles.header}>
+        <GradientText style={styles.heading} colors={HEADING_GRADIENT}>Seasonal Picks</GradientText>
+        <Pressable onPress={() => router.push("/(tabs)/browse")} hitSlop={8}>
+          <Text style={styles.viewAll}>View All ›</Text>
+        </Pressable>
+      </View>
       <FlatList
         data={picks}
         horizontal
@@ -74,11 +94,13 @@ export function SeasonalPicksRail() {
                     style={StyleSheet.absoluteFill}
                   />
                   <Text style={styles.titleOverlay} numberOfLines={2}>{item.title}</Text>
+                  {item.isActive ? <AutoBadge /> : null}
                 </>
               ) : (
                 <>
                   <Text style={styles.icon}>{item.icon ?? "✨"}</Text>
                   <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+                  {item.isActive ? <AutoBadge /> : null}
                 </>
               )}
             </Pressable>
@@ -92,42 +114,58 @@ export function SeasonalPicksRail() {
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.xl },
-  row: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.md, marginBottom: 10 },
+  heading: { fontFamily: fonts.displayBold, fontSize: 19 },
+  viewAll: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: "#FF8A9C" },
+  row: { paddingHorizontal: spacing.md, gap: 8 },
   card: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radii.lg,
+    borderRadius: 16,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: mock.cardBorderWarm,
     overflow: "hidden",
   },
-  icon: { fontSize: 26, marginBottom: 6 },
+  icon: { fontSize: 24, marginBottom: 4 },
   title: {
     fontFamily: fonts.bodySemiBold,
-    fontSize: 11.5,
+    fontSize: 12,
     color: colors.text,
     textAlign: "center",
     paddingHorizontal: spacing.sm,
   },
   titleOverlay: {
     position: "absolute",
-    left: spacing.sm,
-    right: spacing.sm,
-    bottom: spacing.sm,
+    left: 10,
+    right: 8,
+    bottom: 8,
     fontFamily: fonts.bodySemiBold,
-    fontSize: 12.5,
+    fontSize: 12,
+    lineHeight: 13,
     color: "#fff",
-    textAlign: "center",
   },
+  autoBadge: {
+    position: "absolute",
+    left: 8,
+    top: 8,
+    height: 18,
+    paddingHorizontal: 8,
+    borderRadius: 9,
+    justifyContent: "center",
+    backgroundColor: "rgba(10,8,18,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(255,200,120,0.5)",
+  },
+  autoBadgeText: { fontFamily: fonts.bodySemiBold, fontSize: 9, color: "#FFD08A" },
   hint: {
-    fontFamily: fonts.body,
+    fontFamily: SERIF,
     fontStyle: "italic",
-    fontSize: 10.5,
-    color: colors.textMute,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.lg,
+    fontSize: 14,
+    color: mock.textSoft,
+    marginTop: 10,
+    paddingHorizontal: spacing.md,
   },
 });

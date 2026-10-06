@@ -1,4 +1,5 @@
 import { FlatList, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -34,6 +35,19 @@ const CATEGORY_PHOTOS: Record<string, ImageSourcePropType> = {
   "Sound & Lights": require("@/assets/images/categories/sound.jpg"),
 };
 
+// Small glyph above the label on the artist photo tiles (mock). Feather has
+// no guitar/dancer, so the closest stock icons are used; vendor tiles carry no
+// icon in the mock.
+const CATEGORY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  Singer: "mic",
+  DJ: "headphones",
+  "Live Band": "speaker",
+  Instrumentalist: "music",
+  Dancer: "activity",
+  Anchor: "radio",
+  Magician: "star",
+};
+
 // Zomato-style horizontal category rail — icon chip + label, swipe sideways
 // instead of wrapping into a static grid. Tapping jumps into Browse pre-filtered.
 export function CategoryGrid({ vertical = "artist", limit }: Props) {
@@ -63,7 +77,12 @@ export function CategoryGrid({ vertical = "artist", limit }: Props) {
                 style={StyleSheet.absoluteFill}
                 pointerEvents="none"
               />
-              <Text style={styles.photoLabel} numberOfLines={3}>{category.label}</Text>
+              <View style={styles.photoFoot}>
+                {vertical === "artist" && CATEGORY_ICONS[category.label] ? (
+                  <Feather name={CATEGORY_ICONS[category.label]} size={16} color="#fff" />
+                ) : null}
+                <Text style={styles.photoLabel} numberOfLines={3}>{category.label}</Text>
+              </View>
             </Pressable>
           );
         }
@@ -110,9 +129,8 @@ const styles = StyleSheet.create({
     lineHeight: 12,
     color: "#fff",
     textAlign: "center",
-    paddingHorizontal: 4,
-    paddingBottom: 9,
   },
+  photoFoot: { alignItems: "center", gap: 3, paddingHorizontal: 4, paddingBottom: 8 },
   item: {
     width: 72,
     alignItems: "center",
