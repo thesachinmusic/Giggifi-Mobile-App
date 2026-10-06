@@ -215,7 +215,12 @@ export default function HomeScreen() {
   const rankedArtists = useMemo(() => rankByHomeCity(artists, homeCity), [artists, homeCity]);
   const popular = useMemo(() => rankedArtists.slice(0, 12), [rankedArtists]);
   // Paid artists first, then the daily fill.
-  const featuredList = useMemo(() => [...featured, ...featuredFill], [featured, featuredFill]);
+  // (An artist is never in both lists server-side; the filter just guarantees
+  // unique FlatList keys if a response ever repeats one.)
+  const featuredList = useMemo(() => {
+    const paidIds = new Set(featured.map((a) => a.id));
+    return [...featured, ...featuredFill.filter((a) => !paidIds.has(a.id))];
+  }, [featured, featuredFill]);
 
   const [activeTrendingIndex, setActiveTrendingIndex] = useState(0);
 
@@ -387,7 +392,7 @@ export default function HomeScreen() {
                   </Pressable>
                 </View>
                 <FlatList
-                  data={featured}
+                  data={featuredList}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   keyExtractor={(item) => item.id}

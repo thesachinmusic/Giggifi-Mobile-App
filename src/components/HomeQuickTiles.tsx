@@ -13,6 +13,11 @@ interface Tile {
   iconSize: number | null;
   iconColor: string;
   title: string;
+  // Text actually drawn (explicit line break so a long word is never split);
+  // `title` stays the accessibility label.
+  display?: string;
+  // Smaller than the default for titles with a long word ("Requirement").
+  titleSize?: number;
   sub: string;
   href: Href;
   primary?: boolean;
@@ -34,7 +39,7 @@ const TILES: Tile[] = [
     href: "/quick-moments",
     primary: true,
   },
-  { key: "requirement", icon: "file-text", iconSize: 14, iconColor: mock.amber, title: "Post Your Requirement", sub: "Tell us what you need", href: "/quote-requests" },
+  { key: "requirement", icon: "file-text", iconSize: 14, iconColor: mock.amber, title: "Post Your Requirement", display: "Post Your\nRequirement", titleSize: 10.5, sub: "Tell us what you need", href: "/quote-requests" },
   { key: "reels", icon: "play-circle", iconSize: 22, iconColor: mock.roseSoft, title: "Reels", sub: "Discover and get inspired", href: "/(tabs)/reels" },
   { key: "hub", icon: "calendar", iconSize: null, iconColor: mock.roseSoft, title: "My Event Hub", sub: "Countdown, budget & checklist", href: "/my-event" },
 ];
@@ -54,7 +59,9 @@ export function HomeQuickTiles() {
             <LinearGradient colors={mockGradients.tile} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
           ) : null}
           {tile.iconSize ? <Feather name={tile.icon} size={tile.iconSize} color={tile.iconColor} /> : null}
-          <Text style={styles.title} numberOfLines={3}>{tile.title}</Text>
+          <Text style={[styles.title, tile.titleSize ? { fontSize: tile.titleSize } : null]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>
+            {tile.display ?? tile.title}
+          </Text>
           <Text style={[styles.sub, tile.primary && styles.subPrimary]} numberOfLines={3}>{tile.sub}</Text>
         </Pressable>
       ))}
@@ -80,7 +87,7 @@ const styles = StyleSheet.create({
   tilePrimary: { borderColor: "rgba(255,255,255,0.3)" },
   tilePlain: { backgroundColor: mock.cardFill, borderColor: "rgba(255,190,120,0.2)" },
   pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  title: { fontFamily: fonts.bodySemiBold, fontSize: 11.5, lineHeight: 13, color: "#fff", textAlign: "center" },
+  title: { fontFamily: fonts.bodySemiBold, fontSize: 11, lineHeight: 13, color: "#fff", textAlign: "center" },
   sub: { fontFamily: fonts.body, fontSize: 9.5, lineHeight: 11, color: mock.textSoft, textAlign: "center" },
   subPrimary: { color: "#FFE3D0" },
 });
