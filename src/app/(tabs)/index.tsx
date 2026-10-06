@@ -149,7 +149,7 @@ export default function HomeScreen() {
     }
     try {
       const { artists: results } = await fetchSavedArtists();
-      setSaved(results);
+      setSaved(results ?? []);
     } catch (err) {
       captureError(err, "home-saved-artists-fetch");
     }
