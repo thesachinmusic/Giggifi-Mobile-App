@@ -124,7 +124,7 @@ export default function BookingsScreen() {
   const visibleBookings = useMemo(() => bookings.filter((b) => matchesFilter(b.status, filter)), [bookings, filter]);
 
   return (
-    <GradientBackground>
+    <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>Bookings</Text>

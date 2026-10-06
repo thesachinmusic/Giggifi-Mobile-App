@@ -266,7 +266,7 @@ export default function HomeScreen() {
   const firstName = user?.name?.split(" ")[0];
 
   return (
-    <GradientBackground>
+    <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <ScrollView
           contentContainerStyle={styles.scroll}

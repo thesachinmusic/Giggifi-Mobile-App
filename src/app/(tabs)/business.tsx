@@ -51,7 +51,7 @@ export default function BusinessScreen() {
 
   if (loading) {
     return (
-      <GradientBackground>
+      <GradientBackground variant="giggifi">
         <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
           <View style={styles.centered}>
             <ActivityIndicator color={colors.pink} />
@@ -99,7 +99,7 @@ function BusinessDetailsForm({ phone, onSubmitted }: { phone: string | null; onS
   }
 
   return (
-    <GradientBackground>
+    <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <View style={styles.topbar}>
           <Text style={styles.tbName}>Business</Text>
@@ -202,7 +202,7 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
   const deals = BUSINESS_DEALS[activeTab];
 
   return (
-    <GradientBackground>
+    <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <View style={styles.topbar}>
           <Text style={styles.tbName}>Business Deals</Text>

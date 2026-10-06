@@ -99,3 +99,33 @@ export function accentForCategory(label: string): string | undefined {
       return undefined;
   }
 }
+
+// Home-redesign mock tokens (additive — only screens opting into the new look
+// read these). Values lifted from the approved mock's inline styles.
+export const mock = {
+  bg: "#0C0914",
+  tabBarBg: "#0D0A17",
+  tabBarBorder: "rgba(255,255,255,0.1)",
+  tabActive: "#FF6A6A",
+  tabInactive: "#B8AFCB",
+  textSoft: "#B8AFCB",
+  amber: "#FFB24A",
+  orange: "#FF8A3D",
+  coral: "#FF5A5A",
+  rose: "#FF4F7B",
+  roseSoft: "#FF8AA8",
+  lilacSoft: "#D9BEFF",
+  cardFill: "rgba(255,255,255,0.06)",
+  cardBorder: "rgba(255,255,255,0.14)",
+  cardBorderWarm: "rgba(255,190,120,0.22)",
+} as const;
+
+export const mockGradients = {
+  // Active pill / primary CTA in the mock.
+  cta: ["#FF9A3D", "#FF5A5A"] as const,
+  ctaRose: ["#FF9A3D", "#FF4F7B"] as const,
+  tile: ["#FF8A3D", "#FF3D7F"] as const,
+  // Gradient wordmark / headings.
+  wordmark: ["#FFB24A", "#FF8A3D", "#FF5A5A"] as const,
+  wordmarkLocations: [0, 0.55, 1] as const,
+} as const;

@@ -66,7 +66,7 @@ export default function ProfileScreen() {
   const showBookerProfileCard = user?.role !== "ARTIST" && bookerProfile !== undefined;
 
   return (
-    <GradientBackground>
+    <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Text style={styles.title}>Profile</Text>

@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { hapticSelect } from "@/lib/haptics";
-import { colors, fonts } from "@/theme";
+import { fonts, mock } from "@/theme";
 
 // Height for icon+label+top padding, excluding the safe-area inset — the
 // old hard-coded 88 was tuned for a notched iPhone's ~34pt home-indicator
@@ -18,19 +18,23 @@ export default function TabsLayout() {
       screenListeners={{ tabPress: () => hapticSelect() }}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: colors.textMute,
+        tabBarActiveTintColor: mock.tabActive,
+        tabBarInactiveTintColor: mock.tabInactive,
         tabBarHideOnKeyboard: Platform.OS === "android",
         tabBarStyle: {
-          backgroundColor: "#080409",
-          borderTopColor: colors.line,
+          backgroundColor: mock.tabBarBg,
+          borderTopColor: mock.tabBarBorder,
           borderTopWidth: 1,
           height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
           paddingTop: 8,
           paddingBottom: insets.bottom,
         },
+        // Mock: regular label when idle, bold in the active colour. The
+        // font family can't change with focus via tabBarLabelStyle alone, so
+        // the semibold face is used for every label (the colour carries
+        // active/inactive); existing max weight is 600.
         tabBarLabelStyle: {
-          fontFamily: fonts.bodyMedium,
+          fontFamily: fonts.bodySemiBold,
           fontSize: 11,
         },
       }}
