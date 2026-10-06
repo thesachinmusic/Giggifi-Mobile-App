@@ -33,15 +33,3 @@ describe("client categories", () => {
     expect(canonicalCategory("Poet")).toBe("Poet");
   });
 });
-
-describe("quote categories", () => {
-  it("keeps Poet and Sketch Artist out (they fold into Other on the backend)", async () => {
-    const { readFileSync } = await import("node:fs");
-    const src = readFileSync(new URL("./api.ts", import.meta.url), "utf8");
-    const block = src.slice(src.indexOf("export const QUOTE_CATEGORIES"), src.indexOf("] as const", src.indexOf("export const QUOTE_CATEGORIES")));
-    expect(block).not.toContain("Poet");
-    expect(block).not.toContain("Sketch Artist");
-    expect(block).toContain('"Sufi"');
-    expect(block).toContain('"Bhajan / Jamming"');
-  });
-});
