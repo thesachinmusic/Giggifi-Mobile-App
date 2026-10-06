@@ -289,11 +289,13 @@ export default function HomeScreen() {
           <ProfileCompletionBadge />
 
           <View style={styles.carouselWrap}>
-            <HeroCarousel />
+            <HeroCarousel vertical={browseVertical} />
           </View>
 
           <View style={styles.searchWrap}>
-            <SearchBarStatic label="Search artists, DJs, bands…" onPress={() => router.push("/(tabs)/browse")} />
+            <SearchBarStatic
+              label={browseVertical === "artist" ? "Search artists, DJs, bands…" : "Search photographers, decorators, caterers…"}
+              onPress={() => router.push("/(tabs)/browse")} />
           </View>
 
           <HomeQuickTiles />

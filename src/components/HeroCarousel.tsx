@@ -28,7 +28,7 @@ interface Slide {
 // Performance and For Businesses banners now live here as slides, each with
 // its original copy and destination; only the look follows the new mock.
 // "Next Event" is the default slide and opens Browse on the artists tab.
-const SLIDES: Slide[] = [
+const ARTIST_SLIDES: Slide[] = [
   {
     id: "next",
     tag: "Book artists for your",
@@ -80,7 +80,31 @@ const SLIDES: Slide[] = [
   },
 ];
 
-export function HeroCarousel() {
+// Vendors set: no Quick Performance (Quick Moments is artists-only), and no
+// Event Planner yet — /plan-my-event only matches artists, so a vendor slide
+// pointing there would promise something it doesn't do. For Businesses and
+// Secure Payment keep the same copy and destinations as the artists set.
+const VENDOR_SLIDES: Slide[] = [
+  {
+    id: "next",
+    tag: "Book vendors for your",
+    title: "Next Event",
+    titleSize: 30,
+    sub: "Photo · Decor · Catering · & More",
+    cta: "Explore Vendors",
+    href: { pathname: "/(tabs)/browse", params: { vertical: "vendor" } },
+    image: require("@/assets/images/home/hero-vendor-next.jpg"),
+  },
+  ARTIST_SLIDES.find((slide) => slide.id === "business")!,
+  ARTIST_SLIDES.find((slide) => slide.id === "secure")!,
+];
+
+export function HeroCarousel({ vertical = "artist" }: { vertical?: "artist" | "vendor" }) {
+  // Keyed so switching the Artists/Vendors toggle starts the new set on slide 1.
+  return <CarouselList key={vertical} slides={vertical === "vendor" ? VENDOR_SLIDES : ARTIST_SLIDES} />;
+}
+
+function CarouselList({ slides }: { slides: Slide[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -90,7 +114,7 @@ export function HeroCarousel() {
   return (
     <View>
       <FlatList
-        data={SLIDES}
+        data={slides}
         keyExtractor={(item) => item.id}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -142,7 +166,7 @@ export function HeroCarousel() {
         )}
       />
       <View style={styles.dots} pointerEvents="none">
-        {SLIDES.map((slide, index) => (
+        {slides.map((slide, index) => (
           <View key={slide.id} style={[styles.dot, index === activeIndex ? styles.dotActive : null]} />
         ))}
       </View>
