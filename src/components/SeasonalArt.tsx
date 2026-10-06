@@ -11,6 +11,8 @@ const ART_MATCHERS: { keywords: string[]; source: ImageSourcePropType }[] = [
   { keywords: ["navratri", "navaratri"], source: require("@/assets/images/seasonal/photo-navratri.jpg") },
   { keywords: ["diwali", "deepavali"], source: require("@/assets/images/seasonal/photo-diwali.jpg") },
   { keywords: ["ganpati", "ganesh"], source: require("@/assets/images/seasonal/photo-ganpati.jpg") },
+  { keywords: ["eid"], source: require("@/assets/images/seasonal/photo-eid.jpg") },
+  { keywords: ["christmas", "xmas"], source: require("@/assets/images/seasonal/photo-christmas.jpg") },
   { keywords: ["wedding"], source: require("@/assets/images/seasonal/photo-wedding.jpg") },
   { keywords: ["corporate"], source: require("@/assets/images/seasonal/photo-corporate.jpg") },
   // The one real FestivalCalendarEntry in production today is the combined
@@ -26,5 +28,8 @@ const ART_MATCHERS: { keywords: string[]; source: ImageSourcePropType }[] = [
 // nothing.
 export function getSeasonalArt(title: string): ImageSourcePropType | null {
   const lower = title.toLowerCase();
-  return ART_MATCHERS.find((m) => m.keywords.some((k) => lower.includes(k)))?.source ?? null;
+  // Short keywords ("eid") match whole words only, so they can't fire inside
+  // an unrelated word; longer ones match anywhere ("Ganpati Special").
+  const hit = (k: string) => (k.length <= 3 ? new RegExp(`\\b${k}\\b`).test(lower) : lower.includes(k));
+  return ART_MATCHERS.find((m) => m.keywords.some(hit))?.source ?? null;
 }
