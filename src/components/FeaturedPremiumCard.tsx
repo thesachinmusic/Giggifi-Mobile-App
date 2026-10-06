@@ -1,10 +1,14 @@
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors, fonts, mock, mockGradients } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
 import { useSavedArtists } from "@/lib/saved-artists-context";
+import { captureError } from "@/lib/telemetry";
+import { useVideoMute } from "@/lib/video-mute-context";
 import type { ArtistSummary } from "@/lib/api";
 
 export const FEATURED_PREMIUM_CARD_WIDTH = 216;
@@ -12,6 +16,10 @@ const CARD_HEIGHT = 176;
 
 interface Props {
   artist: ArtistSummary;
+  // True only for the card centred in view while the section is on screen and
+  // Home is focused (same gate the old autoplay card used). Only the active
+  // card ever loads media; the photo is the poster everywhere else.
+  isActive: boolean;
   // Same two destinations the previous Featured card had: tapping the card
   // opens the video feed when the artist has a video (otherwise the profile),
   // and the profile stays one tap away via "Book Now".
@@ -23,14 +31,49 @@ interface Props {
 // purple ring appear only when the API marks the artist `isFeatured` — i.e. a
 // real, paid FeaturedCampaign. Any artist that reaches this rail without that
 // flag (a future non-paid fill) gets a plain card.
-export function FeaturedPremiumCard({ artist, onOpenVideo, onViewProfile }: Props) {
+export function FeaturedPremiumCard({ artist, isActive, onOpenVideo, onViewProfile }: Props) {
   const { isSaved, toggle } = useSavedArtists();
+  const { muted, toggleMuted } = useVideoMute();
   const saved = isSaved(artist.id);
   const name = artist.stageName ?? "GiggiFi Artist";
-  const hasVideo = Boolean(artist.introVideoUrl ?? artist.showreelUrl);
+  const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
+  const hasVideo = Boolean(videoSource);
   const premium = artist.isFeatured === true;
   const [c1, c2] = duotoneFor(artist.id);
   const rated = artist.avgRating != null && artist.avgRating > 0;
+
+  const player = useVideoPlayer(null, (instance) => {
+    instance.loop = true;
+    instance.muted = true;
+  });
+
+  // Same load/unload discipline as the previous Featured card: a FlatList
+  // keeps several off-screen cards mounted, and buffering a network video per
+  // card can OOM weaker Android devices, so only the active card holds media.
+  useEffect(() => {
+    if (!videoSource) return;
+    let cancelled = false;
+    if (isActive) {
+      player.replaceAsync(videoSource).then(() => {
+        if (cancelled) return;
+        player.muted = muted;
+        player.play();
+      }).catch((err) => captureError(err, "featured-video-load"));
+    } else {
+      player.pause();
+      player.replaceAsync(null).catch((err) => captureError(err, "featured-video-unload"));
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, videoSource, player]);
+
+  useEffect(() => {
+    if (isActive) player.muted = muted;
+  }, [muted, isActive, player]);
+
+  const showVideo = isActive && hasVideo;
 
   return (
     <Pressable
@@ -44,6 +87,18 @@ export function FeaturedPremiumCard({ artist, onOpenVideo, onViewProfile }: Prop
           <Text style={styles.initial}>{name.trim().charAt(0).toUpperCase()}</Text>
         </LinearGradient>
       )}
+      {showVideo ? (
+        // textureView: Android's default SurfaceView can swallow taps meant for
+        // the Pressable overlay (same defensive setting as the old card).
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          nativeControls={false}
+          pointerEvents="none"
+          surfaceType="textureView"
+        />
+      ) : null}
       <LinearGradient
         colors={["rgba(10,8,18,0.05)", "rgba(10,8,18,0.95)"]}
         locations={[0.3, 1]}
@@ -67,6 +122,18 @@ export function FeaturedPremiumCard({ artist, onOpenVideo, onViewProfile }: Prop
       >
         <Feather name="heart" size={15} color={saved ? colors.pink : "#fff"} />
       </Pressable>
+
+      {showVideo ? (
+        <Pressable
+          onPress={toggleMuted}
+          style={styles.mute}
+          hitSlop={9}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? "Unmute video" : "Mute video"}
+        >
+          <Feather name={muted ? "volume-x" : "volume-2"} size={13} color="#fff" />
+        </Pressable>
+      ) : null}
 
       <View style={styles.info} pointerEvents="box-none">
         <View style={styles.infoText}>
@@ -128,6 +195,17 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
+    backgroundColor: "rgba(10,8,18,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  mute: {
+    position: "absolute",
+    right: 10,
+    top: 44,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "rgba(10,8,18,0.55)",
     alignItems: "center",
     justifyContent: "center",

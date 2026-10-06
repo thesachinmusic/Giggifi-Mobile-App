@@ -338,27 +338,69 @@ export default function HomeScreen() {
             <CategoryGrid vertical={browseVertical} />
           </View>
 
-          {/* Not called out in the new Home spec either way — kept rather
-              than silently dropped, same relative spot as before (right
-              after category browsing). Flagged back for an explicit call. */}
-          {saved.length > 0 ? (
+          {loading ? (
             <View style={styles.section}>
-              <SectionHeader icon="heart" title="Saved for you" />
-              <FlatList
-                data={saved}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.artistRow}
-                renderItem={({ item }) => (
-                  <ArtistCard artist={item} width={168} onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })} />
-                )}
-              />
+              <SectionHeader icon="star" title="Featured Artists" sub="Watch before you book" />
+              <View style={[styles.artistRow, styles.skeletonRow]}>
+                {[0, 1, 2].map((i) => (
+                  <View key={i} style={styles.skeletonCard}>
+                    <Skeleton height={168 * (4 / 3)} borderRadius={radii.xl} />
+                    <Skeleton height={14} width="70%" style={styles.skeletonLine} />
+                    <Skeleton height={11} width="40%" style={styles.skeletonLineSm} />
+                  </View>
+                ))}
+              </View>
             </View>
           ) : null}
 
-          {/* Position per the corrected Home order: directly below the
-              offer cards. */}
+          {!loading && !error && featured.length > 0 ? (
+            <View
+              style={styles.section}
+              onLayout={(e) => {
+                featuredSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
+              }}
+            >
+              <View style={styles.featuredBox}>
+                <View style={styles.featuredBoxHeader}>
+                  <View style={styles.featuredBoxTitleRow}>
+                    <MaterialCommunityIcons name="crown-outline" size={26} color={mock.amber} />
+                    <View>
+                      <Text style={styles.featuredBoxTitle}>Featured Artists</Text>
+                      <Text style={styles.featuredBoxSub}>Top performers, handpicked for you</Text>
+                    </View>
+                  </View>
+                  <Pressable onPress={() => router.push("/(tabs)/browse")} hitSlop={8}>
+                    <Text style={styles.featuredBoxViewAll}>View All ›</Text>
+                  </Pressable>
+                </View>
+                <FlatList
+                  data={featured}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.featuredBoxRow}
+                  snapToInterval={FEATURED_PREMIUM_CARD_WIDTH + 10}
+                  decelerationRate="fast"
+                  viewabilityConfig={featuredViewability}
+                  onViewableItemsChanged={onFeaturedViewableChanged}
+                  initialNumToRender={2}
+                  maxToRenderPerBatch={2}
+                  windowSize={3}
+                  removeClippedSubviews
+                  renderItem={({ item, index }) => (
+                    <FeaturedPremiumCard
+                      artist={item}
+                      isActive={index === activeFeaturedIndex && featuredSectionVisible && focused}
+                      onOpenVideo={() => openVideoFeed(featured, item)}
+                      onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
+                    />
+                  )}
+                />
+              </View>
+            </View>
+          ) : null}
+
+          {/* Redesign order: Discover, Featured, Seasonal, Fresh picks, Popular. */}
           <SeasonalPicksRail />
 
           <SoundwaveDivider />
@@ -370,18 +412,6 @@ export default function HomeScreen() {
                 <View style={[styles.featuredRow, styles.skeletonRow]}>
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
-                </View>
-              </View>
-              <View style={styles.section}>
-                <SectionHeader icon="star" title="Featured Artists" sub="Watch before you book" />
-                <View style={[styles.artistRow, styles.skeletonRow]}>
-                  {[0, 1, 2].map((i) => (
-                    <View key={i} style={styles.skeletonCard}>
-                      <Skeleton height={168 * (4 / 3)} borderRadius={radii.xl} />
-                      <Skeleton height={14} width="70%" style={styles.skeletonLine} />
-                      <Skeleton height={11} width="40%" style={styles.skeletonLineSm} />
-                    </View>
-                  ))}
                 </View>
               </View>
             </>
@@ -397,12 +427,10 @@ export default function HomeScreen() {
             </View>
           ) : (
             <>
-              {/* Fresh picks (trending) directly above Featured Artists —
-                  intended Home order, per Sachin's explicit item #6/#5
-                  request. Both rails already open the same swipeable
-                  video-feed screen via openVideoFeed (see its own
-                  comment) — no separate video player exists to reuse
-                  here, this section was already wired correctly. */}
+              {/* Fresh picks (trending), below Featured Artists and Seasonal
+                  Picks per the redesign order. Both video rails open the same
+                  swipeable video-feed screen via openVideoFeed (see its own
+                  comment). */}
               {trending.length > 0 ? (
                 <View
                   style={styles.section}
@@ -442,56 +470,8 @@ export default function HomeScreen() {
                 </View>
               ) : null}
 
-              {featured.length > 0 ? (
-                <View
-                  style={styles.section}
-                  onLayout={(e) => {
-                    featuredSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
-                  }}
-                >
-                  <View style={styles.featuredBox}>
-                    <View style={styles.featuredBoxHeader}>
-                      <View style={styles.featuredBoxTitleRow}>
-                        <MaterialCommunityIcons name="crown-outline" size={26} color={mock.amber} />
-                        <View>
-                          <Text style={styles.featuredBoxTitle}>Featured Artists</Text>
-                          <Text style={styles.featuredBoxSub}>Top performers, handpicked for you</Text>
-                        </View>
-                      </View>
-                      <Pressable onPress={() => router.push("/(tabs)/browse")} hitSlop={8}>
-                        <Text style={styles.featuredBoxViewAll}>View All ›</Text>
-                      </Pressable>
-                    </View>
-                    <FlatList
-                      data={featured}
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      keyExtractor={(item) => item.id}
-                      contentContainerStyle={styles.featuredBoxRow}
-                      snapToInterval={FEATURED_PREMIUM_CARD_WIDTH + 10}
-                      decelerationRate="fast"
-                      viewabilityConfig={featuredViewability}
-                      onViewableItemsChanged={onFeaturedViewableChanged}
-                      initialNumToRender={2}
-                      maxToRenderPerBatch={2}
-                      windowSize={3}
-                      removeClippedSubviews
-                      renderItem={({ item }) => (
-                        <FeaturedPremiumCard
-                          artist={item}
-                          onOpenVideo={() => openVideoFeed(featured, item)}
-                          onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
-                        />
-                      )}
-                    />
-                  </View>
-                </View>
-              ) : null}
-
-              {/* Also not called out in the new spec — kept rather than
-                  silently dropped, same relative spot as before (right
-                  after Featured Artists). Flagged back for an explicit
-                  call. */}
+              {/* Not part of the redesign mock — untouched, directly below
+                  Fresh picks. */}
               <View style={styles.section}>
                 <SectionHeader icon="trending-up" title="Popular right now" onSeeAll={() => router.push("/(tabs)/browse")} />
                 {popular.length === 0 ? (
@@ -519,6 +499,24 @@ export default function HomeScreen() {
               </View>
             </>
           )}
+
+          {/* Not part of the redesign mock — kept, now below Popular right
+              now (with From real events and the trust strip). */}
+          {saved.length > 0 ? (
+            <View style={styles.section}>
+              <SectionHeader icon="heart" title="Saved for you" />
+              <FlatList
+                data={saved}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.artistRow}
+                renderItem={({ item }) => (
+                  <ArtistCard artist={item} width={168} onPress={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })} />
+                )}
+              />
+            </View>
+          ) : null}
 
           <RealEventsRail />
 
