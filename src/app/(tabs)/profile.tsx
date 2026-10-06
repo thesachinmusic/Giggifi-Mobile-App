@@ -1,15 +1,22 @@
 import { useCallback, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View, Image } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GlassCard } from "@/components/GlassCard";
+import { ScreenTitle } from "@/components/ScreenTitle";
 import { InlinePhoneVerification } from "@/components/InlinePhoneVerification";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, type BookerProfile } from "@/lib/api";
 import { HELPLINE_NUMBER } from "@/lib/constants";
-import { colors, fonts, spacing, radii } from "@/theme";
+import { captureError } from "@/lib/telemetry";
+import { colors, fonts, mock, mockGradients, spacing, radii } from "@/theme";
+
+// Official grievance / support address (confirmed). Phone and WhatsApp reuse
+// the existing helpline constant.
+const SUPPORT_EMAIL = "admin@giggifi.com";
 
 const PROFILE_FIELDS = 5; // fullName, email, city, state, photo (companyName is optional, excluded)
 
@@ -49,12 +56,16 @@ export default function ProfileScreen() {
     ]);
   }
 
-  function handleHelpAndSupport() {
-    Alert.alert("Need help?", "Reach the GiggiFi helpline directly.", [
-      { text: "Call", onPress: () => Linking.openURL(`tel:${HELPLINE_NUMBER}`) },
-      { text: "WhatsApp", onPress: () => Linking.openURL(`https://wa.me/91${HELPLINE_NUMBER}`) },
-      { text: "Cancel", style: "cancel" },
-    ]);
+  // Help and support — same helpline wiring the old "Help & support" row used
+  // (HELPLINE_NUMBER, itself overridable via EXPO_PUBLIC_HELPLINE_NUMBER).
+  function handleEmail() {
+    Linking.openURL(`mailto:${SUPPORT_EMAIL}`).catch((err) => captureError(err, "profile-support-email"));
+  }
+  function handleCall() {
+    Linking.openURL(`tel:${HELPLINE_NUMBER}`).catch((err) => captureError(err, "profile-support-call"));
+  }
+  function handleWhatsApp() {
+    Linking.openURL(`https://wa.me/91${HELPLINE_NUMBER}`).catch((err) => captureError(err, "profile-support-whatsapp"));
   }
 
   const initial = (user?.name ?? user?.phone ?? "G").trim().charAt(0).toUpperCase();
@@ -65,32 +76,68 @@ export default function ProfileScreen() {
   const completionPct = bookerProfile ? Math.round((filledCount / PROFILE_FIELDS) * 100) : 0;
   const showBookerProfileCard = user?.role !== "ARTIST" && bookerProfile !== undefined;
 
+  const accountRows: MenuRowProps[] = user
+    ? [
+        ...(showBookerProfileCard && bookerProfile
+          ? [{ icon: "edit-2" as const, label: "Edit profile", tint: "amber" as const, onPress: () => router.push("/booker-profile") }]
+          : []),
+        { icon: "calendar", label: "My bookings", tint: "lilac", onPress: () => router.push("/(tabs)/bookings") },
+        { icon: "calendar", label: "My Event Hub", tint: "amber", onPress: () => router.push("/my-event") },
+        { icon: "repeat", label: "Recurring bookings", tint: "lilac", onPress: () => router.push("/recurring-series") },
+        { icon: "heart", label: "Saved artists", tint: "rose", onPress: () => router.push("/saved") },
+        { icon: "bell", label: "Notification settings", sub: "Push status and alerts", tint: "amber", onPress: () => router.push("/notification-settings") },
+      ]
+    : [];
+  const legalRows: MenuRowProps[] = [
+    { icon: "file-text", label: "Terms of Service", tint: "lilac", onPress: () => Linking.openURL("https://giggifi.com/terms") },
+    { icon: "shield", label: "Privacy Policy", tint: "amber", onPress: () => Linking.openURL("https://giggifi.com/privacy") },
+    { icon: "rotate-ccw", label: "Refund Policy", tint: "rose", onPress: () => Linking.openURL("https://giggifi.com/refund") },
+    { icon: "user-check", label: "Privacy Rights Request", tint: "lilac", onPress: () => Linking.openURL("https://giggifi.com/privacy-request") },
+  ];
+
   return (
     <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Profile</Text>
+          <ScreenTitle title="Profile" accent="made for you" />
 
           {user ? (
-            <GlassCard style={styles.userCard}>
+            <LinearGradient
+              colors={["rgba(255,138,61,0.22)", "rgba(166,107,255,0.22)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.userCard}
+            >
               {user.image ? (
                 <Image source={{ uri: user.image }} style={styles.avatarImage} />
               ) : (
-                <View style={styles.avatar}>
+                <LinearGradient colors={mockGradients.ctaRose} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.avatar}>
                   <Text style={styles.avatarText}>{initial}</Text>
-                </View>
+                </LinearGradient>
               )}
               <View style={styles.userInfo}>
-                <Text style={styles.name}>{bookerProfile?.fullName ?? user.name ?? "GiggiFi user"}</Text>
+                <Text style={styles.name} numberOfLines={1}>{bookerProfile?.fullName ?? user.name ?? "GiggiFi user"}</Text>
                 {user.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
-                {(bookerProfile?.email ?? user.email) ? <Text style={styles.meta}>{bookerProfile?.email ?? user.email}</Text> : null}
+                {(bookerProfile?.email ?? user.email) ? <Text style={styles.meta} numberOfLines={1}>{bookerProfile?.email ?? user.email}</Text> : null}
                 {user.role ? (
                   <View style={styles.roleBadge}>
                     <Text style={styles.roleText}>{user.role === "ARTIST" ? "ARTIST" : "CLIENT"}</Text>
                   </View>
                 ) : null}
               </View>
-            </GlassCard>
+              {showBookerProfileCard && bookerProfile ? (
+                <Pressable
+                  style={styles.editButton}
+                  onPress={() => router.push("/booker-profile")}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit profile"
+                >
+                  <Feather name="edit-2" size={17} color="#fff" />
+                </Pressable>
+              ) : null}
+              <Ionicons name="sparkles" size={22} color="#FFC27A" style={styles.sparkle} />
+            </LinearGradient>
           ) : (
             // Logging out clears the session correctly (see auth-context.tsx's
             // logout()), but this app has no separate login screen to land
@@ -113,70 +160,91 @@ export default function ProfileScreen() {
           )}
 
           {user?.role !== "ARTIST" && profileFetchError ? (
-            <GlassCard style={styles.completeCard}>
-              <View style={[styles.completeIcon, styles.errorIcon]}>
-                <Feather name="alert-circle" size={18} color={colors.err} />
+            <GlassCard>
+              <View style={styles.completeRow}>
+                <View style={[styles.completeIcon, styles.errorIcon]}>
+                  <Feather name="alert-circle" size={18} color={colors.err} />
+                </View>
+                <View style={styles.completeTextWrap}>
+                  <Text style={styles.completeTitle}>Couldn&apos;t load your profile</Text>
+                  <Text style={styles.completeSub}>Check your connection and try again.</Text>
+                </View>
+                <Pressable onPress={loadProfile} hitSlop={10} accessibilityRole="button" accessibilityLabel="Retry">
+                  <Feather name="refresh-cw" size={16} color={colors.textMute} />
+                </Pressable>
               </View>
-              <View style={styles.completeTextWrap}>
-                <Text style={styles.completeTitle}>Couldn&apos;t load your profile</Text>
-                <Text style={styles.completeSub}>Check your connection and try again.</Text>
-              </View>
-              <Pressable onPress={loadProfile} hitSlop={10} accessibilityRole="button" accessibilityLabel="Retry">
-                <Feather name="refresh-cw" size={16} color={colors.textMute} />
-              </Pressable>
             </GlassCard>
           ) : showBookerProfileCard ? (
             !bookerProfile ? (
               <Pressable onPress={() => router.push("/booker-profile")}>
-                <GlassCard style={styles.completeCard}>
-                  <View style={styles.completeIcon}>
-                    <Feather name="user-plus" size={18} color={colors.orange} />
+                <GlassCard>
+                  <View style={styles.completeRow}>
+                    <View style={styles.completeIcon}>
+                      <Feather name="user-plus" size={18} color={colors.orange} />
+                    </View>
+                    <View style={styles.completeTextWrap}>
+                      <Text style={styles.completeTitle}>Complete your profile</Text>
+                      <Text style={styles.completeSub}>Add your details to book artists faster.</Text>
+                    </View>
+                    <Feather name="chevron-right" size={18} color={colors.textMute} />
                   </View>
-                  <View style={styles.completeTextWrap}>
-                    <Text style={styles.completeTitle}>Complete your profile</Text>
-                    <Text style={styles.completeSub}>Add your details to book artists faster.</Text>
-                  </View>
-                  <Feather name="chevron-right" size={18} color={colors.textMute} />
                 </GlassCard>
               </Pressable>
             ) : completionPct < 100 ? (
               <Pressable onPress={() => router.push("/booker-profile")}>
-                <GlassCard style={styles.completeCard}>
-                  <View style={styles.progressRing}>
-                    <Text style={styles.progressRingText}>{completionPct}%</Text>
+                <GlassCard>
+                  <View style={styles.completeRow}>
+                    <View style={styles.progressRing}>
+                      <Text style={styles.progressRingText}>{completionPct}%</Text>
+                    </View>
+                    <View style={styles.completeTextWrap}>
+                      <Text style={styles.completeTitle}>Profile {completionPct}% complete</Text>
+                      <Text style={styles.completeSub}>Finish your profile for a smoother booking experience.</Text>
+                    </View>
+                    <Feather name="chevron-right" size={18} color={colors.textMute} />
                   </View>
-                  <View style={styles.completeTextWrap}>
-                    <Text style={styles.completeTitle}>Profile {completionPct}% complete</Text>
-                    <Text style={styles.completeSub}>Finish your profile for a smoother booking experience.</Text>
-                  </View>
-                  <Feather name="chevron-right" size={18} color={colors.textMute} />
                 </GlassCard>
               </Pressable>
             ) : null
           ) : null}
 
-          <View style={styles.menu}>
-            {user ? (
-              <>
-                {showBookerProfileCard && bookerProfile ? (
-                  <MenuRow icon="edit-2" label="Edit profile" onPress={() => router.push("/booker-profile")} />
-                ) : null}
-                <MenuRow icon="calendar" label="My bookings" onPress={() => router.push("/(tabs)/bookings")} />
-                <MenuRow icon="heart" label="Saved artists" onPress={() => router.push("/saved")} />
-                <MenuRow icon="bell" label="Notification settings" onPress={() => router.push("/notification-settings")} />
-              </>
-            ) : null}
-            <MenuRow icon="help-circle" label="Help & support" onPress={handleHelpAndSupport} />
-            <MenuRow icon="file-text" label="Terms of Service" onPress={() => Linking.openURL("https://giggifi.com/terms")} />
-            <MenuRow icon="shield" label="Privacy Policy" onPress={() => Linking.openURL("https://giggifi.com/privacy")} />
-            <MenuRow icon="rotate-ccw" label="Refund Policy" onPress={() => Linking.openURL("https://giggifi.com/refund")} />
-            <MenuRow icon="user-check" label="Privacy Rights Request" onPress={() => Linking.openURL("https://giggifi.com/privacy-request")} />
+          {accountRows.length > 0 ? <MenuGroup rows={accountRows} /> : null}
+
+          <View style={styles.helpCard}>
+            <View style={styles.helpHead}>
+              <View style={[styles.chip, { backgroundColor: "rgba(255,79,123,0.2)" }]}>
+                <Feather name="help-circle" size={20} color={mock.roseSoft} />
+              </View>
+              <View style={styles.helpHeadText}>
+                <Text style={styles.helpTitle}>Help and support</Text>
+                <Text style={styles.helpSub}>Talk to the Giggifi team one to one</Text>
+              </View>
+            </View>
+            <Pressable style={styles.helpEmailRow} onPress={handleEmail} accessibilityRole="button" accessibilityLabel={`Email ${SUPPORT_EMAIL}`}>
+              <Feather name="mail" size={18} color={mock.amber} />
+              <Text style={styles.helpEmailText} numberOfLines={1}>{SUPPORT_EMAIL}</Text>
+              <Text style={styles.helpEmailCta}>Email us</Text>
+            </Pressable>
+            <View style={styles.helpButtons}>
+              <Pressable style={styles.helpCallWrap} onPress={handleCall} accessibilityRole="button" accessibilityLabel="Call us">
+                <LinearGradient colors={mockGradients.ctaRose} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.helpCall}>
+                  <Feather name="phone" size={16} color="#fff" />
+                  <Text style={styles.helpButtonText}>Call us</Text>
+                </LinearGradient>
+              </Pressable>
+              <Pressable style={styles.helpWhatsApp} onPress={handleWhatsApp} accessibilityRole="button" accessibilityLabel="WhatsApp us">
+                <Feather name="message-circle" size={16} color="#7CF0A8" />
+                <Text style={[styles.helpButtonText, { color: "#7CF0A8" }]}>WhatsApp</Text>
+              </Pressable>
+            </View>
           </View>
+
+          <MenuGroup rows={legalRows} />
 
           {user ? (
             <>
               <Pressable onPress={handleLogout} style={styles.logout}>
-                <Feather name="log-out" size={16} color={colors.err} />
+                <Feather name="log-out" size={17} color="#FF9AA8" />
                 <Text style={styles.logoutText}>Log out</Text>
               </Pressable>
 
@@ -191,22 +259,44 @@ export default function ProfileScreen() {
   );
 }
 
-function MenuRow({ icon, label, onPress }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void }) {
+type Tint = "amber" | "lilac" | "rose";
+const TINT: Record<Tint, { bg: string; fg: string }> = {
+  amber: { bg: "rgba(255,178,74,0.16)", fg: "#FFB24A" },
+  lilac: { bg: "rgba(166,107,255,0.2)", fg: "#C9A6FF" },
+  rose: { bg: "rgba(255,79,123,0.18)", fg: "#FF8AA8" },
+};
+
+interface MenuRowProps {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  sub?: string;
+  tint: Tint;
+  onPress: () => void;
+}
+
+function MenuGroup({ rows }: { rows: MenuRowProps[] }) {
   return (
-    <Pressable onPress={onPress} style={styles.menuRow}>
-      <View style={styles.menuLeft}>
-        <Feather name={icon} size={17} color={colors.textDim} />
-        <Text style={styles.menuLabel}>{label}</Text>
-      </View>
-      <Feather name="chevron-right" size={17} color={colors.textMute} />
-    </Pressable>
+    <View style={styles.menu}>
+      {rows.map((row, i) => (
+        <Pressable key={row.label} onPress={row.onPress} style={[styles.menuRow, i < rows.length - 1 && styles.menuRowDivider]}>
+          <View style={[styles.chip, { backgroundColor: TINT[row.tint].bg }]}>
+            <Feather name={row.icon} size={20} color={TINT[row.tint].fg} />
+          </View>
+          <View style={styles.menuText}>
+            <Text style={styles.menuLabel}>{row.label}</Text>
+            {row.sub ? <Text style={styles.menuSub}>{row.sub}</Text> : null}
+          </View>
+          <Feather name="chevron-right" size={17} color={mock.textSoft} />
+        </Pressable>
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  loggedOutCard: { alignItems: "center", gap: 4, padding: spacing.lg, marginBottom: spacing.lg },
+  scroll: { paddingHorizontal: 20, paddingBottom: spacing.xxl, gap: 16 },
+  loggedOutCard: { alignItems: "center", gap: 4, padding: spacing.lg },
   loggedOutIcon: {
     width: 44,
     height: 44,
@@ -224,65 +314,53 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: spacing.sm,
   },
-  title: {
-    fontFamily: fonts.display,
-    fontSize: 26,
-    color: colors.text,
-    marginBottom: spacing.lg,
-  },
   userCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    gap: 14,
+    padding: 16,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    overflow: "hidden",
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.purple,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.5)",
   },
-  avatarText: {
-    fontFamily: fonts.display,
-    fontSize: 22,
-    color: "#fff",
-  },
-  avatarImage: { width: 56, height: 56, borderRadius: 28 },
+  avatarText: { fontFamily: fonts.displayBold, fontSize: 30, color: "#fff" },
+  avatarImage: { width: 68, height: 68, borderRadius: 34, borderWidth: 2, borderColor: "rgba(255,255,255,0.5)" },
   userInfo: { flex: 1, gap: 2 },
-  name: {
-    fontFamily: fonts.displayMedium,
-    fontSize: 17,
-    color: colors.text,
-  },
-  meta: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.textMute,
-  },
+  name: { fontFamily: fonts.displayBold, fontSize: 20, color: "#fff" },
+  meta: { fontFamily: fonts.body, fontSize: 13, color: "#D9D0EA" },
   roleBadge: {
     alignSelf: "flex-start",
     marginTop: 6,
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: "rgba(255,255,255,0.2)",
   },
-  roleText: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    color: colors.textDim,
-    letterSpacing: 0.5,
-  },
-  completeCard: {
-    flexDirection: "row",
+  roleText: { fontFamily: fonts.mono, fontSize: 9, color: "#E8E0F5", letterSpacing: 0.5 },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    justifyContent: "center",
   },
+  sparkle: { position: "absolute", right: 64, top: 8 },
+  completeRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   completeIcon: {
     width: 38,
     height: 38,
@@ -293,16 +371,8 @@ const styles = StyleSheet.create({
   },
   errorIcon: { backgroundColor: "rgba(239,68,68,0.15)" },
   completeTextWrap: { flex: 1, gap: 2 },
-  completeTitle: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 14.5,
-    color: colors.text,
-  },
-  completeSub: {
-    fontFamily: fonts.body,
-    fontSize: 12.5,
-    color: colors.textMute,
-  },
+  completeTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14.5, color: colors.text },
+  completeSub: { fontFamily: fonts.body, fontSize: 12.5, color: colors.textMute },
   progressRing: {
     width: 38,
     height: 38,
@@ -312,54 +382,70 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  progressRingText: {
-    fontFamily: fonts.mono,
-    fontSize: 9.5,
-    color: colors.orange,
-  },
+  progressRingText: { fontFamily: fonts.mono, fontSize: 9.5, color: colors.orange },
   menu: {
-    borderRadius: radii.xl,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+    borderColor: mock.cardBorder,
+    backgroundColor: mock.cardFill,
     overflow: "hidden",
   },
-  menuRow: {
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 14 },
+  menuRowDivider: { borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
+  chip: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  menuText: { flex: 1 },
+  menuLabel: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.text },
+  menuSub: { fontFamily: fonts.body, fontSize: 12, color: mock.textSoft },
+  helpCard: {
+    padding: 16,
+    borderRadius: 24,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,190,120,0.3)",
+    backgroundColor: "rgba(255,138,61,0.1)",
+  },
+  helpHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  helpHeadText: { flex: 1 },
+  helpTitle: { fontFamily: fonts.displayBold, fontSize: 16, color: "#fff" },
+  helpSub: { fontFamily: fonts.body, fontSize: 12, color: "#D9D0EA" },
+  helpEmailRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(10,8,18,0.35)",
   },
-  menuLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  menuLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 14,
-    color: colors.text,
+  helpEmailText: { flex: 1, fontFamily: fonts.body, fontSize: 13, color: colors.text },
+  helpEmailCta: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: "#FFC27A" },
+  helpButtons: { flexDirection: "row", gap: 10 },
+  helpCallWrap: { flex: 1 },
+  helpCall: { height: 44, borderRadius: 22, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  helpWhatsApp: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "rgba(37,211,102,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(37,211,102,0.6)",
   },
+  helpButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: "#fff" },
   logout: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
-    marginTop: spacing.xl,
-    paddingVertical: 14,
+    gap: 8,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,90,110,0.6)",
   },
-  logoutText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 14,
-    color: colors.err,
-  },
-  deleteAccount: {
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingBottom: spacing.xl,
-  },
-  deleteAccountText: {
-    fontFamily: fonts.body,
-    fontSize: 12.5,
-    color: colors.textMute,
-  },
+  logoutText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: "#FF9AA8" },
+  deleteAccount: { alignItems: "center", paddingVertical: 4, paddingBottom: spacing.xl },
+  deleteAccountText: { fontFamily: fonts.body, fontSize: 12.5, color: colors.textMute },
 });

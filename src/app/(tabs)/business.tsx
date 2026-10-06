@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
-import { GlassCard } from "@/components/GlassCard";
+import { ScreenTitle } from "@/components/ScreenTitle";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { useAuth } from "@/lib/auth-context";
 import { getBusinessDetails, setBusinessDetails, type BusinessDetails, type BusinessType } from "@/lib/business-storage";
@@ -13,7 +13,8 @@ import { BUSINESS_DEALS, BUSINESS_DEAL_TABS, type BusinessDealCategory, type Bus
 import { logBusinessDealInterest, syncBusinessDetails } from "@/lib/api";
 import { HELPLINE_NUMBER } from "@/lib/constants";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { colors, fonts, mock, mockGradients, radii, spacing } from "@/theme";
 
 const TYPE_OPTIONS: { key: BusinessType; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: "RESTAURANT", label: "Restaurant/Venue", icon: "coffee" },
@@ -101,9 +102,7 @@ function BusinessDetailsForm({ phone, onSubmitted }: { phone: string | null; onS
   return (
     <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <View style={styles.topbar}>
-          <Text style={styles.tbName}>Business</Text>
-        </View>
+        <ScreenTitle title="Business" accent="events for your team" />
         <KeyboardAvoidingScreen verticalOffset={80}>
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.signedInRow}>
@@ -204,9 +203,7 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
   return (
     <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        <View style={styles.topbar}>
-          <Text style={styles.tbName}>Business Deals</Text>
-        </View>
+        <ScreenTitle title="Business Deals" />
 
         <View style={styles.dealTabRow}>
           {BUSINESS_DEAL_TABS.map((t) => {
@@ -214,9 +211,12 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
             return (
               <Pressable
                 key={t.key}
-                style={[styles.dealTab, active && styles.dealTabActive]}
+                style={styles.dealTab}
                 onPress={() => setActiveTab(t.key)}
               >
+                {active ? (
+                  <LinearGradient colors={mockGradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                ) : null}
                 <Text style={[styles.dealTabText, active && styles.dealTabTextActive]}>{t.label}</Text>
               </Pressable>
             );
@@ -226,14 +226,33 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
         <ScrollView contentContainerStyle={styles.dealsScroll} showsVerticalScrollIndicator={false}>
           <Pressable style={styles.orgEntryCard} onPress={() => router.push("/organizations")}>
             <View style={styles.orgEntryIcon}>
-              <Feather name="users" size={16} color={colors.purple} />
+              <Feather name="users" size={22} color={mock.lilacSoft} />
             </View>
             <View style={styles.orgEntryText}>
               <Text style={styles.orgEntryTitle}>Business Account</Text>
               <Text style={styles.orgEntrySub}>Team members, billing & GSTIN, multi-outlet bookings</Text>
             </View>
-            <Feather name="chevron-right" size={16} color={colors.textMute} />
+            <Feather name="chevron-right" size={18} color={mock.textSoft} />
           </Pressable>
+
+          {/* Both tiles open screens that already exist (Get a Quote, now
+              labelled Post Your Requirement, and recurring series). */}
+          <View style={styles.tileRow}>
+            <Pressable style={[styles.tile, styles.tileAccent]} onPress={() => router.push("/quote-requests")}>
+              <Feather name="file-text" size={24} color="#C9A6FF" />
+              <View>
+                <Text style={styles.tileTitle}>Post Your Requirement</Text>
+                <Text style={styles.tileSub}>Compare quotes</Text>
+              </View>
+            </Pressable>
+            <Pressable style={styles.tile} onPress={() => router.push("/recurring-series")}>
+              <Feather name="repeat" size={24} color={mock.amber} />
+              <View>
+                <Text style={styles.tileTitle}>Recurring</Text>
+                <Text style={styles.tileSub}>Weekly and monthly acts</Text>
+              </View>
+            </Pressable>
+          </View>
 
           <View style={styles.disclaimerBox}>
             <Feather name="info" size={13} color={colors.textMute} />
@@ -241,7 +260,7 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
           </View>
 
           {deals.map((deal) => (
-            <GlassCard key={deal.id} style={styles.dealCard}>
+            <View key={deal.id} style={styles.dealCard}>
               <View style={styles.dealTagPill}>
                 <Text style={styles.dealTagText}>{deal.tag.toUpperCase()}</Text>
               </View>
@@ -249,9 +268,9 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
               <Text style={styles.dealBody}>{deal.body}</Text>
               <Pressable style={styles.dealCta} onPress={() => handleTalkToUs(deal)}>
                 <Text style={styles.dealCtaText}>Talk to us</Text>
-                <Feather name="arrow-right" size={14} color={colors.purple} />
+                <Feather name="arrow-right" size={14} color={mock.lilacSoft} />
               </Pressable>
-            </GlassCard>
+            </View>
           ))}
         </ScrollView>
       </SafeAreaView>
@@ -262,9 +281,7 @@ function BusinessDealsScreen({ details }: { details: BusinessDetails }) {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  topbar: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  tbName: { fontFamily: fonts.display, fontWeight: "600", fontSize: 16, color: "#fff" },
-  scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
+  scroll: { padding: 20, paddingBottom: spacing.xxl, gap: spacing.sm },
   signedInRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -321,18 +338,20 @@ const styles = StyleSheet.create({
   submitButton: { marginTop: spacing.lg },
   dealTabRow: {
     flexDirection: "row",
-    marginHorizontal: spacing.lg,
+    marginHorizontal: 20,
     marginBottom: spacing.md,
-    backgroundColor: colors.ink2,
-    borderRadius: radii.pill,
+    height: 46,
+    backgroundColor: mock.cardFill,
+    borderWidth: 1,
+    borderColor: "rgba(255,190,120,0.22)",
+    borderRadius: 23,
     padding: 4,
     gap: 4,
   },
-  dealTab: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: radii.pill },
-  dealTabActive: { backgroundColor: colors.purple },
-  dealTabText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.textMute },
+  dealTab: { flex: 1, alignItems: "center", justifyContent: "center", borderRadius: 19, overflow: "hidden" },
+  dealTabText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: mock.textSoft },
   dealTabTextActive: { color: "#fff" },
-  dealsScroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
+  dealsScroll: { paddingHorizontal: 20, paddingBottom: spacing.xxl, gap: spacing.md },
   disclaimerBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -349,36 +368,58 @@ const styles = StyleSheet.create({
   orgEntryCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: "rgba(168,85,247,0.08)",
+    gap: 12,
+    backgroundColor: mock.cardFill,
     borderWidth: 1,
-    borderColor: "rgba(168,85,247,0.25)",
-    borderRadius: radii.md,
-    padding: spacing.md,
+    borderColor: mock.cardBorder,
+    borderRadius: 22,
+    padding: 14,
     marginBottom: spacing.sm,
   },
   orgEntryIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(168,85,247,0.15)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(166,107,255,0.3)",
     alignItems: "center",
     justifyContent: "center",
   },
   orgEntryText: { flex: 1, gap: 2 },
-  orgEntryTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text },
-  orgEntrySub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute },
-  dealCard: { padding: spacing.md, gap: 6, marginBottom: spacing.sm },
+  orgEntryTitle: { fontFamily: fonts.displayBold, fontSize: 15, color: colors.text },
+  orgEntrySub: { fontFamily: fonts.body, fontSize: 12, color: mock.textSoft },
+  tileRow: { flexDirection: "row", gap: 12, marginBottom: spacing.sm },
+  tile: {
+    flex: 1,
+    minHeight: 96,
+    borderRadius: 22,
+    padding: 14,
+    justifyContent: "space-between",
+    backgroundColor: mock.cardFill,
+    borderWidth: 1,
+    borderColor: mock.cardBorder,
+  },
+  tileAccent: { backgroundColor: "rgba(166,107,255,0.2)", borderColor: "rgba(166,107,255,0.45)" },
+  tileTitle: { fontFamily: fonts.displayBold, fontSize: 15, color: colors.text },
+  tileSub: { fontFamily: fonts.body, fontSize: 11, color: mock.textSoft },
+  dealCard: {
+    padding: 16,
+    gap: 6,
+    marginBottom: spacing.sm,
+    borderRadius: 22,
+    backgroundColor: mock.cardFill,
+    borderWidth: 1,
+    borderColor: mock.cardBorder,
+  },
   dealTagPill: {
     alignSelf: "flex-start",
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: radii.pill,
-    backgroundColor: "rgba(168,85,247,0.16)",
+    backgroundColor: "rgba(166,107,255,0.18)",
   },
-  dealTagText: { fontFamily: fonts.mono, fontSize: 9.5, color: colors.purple, letterSpacing: 0.5 },
+  dealTagText: { fontFamily: fonts.mono, fontSize: 9.5, color: mock.lilacSoft, letterSpacing: 0.5 },
   dealHeadline: { fontFamily: fonts.display, fontSize: 16, color: colors.text },
   dealBody: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 18, color: colors.textDim },
   dealCta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
-  dealCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.purple },
+  dealCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: mock.lilacSoft },
 });

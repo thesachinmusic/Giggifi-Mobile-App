@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
-import { GlassCard } from "@/components/GlassCard";
+import { ScreenTitle } from "@/components/ScreenTitle";
 import { OemDeliveryCard } from "@/components/OemDeliveryCard";
 import { Skeleton } from "@/components/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -17,7 +18,7 @@ import { getOemGuidance, type OemGuidance } from "@/lib/oem-delivery";
 import { hasSeenOemCard, markOemCardSeen } from "@/lib/oem-guidance-storage";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, spacing, radii } from "@/theme";
+import { colors, fonts, mock, mockGradients, spacing, radii } from "@/theme";
 
 type BookingFilter = "all" | "upcoming" | "completed" | "cancelled";
 
@@ -126,13 +127,15 @@ export default function BookingsScreen() {
   return (
     <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Bookings</Text>
-          <Pressable style={styles.recurringButton} onPress={() => router.push("/recurring-series")} hitSlop={8}>
-            <Feather name="repeat" size={16} color={colors.purple} />
-            <Text style={styles.recurringButtonText}>Recurring</Text>
-          </Pressable>
-        </View>
+        <ScreenTitle
+          title="Bookings"
+          right={
+            <Pressable style={styles.recurringButton} onPress={() => router.push("/recurring-series")} hitSlop={8}>
+              <Feather name="repeat" size={17} color="#C9A6FF" />
+              <Text style={styles.recurringButtonText}>Recurring</Text>
+            </Pressable>
+          }
+        />
 
         {oemGuidance ? (
           <View style={styles.oemCardWrap}>
@@ -145,30 +148,39 @@ export default function BookingsScreen() {
         ) : null}
 
         {!loading && !(error && bookings.length === 0) ? (
-          <View style={styles.filterRow}>
-            {FILTER_TABS.map((tab) => (
-              <Pressable
-                key={tab.key}
-                onPress={() => { hapticSelect(); setFilter(tab.key); }}
-                style={[styles.filterTab, filter === tab.key && styles.filterTabActive]}
-              >
-                <Text style={[styles.filterTabText, filter === tab.key && styles.filterTabTextActive]}>{tab.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
+            {FILTER_TABS.map((tab) => {
+              const active = filter === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => { hapticSelect(); setFilter(tab.key); }}
+                  style={[styles.filterTab, !active && styles.filterTabIdle]}
+                >
+                  {active ? (
+                    <LinearGradient colors={mockGradients.ctaRose} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                  ) : null}
+                  <Text style={[styles.filterTabText, active && styles.filterTabTextActive]}>{tab.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         ) : null}
 
         {loading ? (
           <View style={styles.list}>
             {[0, 1, 2].map((i) => (
-              <GlassCard key={i} style={styles.card}>
-                <View style={styles.row}>
-                  <Skeleton width="55%" height={16} />
-                  <Skeleton width={70} height={20} borderRadius={radii.pill} />
+              <View key={i} style={styles.card}>
+                <Skeleton width={84} height={84} borderRadius={16} />
+                <View style={styles.cardBody}>
+                  <View style={styles.row}>
+                    <Skeleton width="55%" height={16} />
+                    <Skeleton width={70} height={20} borderRadius={radii.pill} />
+                  </View>
+                  <Skeleton width="40%" height={12} />
+                  <Skeleton width="35%" height={12} />
                 </View>
-                <Skeleton width="40%" height={12} />
-                <Skeleton width="35%" height={12} />
-              </GlassCard>
+              </View>
             ))}
           </View>
         ) : error && bookings.length === 0 ? (
@@ -212,23 +224,34 @@ export default function BookingsScreen() {
             renderItem={({ item }) => {
               const otherParty = item.artist?.stageName ?? item.booker?.fullName ?? "GiggiFi";
               const canBookAgain = COMPLETED_STATUSES.has(item.status);
+              const [c1] = duotoneFor(item.id);
+              const photo = item.artist?.profileImageUrl ?? null;
               return (
-                <Pressable onPress={() => router.push({ pathname: "/booking/[id]", params: { id: item.id } })}>
-                  <GlassCard style={styles.card}>
+                <Pressable onPress={() => router.push({ pathname: "/booking/[id]", params: { id: item.id } })} style={styles.card}>
+                  {photo ? (
+                    <Image source={{ uri: photo }} style={styles.thumb} contentFit="cover" />
+                  ) : (
+                    <View style={[styles.thumb, styles.thumbFallback, { backgroundColor: c1 }]}>
+                      <Text style={styles.thumbInitial}>{otherParty.trim().charAt(0).toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <View style={styles.cardBody}>
                     <View style={styles.row}>
-                      <Text style={styles.eventName} numberOfLines={1}>{item.eventName}</Text>
+                      <Text style={styles.eventName} numberOfLines={2}>{item.eventName}</Text>
                       <StatusBadge status={item.status} />
                     </View>
-                    <Text style={styles.meta}>{otherParty} · {item.eventCity}</Text>
-                    <View style={styles.dateRow}>
-                      <Feather name="calendar" size={11} color={colors.textMute} />
-                      <Text style={styles.dateText}>
-                        {new Date(item.eventDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                      </Text>
+                    <Text style={styles.meta} numberOfLines={1}>{otherParty} · {item.eventCity}</Text>
+                    <View style={styles.dateAmountRow}>
+                      <View style={styles.dateRow}>
+                        <Feather name="calendar" size={13} color={mock.textSoft} />
+                        <Text style={styles.dateText}>
+                          {new Date(item.eventDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </Text>
+                      </View>
+                      {item.totalAmount ? (
+                        <Text style={styles.amount}>₹{item.totalAmount.toLocaleString("en-IN")}</Text>
+                      ) : null}
                     </View>
-                    {item.totalAmount ? (
-                      <Text style={styles.amount}>₹{item.totalAmount.toLocaleString("en-IN")}</Text>
-                    ) : null}
                     {canBookAgain ? (
                       <Pressable
                         onPress={(e) => {
@@ -239,11 +262,11 @@ export default function BookingsScreen() {
                         style={styles.bookAgainButton}
                         hitSlop={6}
                       >
-                        <Feather name="repeat" size={12} color={colors.pink} />
+                        <Feather name="repeat" size={12} color={mock.roseSoft} />
                         <Text style={styles.bookAgainText}>Book Again</Text>
                       </Pressable>
                     ) : null}
-                  </GlassCard>
+                  </View>
                 </Pressable>
               );
             }}
@@ -300,8 +323,10 @@ function RegularsSection({ loading, regulars }: { loading: boolean; regulars: Re
 
   return (
     <View style={styles.regularsWrap}>
-      <Text style={styles.regularsTitle}>Your Regulars</Text>
-      <Text style={styles.regularsSub}>Artists you keep coming back to</Text>
+      <View style={styles.regularsHead}>
+        <Text style={styles.regularsTitle}>Your Regulars</Text>
+        <Text style={styles.regularsSub}>Artists you keep coming back to</Text>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.regularsRow}>
         {regulars.map((entry) => (
           <RegularArtistCard key={entry.artist.id} entry={entry} />
@@ -322,16 +347,14 @@ function RegularArtistCard({ entry }: { entry: RegularArtistEntry }) {
       onPress={() => router.push({ pathname: "/artist/[id]", params: { id: artist.id } })}
       style={styles.regularCard}
     >
-      <View style={styles.regularCardTop}>
-        {artist.profileImageUrl ? (
-          <Image source={{ uri: artist.profileImageUrl }} style={styles.regularAvatar} contentFit="cover" />
-        ) : (
-          <LinearGradientFallback c1={c1} c2={c2} initial={initial} />
-        )}
-        <View style={styles.regularInfo}>
-          <Text style={styles.regularName} numberOfLines={1}>{name}</Text>
-          <Text style={styles.regularCount}>{bookingCount} bookings</Text>
-        </View>
+      {artist.profileImageUrl ? (
+        <Image source={{ uri: artist.profileImageUrl }} style={styles.regularAvatar} contentFit="cover" />
+      ) : (
+        <LinearGradientFallback c1={c1} c2={c2} initial={initial} />
+      )}
+      <View style={styles.regularInfo}>
+        <Text style={styles.regularName} numberOfLines={1}>{name}</Text>
+        <Text style={styles.regularCount}>{bookingCount} bookings</Text>
       </View>
       <Pressable
         onPress={(e) => {
@@ -342,7 +365,7 @@ function RegularArtistCard({ entry }: { entry: RegularArtistEntry }) {
         style={styles.regularBookAgain}
         hitSlop={6}
       >
-        <Feather name="repeat" size={11} color={colors.pink} />
+        <Feather name="repeat" size={14} color={mock.roseSoft} />
         <Text style={styles.regularBookAgainText}>Book Again</Text>
       </Pressable>
     </Pressable>
@@ -359,52 +382,34 @@ function LinearGradientFallback({ c1, initial }: { c1: string; c2: string; initi
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  title: {
-    fontFamily: fonts.display,
-    fontSize: 26,
-    color: colors.text,
-  },
   recurringButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
+    gap: 8,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: "rgba(255,255,255,0.035)",
+    borderColor: "rgba(166,107,255,0.5)",
+    backgroundColor: "rgba(166,107,255,0.18)",
   },
-  recurringButtonText: { fontFamily: fonts.bodyMedium, fontSize: 12, color: colors.purple },
-  oemCardWrap: { paddingHorizontal: spacing.lg },
-  filterRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
+  recurringButtonText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: mock.lilacSoft },
+  oemCardWrap: { paddingHorizontal: 20 },
+  filterScroll: { flexGrow: 0, flexShrink: 0, marginBottom: 14 },
+  filterRow: { gap: 8, paddingHorizontal: 20 },
   filterTab: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
+    height: 36,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.ink2,
+    borderColor: "transparent",
   },
-  filterTabActive: { borderColor: colors.pink, backgroundColor: "rgba(236,72,153,0.1)" },
-  filterTabText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12.5,
-    color: colors.textMute,
-  },
-  filterTabTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
+  filterTabIdle: { backgroundColor: "rgba(255,255,255,0.07)", borderColor: mock.cardBorder },
+  filterTabText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.text },
+  filterTabTextActive: { color: "#fff" },
   errorScroll: { flexGrow: 1, alignItems: "center", paddingTop: spacing.xl },
   retryButton: {
     marginTop: spacing.md,
@@ -419,36 +424,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.pink,
   },
-  list: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
-  card: { gap: 6 },
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
-  eventName: {
-    flex: 1,
-    fontFamily: fonts.displayMedium,
-    fontSize: 16,
-    color: colors.text,
+  list: { paddingHorizontal: 20, gap: 12, paddingBottom: spacing.xxl },
+  card: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 10,
+    borderRadius: 22,
+    backgroundColor: mock.cardFill,
+    borderWidth: 1,
+    borderColor: mock.cardBorder,
   },
-  meta: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.textMute,
-  },
-  dateRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  dateText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.textMute,
-  },
-  amount: {
-    fontFamily: fonts.mono,
-    fontSize: 14,
-    color: colors.text,
-  },
+  thumb: { width: 84, height: 84, borderRadius: 16 },
+  thumbFallback: { alignItems: "center", justifyContent: "center" },
+  thumbInitial: { fontFamily: fonts.displayBold, fontSize: 28, color: "rgba(255,255,255,0.85)" },
+  cardBody: { flex: 1, minWidth: 0, gap: 6, justifyContent: "space-between" },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 6 },
+  eventName: { flex: 1, fontFamily: fonts.displayBold, fontSize: 16, lineHeight: 20, color: colors.text },
+  meta: { fontFamily: fonts.body, fontSize: 12, color: mock.textSoft },
+  dateAmountRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  dateRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dateText: { fontFamily: fonts.body, fontSize: 12, color: "#D9D0EA" },
+  amount: { fontFamily: fonts.displayBold, fontSize: 17, color: colors.text },
   muted: {
     fontFamily: fonts.body,
     fontSize: 14,
     color: colors.textMute,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 20,
     marginTop: spacing.lg,
   },
   emptyState: { alignItems: "center", gap: spacing.md, paddingTop: spacing.xl },
@@ -472,77 +473,63 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-start",
     gap: 5,
-    marginTop: 4,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.pink,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: mock.rose,
   },
-  bookAgainText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: colors.pink,
-  },
-  regularsWrap: { marginBottom: spacing.lg },
-  regularsTitle: {
-    fontFamily: fonts.display,
-    fontSize: 17,
-    color: colors.text,
-    paddingHorizontal: spacing.lg,
-  },
+  bookAgainText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: mock.roseSoft },
+  regularsWrap: { marginBottom: 14 },
+  regularsHead: { paddingHorizontal: 20, marginBottom: 8, flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", gap: 10 },
+  regularsTitle: { fontFamily: fonts.displayBold, fontSize: 20, color: colors.text },
   regularsSub: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.textMute,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    marginTop: 2,
+    fontFamily: Platform.select({ ios: "Georgia", default: "serif" }),
+    fontStyle: "italic",
+    fontSize: 17,
+    color: "#FFC27A",
   },
-  regularsRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  regularsRow: { paddingHorizontal: 20, gap: 10 },
   regularsEmptyCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginHorizontal: spacing.lg,
+    marginHorizontal: 20,
     padding: spacing.md,
-    borderRadius: radii.lg,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    borderColor: mock.cardBorder,
+    backgroundColor: mock.cardFill,
   },
   regularsEmptyText: { flex: 1, gap: 2 },
   regularsEmptyTitle: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.text },
-  regularsEmptySub: { fontFamily: fonts.body, fontSize: 11.5, color: colors.pink },
+  regularsEmptySub: { fontFamily: fonts.body, fontSize: 11.5, color: mock.roseSoft },
   regularCard: {
-    width: 168,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: "rgba(255,255,255,0.03)",
+    width: 320,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     padding: 12,
-    gap: 10,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: mock.cardBorder,
+    backgroundColor: mock.cardFill,
   },
-  regularCardTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  regularAvatar: { width: 40, height: 40, borderRadius: 20 },
+  regularAvatar: { width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: "#FF8A4D" },
   regularAvatarFallback: { alignItems: "center", justifyContent: "center" },
-  regularAvatarInitial: { fontFamily: fonts.display, fontSize: 15, color: "#fff" },
-  regularInfo: { flex: 1, gap: 1 },
-  regularName: { fontFamily: fonts.displayMedium, fontSize: 13.5, color: colors.text },
-  regularCount: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute },
+  regularAvatarInitial: { fontFamily: fonts.displayBold, fontSize: 18, color: "#fff" },
+  regularInfo: { flex: 1, minWidth: 0, gap: 1 },
+  regularName: { fontFamily: fonts.displayBold, fontSize: 15, color: colors.text },
+  regularCount: { fontFamily: fonts.body, fontSize: 12, color: mock.textSoft },
   regularBookAgain: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.pink,
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: mock.rose,
   },
-  regularBookAgainText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11,
-    color: colors.pink,
-  },
+  regularBookAgainText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: mock.roseSoft },
 });

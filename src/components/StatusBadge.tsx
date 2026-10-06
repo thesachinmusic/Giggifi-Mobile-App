@@ -2,11 +2,12 @@ import { StyleSheet, Text, View } from "react-native";
 import { STATUS_LABEL, STATUS_TONE, type StatusTone } from "@/lib/booking-status";
 import { colors, fonts, radii } from "@/theme";
 
+// Tones follow the redesign mock (soft amber / rose / lilac on tinted pills).
 const TONE_COLOR: Record<StatusTone, string> = {
   ok: colors.ok,
-  warn: colors.warn,
-  err: colors.err,
-  neutral: colors.purple,
+  warn: "#FFC27A",
+  err: "#FF9AA8",
+  neutral: "#D9BEFF",
 };
 
 export function StatusBadge({ status }: { status: string }) {
@@ -22,12 +23,13 @@ export function StatusBadge({ status }: { status: string }) {
 const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    height: 24,
+    justifyContent: "center",
     borderRadius: radii.pill,
     borderWidth: 1,
   },
   text: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 11,
   },
 });
