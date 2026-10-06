@@ -1,26 +1,24 @@
 import type { ImageSourcePropType } from "react-native";
 
-// Final illustrated artwork for Home's Seasonal Picks — replaces the
-// original-line-art SVG stage (see the removed SeasonalIcons.tsx). Matched
+// Photos for Home's Seasonal Picks (372px wide, ~17-43 KB each — they replace
+// the 1-2 MB illustrated PNGs, which are no longer referenced). Matched
 // against a pick's title by keyword, same reasoning as that file: the
 // website appends " Special" to any dated (non-evergreen)
 // FestivalCalendarEntry, so "Ganpati Special" and a bare evergreen title
 // like "Wedding Season" both need to resolve correctly without requiring
 // an exact string match.
 const ART_MATCHERS: { keywords: string[]; source: ImageSourcePropType }[] = [
-  { keywords: ["ganpati", "ganesh"], source: require("@/assets/images/seasonal/ganpati-special.png") },
-  { keywords: ["wedding"], source: require("@/assets/images/seasonal/wedding-special.png") },
-  { keywords: ["corporate"], source: require("@/assets/images/seasonal/corporate-events.png") },
-  // "clubbing" checked before the bare "bhajan" match further down isn't
-  // needed — the two keyword lists never overlap — but this entry is kept
-  // separate from Sufi's on purpose: a combined "Bhajan & Sufi" title (the
-  // one real FestivalCalendarEntry in production today) would otherwise
-  // silently only ever resolve to whichever of the two came first in this
-  // list. See the flagged-back note in the PR/summary — this pairing needs
-  // an actual backend data split before both images can ever show as two
-  // separate cards.
-  { keywords: ["bhajan"], source: require("@/assets/images/seasonal/bhajan-clubbing.png") },
-  { keywords: ["sufi"], source: require("@/assets/images/seasonal/sufi-special.png") },
+  { keywords: ["navratri", "navaratri"], source: require("@/assets/images/seasonal/photo-navratri.jpg") },
+  { keywords: ["diwali", "deepavali"], source: require("@/assets/images/seasonal/photo-diwali.jpg") },
+  { keywords: ["ganpati", "ganesh"], source: require("@/assets/images/seasonal/photo-ganpati.jpg") },
+  { keywords: ["wedding"], source: require("@/assets/images/seasonal/photo-wedding.jpg") },
+  { keywords: ["corporate"], source: require("@/assets/images/seasonal/photo-corporate.jpg") },
+  // The one real FestivalCalendarEntry in production today is the combined
+  // "Bhajan & Sufi" title, which contains both keywords — so "bhajan" must
+  // come first and wins for it. A separate Sufi tile (the photo below) only
+  // appears once the backend data is split into two entries.
+  { keywords: ["bhajan"], source: require("@/assets/images/seasonal/photo-bhajan.jpg") },
+  { keywords: ["sufi"], source: require("@/assets/images/seasonal/photo-sufi.jpg") },
 ];
 
 // Returns null for any occasion not covered above — the caller falls back

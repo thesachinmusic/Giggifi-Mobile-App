@@ -295,7 +295,10 @@ export default function HomeScreen() {
           <View style={styles.searchWrap}>
             <SearchBarStatic
               label={browseVertical === "artist" ? "Search artists, DJs, bands…" : "Search photographers, decorators, caterers…"}
-              onPress={() => router.push("/(tabs)/browse")} />
+              onPress={() =>
+                router.push(browseVertical === "vendor" ? { pathname: "/(tabs)/browse", params: { vertical: "vendor" } } : "/(tabs)/browse")
+              }
+            />
           </View>
 
           <HomeQuickTiles />
