@@ -84,8 +84,8 @@ export function accentForCategory(label: string): string | undefined {
     case "Singer":
     case "Live Band":
     case "Instrumentalist":
-    case "Sufi Band":
-    case "Bhajan Clubbing":
+    case "Sufi":
+    case "Bhajan / Jamming":
       return categoryAccents.music;
     case "Comedian":
       return categoryAccents.comedy;

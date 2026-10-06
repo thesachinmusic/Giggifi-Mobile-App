@@ -9,6 +9,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { Skeleton } from "@/components/Skeleton";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
+import { canonicalCategory } from "@/lib/categories";
 import { VENDOR_CATEGORIES } from "@/lib/vendor-categories";
 import {
   fetchEventPlans,
@@ -44,8 +45,8 @@ const ARTIST_CATEGORIES = [
   { label: "Anchor", emoji: "🎙️" },
   { label: "Instrumentalist", emoji: "🎻" },
   { label: "Magician", emoji: "🪄" },
-  { label: "Bhajan Clubbing", emoji: "🪔" },
-  { label: "Sufi Band", emoji: "🕌" },
+  { label: "Bhajan / Jamming", emoji: "🪔" },
+  { label: "Sufi", emoji: "🕌" },
   { label: "Other", emoji: "✨" },
 ] as const;
 
@@ -406,7 +407,7 @@ function ChecklistCard({
     if (!item.category) return;
     router.push({
       pathname: "/(tabs)/browse",
-      params: { vertical: item.kind === "vendor" ? "vendor" : "artist", category: item.category },
+      params: { vertical: item.kind === "vendor" ? "vendor" : "artist", category: item.kind === "vendor" ? item.category : canonicalCategory(item.category) },
     });
   }
 

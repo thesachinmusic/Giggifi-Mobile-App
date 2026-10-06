@@ -19,7 +19,7 @@ import {
   ApiError,
   type RebookCheckResult,
 } from "@/lib/api";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, canonicalCategory } from "@/lib/categories";
 import { DURATION_OPTIONS, DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
@@ -156,7 +156,8 @@ export default function RebookScreen() {
   }
 
   function goToSimilarArtists() {
-    const performerType = check?.artist?.performerType ?? null;
+    const rawType = check?.artist?.performerType ?? null;
+    const performerType = rawType ? canonicalCategory(rawType) : null;
     const knownCategory = performerType && (CATEGORIES as readonly { label: string }[]).some((c) => c.label === performerType);
     router.replace({
       pathname: "/(tabs)/browse",
