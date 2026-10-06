@@ -10,6 +10,11 @@ describe("client categories", () => {
     expect(labels).toContain("Bhajan / Jamming");
   });
 
+  it("offers Poet and Sketch Artist as Browse pills", () => {
+    expect(labels).toContain("Poet");
+    expect(labels).toContain("Sketch Artist");
+  });
+
   it("no longer offers the old names", () => {
     expect(labels).not.toContain("Sufi Band");
     expect(labels).not.toContain("Bhajan Clubbing");
@@ -25,5 +30,18 @@ describe("client categories", () => {
   it("leaves current names untouched", () => {
     for (const label of labels) expect(canonicalCategory(label)).toBe(label);
     expect(canonicalCategory("Sketch Artist")).toBe("Sketch Artist");
+    expect(canonicalCategory("Poet")).toBe("Poet");
+  });
+});
+
+describe("quote categories", () => {
+  it("keeps Poet and Sketch Artist out (they fold into Other on the backend)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("./api.ts", import.meta.url), "utf8");
+    const block = src.slice(src.indexOf("export const QUOTE_CATEGORIES"), src.indexOf("] as const", src.indexOf("export const QUOTE_CATEGORIES")));
+    expect(block).not.toContain("Poet");
+    expect(block).not.toContain("Sketch Artist");
+    expect(block).toContain('"Sufi"');
+    expect(block).toContain('"Bhajan / Jamming"');
   });
 });

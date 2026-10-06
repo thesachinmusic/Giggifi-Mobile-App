@@ -8,6 +8,8 @@ export const CATEGORIES = [
   { label: "Anchor", emoji: "🎙️" },
   { label: "Instrumentalist", emoji: "🎻" },
   { label: "Magician", emoji: "🪄" },
+  { label: "Poet", emoji: "📜" },
+  { label: "Sketch Artist", emoji: "✏️" },
   { label: "Celebrity", emoji: "⭐" },
   { label: "Bhajan / Jamming", emoji: "🪔" },
   { label: "Sufi", emoji: "🕌" },
