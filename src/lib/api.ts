@@ -487,8 +487,11 @@ export async function fetchActiveOfferId(artistId: string): Promise<string | und
   }
 }
 
+// `artists` is paid placement only (Browse's "Sponsored" rail reads just this).
+// `fill` is an additive list of unpaid artists that rotate daily to fill the
+// Home rail's empty slots — absent on a backend that predates it.
 export function fetchFeatured() {
-  return request<{ artists: ArtistSummary[]; total: number }>("/api/mobile/featured");
+  return request<{ artists: ArtistSummary[]; total: number; fill?: ArtistSummary[] }>("/api/mobile/featured");
 }
 
 // Home's "X events booked this week" strip — visible is computed

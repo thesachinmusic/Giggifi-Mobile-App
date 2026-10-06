@@ -108,6 +108,8 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [artists, setArtists] = useState<ArtistSummary[]>([]);
   const [featured, setFeatured] = useState<ArtistSummary[]>([]);
+  // Unpaid daily-rotating artists that fill the Featured rail's empty slots.
+  const [featuredFill, setFeaturedFill] = useState<ArtistSummary[]>([]);
   const [trending, setTrending] = useState<ArtistSummary[]>([]);
   const [saved, setSaved] = useState<ArtistSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,13 +122,17 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [{ artists: results }, { artists: featuredResults }, { artists: trendingResults }] = await Promise.all([
+      const [{ artists: results }, { artists: featuredResults, fill: fillResults }, { artists: trendingResults }] = await Promise.all([
         fetchArtists({}),
         fetchFeatured(),
         fetchArtists({ sort: "trending" }),
       ]);
       setArtists(results);
       setFeatured(featuredResults);
+      // Forced to isFeatured:false so a fill artist can never get the Premium
+      // pill or purple ring, whatever the server sends; `?? []` keeps an older
+      // backend (no `fill` key) working.
+      setFeaturedFill((fillResults ?? []).map((a) => ({ ...a, isFeatured: false })));
       // No one has racked up real bookings yet, so a "trending" sort is flat —
       // shuffle instead of showing the same static order every time. Seeded
       // by the date so it holds steady across pull-to-refresh and only
@@ -208,6 +214,8 @@ export default function HomeScreen() {
 
   const rankedArtists = useMemo(() => rankByHomeCity(artists, homeCity), [artists, homeCity]);
   const popular = useMemo(() => rankedArtists.slice(0, 12), [rankedArtists]);
+  // Paid artists first, then the daily fill.
+  const featuredList = useMemo(() => [...featured, ...featuredFill], [featured, featuredFill]);
 
   const [activeTrendingIndex, setActiveTrendingIndex] = useState(0);
 
@@ -358,7 +366,7 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          {!loading && !error && featured.length > 0 ? (
+          {!loading && !error && featuredList.length > 0 ? (
             <View
               style={styles.section}
               onLayout={(e) => {
@@ -371,7 +379,7 @@ export default function HomeScreen() {
                     <MaterialCommunityIcons name="crown-outline" size={26} color={mock.amber} />
                     <View>
                       <Text style={styles.featuredBoxTitle}>Featured Artists</Text>
-                      <Text style={styles.featuredBoxSub}>Top performers, handpicked for you</Text>
+                      <Text style={styles.featuredBoxSub}>{featured.length > 0 ? "Top performers, handpicked for you" : "Artists to discover today"}</Text>
                     </View>
                   </View>
                   <Pressable onPress={() => router.push("/(tabs)/browse")} hitSlop={8}>
@@ -396,7 +404,7 @@ export default function HomeScreen() {
                     <FeaturedPremiumCard
                       artist={item}
                       isActive={index === activeFeaturedIndex && featuredSectionVisible && focused}
-                      onOpenVideo={() => openVideoFeed(featured, item)}
+                      onOpenVideo={() => openVideoFeed(featuredList, item)}
                       onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                     />
                   )}
