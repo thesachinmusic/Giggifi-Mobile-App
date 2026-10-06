@@ -124,7 +124,6 @@ export function HeroCarousel() {
               style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
-            <View style={styles.glow} pointerEvents="none" />
             <View style={styles.copy}>
               <Text style={styles.tag} numberOfLines={1}>{item.tag.toUpperCase()}</Text>
               <Text
@@ -162,15 +161,6 @@ const styles = StyleSheet.create({
   },
   photo: { position: "absolute", right: 0, top: 0, bottom: 0, width: "74%" },
   photoIcon: { position: "absolute", right: 24, top: 0, bottom: 0, justifyContent: "center" },
-  glow: {
-    position: "absolute",
-    right: -34,
-    top: -44,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: "rgba(255,170,90,0.16)",
-  },
   copy: {
     position: "absolute",
     left: 16,

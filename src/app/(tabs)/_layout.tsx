@@ -5,13 +5,22 @@ import { Feather } from "@expo/vector-icons";
 import { hapticSelect } from "@/lib/haptics";
 import { fonts, mock } from "@/theme";
 
-// Height for icon+label+top padding, excluding the safe-area inset — the
-// old hard-coded 88 was tuned for a notched iPhone's ~34pt home-indicator
-// inset baked in, so it was correct there and too tall everywhere else.
+// Height for border + tab item, excluding the bottom padding. Each tab item
+// needs ~52pt: the navigator's own 5+5pt button padding (not overridable via
+// tabBarItemStyle, which styles the outer wrapper) around the 28pt icon box
+// and the ~14pt label. The earlier paddingTop 8 inside a 54 bar left 45, so
+// the label was clipped (measured 7pt tall instead of ~14); paddingTop is 0
+// now and the items' own padding supplies the top gap. Total height is
+// unchanged (54 + bottom inset); ~88 on an iPhone with a 34pt inset.
 const TAB_BAR_CONTENT_HEIGHT = 54;
+const TAB_ICON_SIZE = 22;
+// Devices with no home-indicator inset (web, many Androids) still get a bit
+// of breathing room under the labels.
+const MIN_BOTTOM_PADDING = 8;
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, MIN_BOTTOM_PADDING);
 
   return (
     <Tabs
@@ -25,9 +34,9 @@ export default function TabsLayout() {
           backgroundColor: mock.tabBarBg,
           borderTopColor: mock.tabBarBorder,
           borderTopWidth: 1,
-          height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
-          paddingTop: 8,
-          paddingBottom: insets.bottom,
+          height: TAB_BAR_CONTENT_HEIGHT + bottomPad,
+          paddingTop: 0,
+          paddingBottom: bottomPad,
         },
         // Mock: regular label when idle, bold in the active colour. The
         // font family can't change with focus via tabBarLabelStyle alone, so
@@ -43,28 +52,28 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="home" size={TAB_ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
         name="browse"
         options={{
           title: "Browse",
-          tabBarIcon: ({ color, size }) => <Feather name="search" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="search" size={TAB_ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
         name="reels"
         options={{
           title: "Reels",
-          tabBarIcon: ({ color, size }) => <Feather name="film" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="film" size={TAB_ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
         name="bookings"
         options={{
           title: "Bookings",
-          tabBarIcon: ({ color, size }) => <Feather name="calendar" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="calendar" size={TAB_ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -73,14 +82,14 @@ export default function TabsLayout() {
           title: "Business",
           // Feather has no literal "building" glyph — briefcase is the
           // closest standard "business" icon in the set this app uses.
-          tabBarIcon: ({ color, size }) => <Feather name="briefcase" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="briefcase" size={TAB_ICON_SIZE} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="user" size={TAB_ICON_SIZE} color={color} />,
         }}
       />
     </Tabs>

@@ -1,6 +1,37 @@
-import { StyleSheet, View, type ViewStyle } from "react-native";
+import { Dimensions, StyleSheet, View, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, mock } from "@/theme";
+
+const { width: W, height: H } = Dimensions.get("window");
+const GLOW_STEPS = 16;
+
+// Soft radial glow centred on (cx, cy): GLOW_STEPS circles, outermost first,
+// each adding peak/GLOW_STEPS of opacity, so the total fades linearly from
+// `peak` at the centre to 0 at `radius`.
+function Glow({ cx, cy, radius, rgb, peak }: { cx: number; cy: number; radius: number; rgb: string; peak: number }) {
+  const alpha = peak / GLOW_STEPS;
+  return (
+    <View style={styles.glowLayer} pointerEvents="none">
+      {Array.from({ length: GLOW_STEPS }, (_, i) => {
+        const r = radius * (1 - i / GLOW_STEPS);
+        return (
+          <View
+            key={i}
+            style={{
+              position: "absolute",
+              left: cx - r,
+              top: cy - r,
+              width: r * 2,
+              height: r * 2,
+              borderRadius: r,
+              backgroundColor: `rgba(${rgb},${alpha})`,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
 
 interface Props {
   children?: React.ReactNode;
@@ -15,19 +46,15 @@ interface Props {
 // with soft purple + orange radial-ish blobs in the top corners.
 export function GradientBackground({ children, style, variant = "classic" }: Props) {
   if (variant === "giggifi") {
-    // React Native has no radial-gradient; each glow is a large circle filled
-    // with a vertical fade, same approximation the classic variant uses.
+    // React Native has no radial gradient and react-native-svg isn't a
+    // dependency, so each glow is a stack of concentric low-alpha circles —
+    // the stepped alphas blend into a smooth falloff with no visible edge
+    // (a single circle with a vertical fade showed a hard rim).
     return (
       <View style={[styles.root, styles.rootGiggifi, style]}>
-        <View style={styles.gPurpleTop} pointerEvents="none">
-          <LinearGradient colors={["rgba(112,48,152,0.75)", "rgba(112,48,152,0)"]} style={StyleSheet.absoluteFill} />
-        </View>
-        <View style={styles.gOrange} pointerEvents="none">
-          <LinearGradient colors={["rgba(205,92,40,0.40)", "rgba(205,92,40,0)"]} style={StyleSheet.absoluteFill} />
-        </View>
-        <View style={styles.gPurpleMid} pointerEvents="none">
-          <LinearGradient colors={["rgba(90,36,120,0.28)", "rgba(90,36,120,0)"]} style={StyleSheet.absoluteFill} />
-        </View>
+        <Glow cx={0.08 * W} cy={0} radius={0.95 * W} rgb="112,48,152" peak={0.75} />
+        <Glow cx={W} cy={0.14 * H} radius={0.75 * W} rgb="205,92,40" peak={0.4} />
+        <Glow cx={0} cy={0.55 * H} radius={0.8 * W} rgb="90,36,120" peak={0.28} />
         <View style={styles.content}>{children}</View>
       </View>
     );
@@ -59,6 +86,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   rootGiggifi: { backgroundColor: mock.bg },
+  glowLayer: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
   glowPurple: {
     position: "absolute",
     width: 420,
@@ -75,33 +103,6 @@ const styles = StyleSheet.create({
     borderRadius: 460,
     right: -160,
     top: -60,
-    overflow: "hidden",
-  },
-  gPurpleTop: {
-    position: "absolute",
-    width: 560,
-    height: 560,
-    borderRadius: 560,
-    left: -200,
-    top: -220,
-    overflow: "hidden",
-  },
-  gOrange: {
-    position: "absolute",
-    width: 420,
-    height: 420,
-    borderRadius: 420,
-    right: -170,
-    top: -40,
-    overflow: "hidden",
-  },
-  gPurpleMid: {
-    position: "absolute",
-    width: 520,
-    height: 520,
-    borderRadius: 520,
-    left: -260,
-    top: 380,
     overflow: "hidden",
   },
   content: {
