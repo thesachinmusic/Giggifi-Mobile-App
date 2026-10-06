@@ -43,7 +43,7 @@ export default function QuoteRequestsScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["bottom"]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Get a Quote</Text>
+          <Text style={styles.title}>Post Your Requirement</Text>
           <Text style={styles.subtitle}>Describe every performer you need for an event in one request — compare quotes side by side.</Text>
 
           <GradientButton label="New quote request" onPress={() => router.push("/quote-requests/new")} style={styles.newButton} />

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { colors, fonts, radii, spacing } from "@/theme";
+import { fonts, mock, radii, spacing } from "@/theme";
 
 // Zepto/Blinkit-style pill search bar — big touch target, icon-led, sits
 // at the top of Home so search is always one thumb-reach away. Browse's own
@@ -10,7 +10,7 @@ export function SearchBarStatic({ label, onPress }: { label: string; onPress: ()
   return (
     <Pressable onPress={onPress} style={styles.wrap}>
       <View style={styles.row}>
-        <Feather name="search" size={18} color={colors.textMute} />
+        <Feather name="search" size={18} color="#E8E0F5" />
         <Text style={styles.staticLabel}>{label}</Text>
       </View>
     </Pressable>
@@ -19,9 +19,9 @@ export function SearchBarStatic({ label, onPress }: { label: string; onPress: ()
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.ink2,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: "rgba(255,255,255,0.2)",
     borderRadius: radii.pill,
     paddingHorizontal: spacing.md,
   },
@@ -29,11 +29,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    minHeight: 48,
+    minHeight: 46,
   },
   staticLabel: {
     fontFamily: fonts.body,
-    fontSize: 14.5,
-    color: colors.textMute,
+    fontSize: 13.5,
+    color: mock.textSoft,
   },
 });

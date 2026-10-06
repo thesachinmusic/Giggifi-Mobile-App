@@ -13,13 +13,15 @@ import {
   type ViewToken,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { SearchBarStatic } from "@/components/SearchBar";
 import { HeroCarousel } from "@/components/HeroCarousel";
+import { HomeQuickTiles } from "@/components/HomeQuickTiles";
 import { CategoryGrid } from "@/components/CategoryGrid";
 import { FeaturedArtistCard, FEATURED_CARD_WIDTH } from "@/components/FeaturedArtistCard";
 import { ArtistCard } from "@/components/ArtistCard";
@@ -32,14 +34,13 @@ import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { ProfileCompletionBadge } from "@/components/ProfileCompletionBadge";
 import { Skeleton } from "@/components/Skeleton";
 import { SoundwaveDivider } from "@/components/SoundwaveDivider";
-import { FadeInView } from "@/components/FadeInView";
 import { useAuth } from "@/lib/auth-context";
 import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
 import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, radii, shadows, spacing, visualColors, withAlpha } from "@/theme";
+import { colors, fonts, mock, mockGradients, radii, spacing } from "@/theme";
 
 type BrowseVertical = "artist" | "vendor";
 
@@ -290,57 +291,47 @@ export default function HomeScreen() {
             <HeroCarousel />
           </View>
 
-          {/* My Event Hub keeps its spot until the quick-tiles row replaces it. */}
-          <View style={styles.cityEventRow}>
-            <Pressable style={({ pressed }) => [styles.eventHubCard, pressed && styles.pressed]} onPress={() => router.push("/my-event")}>
-              <View style={styles.eventHubIcon}>
-                <Feather name="calendar" size={14} color={colors.purple} />
-              </View>
-              <View style={styles.eventHubTextWrap}>
-                <Text style={styles.eventHubTitle} numberOfLines={1}>My Event Hub</Text>
-                <Text style={styles.eventHubSub} numberOfLines={1}>Countdown, budget & checklist</Text>
-              </View>
-            </Pressable>
-          </View>
-
           <View style={styles.searchWrap}>
             <SearchBarStatic label="Search artists, DJs, bands…" onPress={() => router.push("/(tabs)/browse")} />
           </View>
 
-          {/* Get a Quote (RFP) — for a multi-performer event, describe every
-              need in one request instead of enquiring artist-by-artist. */}
-          <FadeInView delay={80}>
-            <Pressable style={({ pressed }) => [styles.quoteStrip, pressed && styles.pressed]} onPress={() => router.push("/quote-requests")}>
-              <View style={styles.quoteStripIcon}>
-                <Feather name="file-text" size={16} color="#fff" />
-              </View>
-              <View style={styles.reelsStripBody}>
-                <Text style={styles.reelsStripTitle}>Get a Quote</Text>
-                <Text style={styles.reelsStripSub}>Multiple performers for one event? Ask once, compare quotes.</Text>
-              </View>
-              <Feather name="chevron-right" size={18} color={colors.textMute} />
+          <HomeQuickTiles />
+
+          <View style={styles.verticalToggle}>
+            <Pressable
+              style={styles.verticalToggleTab}
+              onPress={() => setBrowseVertical("artist")}
+              accessibilityRole="button"
+              accessibilityState={{ selected: browseVertical === "artist" }}
+            >
+              {browseVertical === "artist" ? (
+                <LinearGradient colors={mockGradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+              ) : null}
+              <Feather name="mic" size={17} color={browseVertical === "artist" ? "#fff" : mock.textSoft} />
+              <Text style={[styles.verticalToggleText, browseVertical === "artist" && styles.verticalToggleTextActive]}>Artists</Text>
             </Pressable>
-          </FadeInView>
+            <Pressable
+              style={styles.verticalToggleTab}
+              onPress={() => setBrowseVertical("vendor")}
+              accessibilityRole="button"
+              accessibilityState={{ selected: browseVertical === "vendor" }}
+            >
+              {browseVertical === "vendor" ? (
+                <LinearGradient colors={mockGradients.cta} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+              ) : null}
+              <Feather name="shopping-bag" size={17} color={browseVertical === "vendor" ? "#fff" : mock.textSoft} />
+              <Text style={[styles.verticalToggleText, browseVertical === "vendor" && styles.verticalToggleTextActive]}>Vendors</Text>
+            </Pressable>
+          </View>
 
           <View style={styles.section}>
-            <SectionHeader
-              icon={browseVertical === "artist" ? "mic" : "briefcase"}
-              title={browseVertical === "artist" ? "Artists" : "Vendors"}
-              sub={browseVertical === "artist" ? "Performers for your event" : "Everything else for the day"}
-              onSeeAll={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: browseVertical } })}
-            />
-            <View style={styles.verticalToggle}>
-              <Pressable
-                style={[styles.verticalToggleTab, browseVertical === "artist" && styles.verticalToggleTabActive]}
-                onPress={() => setBrowseVertical("artist")}
-              >
-                <Text style={[styles.verticalToggleText, browseVertical === "artist" && styles.verticalToggleTextActive]}>Artists</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.verticalToggleTab, browseVertical === "vendor" && styles.verticalToggleTabActive]}
-                onPress={() => setBrowseVertical("vendor")}
-              >
-                <Text style={[styles.verticalToggleText, browseVertical === "vendor" && styles.verticalToggleTextActive]}>Vendors</Text>
+            <View style={styles.discoverHeader}>
+              <View style={styles.discoverTitleRow}>
+                <Ionicons name="sparkles-outline" size={20} color={mock.amber} />
+                <Text style={styles.discoverTitle}>{browseVertical === "artist" ? "Discover Artists" : "Discover Vendors"}</Text>
+              </View>
+              <Pressable onPress={() => router.push({ pathname: "/(tabs)/browse", params: { vertical: browseVertical } })} hitSlop={8}>
+                <Text style={styles.viewAll}>View All ›</Text>
               </Pressable>
             </View>
             <CategoryGrid vertical={browseVertical} />
@@ -364,23 +355,6 @@ export default function HomeScreen() {
               />
             </View>
           ) : null}
-
-          {/* Compact reel-discovery strip — replaces both the old
-              "N events booked this week" social-proof strip and the old
-              full-size "Scroll the reel, find your act" gradient promo
-              (same destination, same intent; keeping both would have been
-              a duplicate "go watch Reels" prompt on one screen). Position
-              per the corrected Home order: directly above the offer cards. */}
-          <Pressable style={({ pressed }) => [styles.reelsStrip, pressed && styles.pressed]} onPress={() => router.push("/(tabs)/reels")}>
-            <View style={styles.reelsStripPlay}>
-              <Feather name="play" size={14} color="#fff" />
-            </View>
-            <View style={styles.reelsStripBody}>
-              <Text style={styles.reelsStripTitle}>Discover through Giggifi Reels</Text>
-              <Text style={styles.reelsStripSub}>Swipe through artist videos and shortlist your favs</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMute} />
-          </Pressable>
 
           {/* Position per the corrected Home order: directly below the
               offer cards. */}
@@ -577,29 +551,40 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2 },
   carouselWrap: { marginBottom: spacing.md },
   pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
-  cityEventRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  searchWrap: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
+  searchWrap: { paddingHorizontal: spacing.md, marginBottom: spacing.md },
   section: { marginBottom: spacing.xl },
   verticalToggle: {
     flexDirection: "row",
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
+    height: 46,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.lg,
     padding: 4,
-    borderRadius: radii.pill,
-    backgroundColor: colors.ink2,
+    borderRadius: 23,
+    backgroundColor: mock.cardFill,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: "rgba(255,190,120,0.22)",
   },
-  verticalToggleTab: { flex: 1, paddingVertical: 9, borderRadius: radii.pill, alignItems: "center" },
-  verticalToggleTabActive: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.lineStrong },
-  verticalToggleText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.textMute },
-  verticalToggleTextActive: { color: colors.text, fontFamily: fonts.bodySemiBold },
+  verticalToggleTab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 19,
+    overflow: "hidden",
+  },
+  verticalToggleText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: mock.textSoft },
+  verticalToggleTextActive: { color: "#fff" },
+  discoverHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    marginBottom: 10,
+  },
+  discoverTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  discoverTitle: { fontFamily: fonts.displayBold, fontSize: 19, color: colors.text },
+  viewAll: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: "#FF8A9C" },
   featuredRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   artistRow: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   muted: {
@@ -659,75 +644,5 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     color: colors.textMute,
     textAlign: "center",
-  },
-  eventHubCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,255,255,0.035)",
-    borderWidth: 1,
-    borderColor: withAlpha(visualColors.violet, 0.28),
-    ...shadows.soft,
-  },
-  eventHubIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    backgroundColor: "rgba(168,85,247,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  eventHubTextWrap: { flex: 1 },
-  eventHubTitle: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.text },
-  eventHubSub: { fontFamily: fonts.body, fontSize: 10, color: colors.textMute, marginTop: 1 },
-  reelsStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,255,255,0.035)",
-    borderWidth: 1,
-    borderColor: withAlpha(visualColors.pink, 0.3),
-    ...shadows.soft,
-  },
-  reelsStripPlay: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.magenta,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reelsStripBody: { flex: 1, gap: 2 },
-  reelsStripTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.text },
-  reelsStripSub: { fontFamily: fonts.body, fontSize: 11, color: colors.textMute },
-  quoteStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,255,255,0.035)",
-    borderWidth: 1,
-    borderColor: withAlpha(visualColors.violet, 0.3),
-    ...shadows.soft,
-  },
-  quoteStripIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.purple,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

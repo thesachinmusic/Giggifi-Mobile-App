@@ -323,7 +323,7 @@ function RootLayoutContent() {
                     name="quote-requests/index"
                     options={{
                       headerShown: true,
-                      headerTitle: "Get a Quote",
+                      headerTitle: "Post Your Requirement",
                       headerTintColor: colors.text,
                       headerStyle: { backgroundColor: colors.ink },
                       headerBackTitle: "Back",
