@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { useVideoPlayer, VideoView, type VideoPlayer } from "expo-video";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors, fonts, mock, mockGradients } from "@/theme";
 import { duotoneFor } from "@/lib/palette";
@@ -13,6 +13,13 @@ import type { ArtistSummary } from "@/lib/api";
 
 export const FEATURED_PREMIUM_CARD_WIDTH = 216;
 const CARD_HEIGHT = 176;
+
+// Module-level so the React Compiler lint (which forbids assigning to values
+// returned by a hook inside a component) doesn't flag the player mutation;
+// behaviour is identical to assigning `player.muted` inline.
+function setPlayerMuted(player: VideoPlayer, muted: boolean) {
+  player.muted = muted;
+}
 
 interface Props {
   artist: ArtistSummary;
@@ -56,7 +63,7 @@ export function FeaturedPremiumCard({ artist, isActive, onOpenVideo, onViewProfi
     if (isActive) {
       player.replaceAsync(videoSource).then(() => {
         if (cancelled) return;
-        player.muted = muted;
+        setPlayerMuted(player, muted);
         player.play();
       }).catch((err) => captureError(err, "featured-video-load"));
     } else {
@@ -70,7 +77,7 @@ export function FeaturedPremiumCard({ artist, isActive, onOpenVideo, onViewProfi
   }, [isActive, videoSource, player]);
 
   useEffect(() => {
-    if (isActive) player.muted = muted;
+    if (isActive) setPlayerMuted(player, muted);
   }, [muted, isActive, player]);
 
   const showVideo = isActive && hasVideo;
