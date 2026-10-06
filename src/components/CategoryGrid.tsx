@@ -18,8 +18,9 @@ interface CategoryOption {
 }
 
 // Bundled category photos (AI-generated stand-ins for the common categories,
-// ~15-40 KB each). Only categories listed here get a photo tile; every other
-// category keeps the original emoji tile. Keyed by the real category label.
+// ~7-40 KB each). Only categories listed here get a photo tile; any category
+// with no entry (or whose label doesn't match) keeps the original emoji tile.
+// Keyed by the real category label.
 const CATEGORY_PHOTOS: Record<string, ImageSourcePropType> = {
   Singer: require("@/assets/images/categories/singer.jpg"),
   DJ: require("@/assets/images/categories/dj.jpg"),
@@ -28,11 +29,25 @@ const CATEGORY_PHOTOS: Record<string, ImageSourcePropType> = {
   Dancer: require("@/assets/images/categories/dancer.jpg"),
   Anchor: require("@/assets/images/categories/anchor.jpg"),
   Magician: require("@/assets/images/categories/magician.jpg"),
+  Comedian: require("@/assets/images/categories/comedian.jpg"),
+  Poet: require("@/assets/images/categories/poet.jpg"),
+  "Sketch Artist": require("@/assets/images/categories/sketch-artist.jpg"),
+  Celebrity: require("@/assets/images/categories/celebrity.jpg"),
+  "Bhajan / Jamming": require("@/assets/images/categories/bhajan-jamming.jpg"),
+  Sufi: require("@/assets/images/categories/sufi.jpg"),
   "Photography & Videography": require("@/assets/images/categories/photography.jpg"),
   "Decor & Design": require("@/assets/images/categories/decor.jpg"),
   "Catering & Food": require("@/assets/images/categories/catering.jpg"),
   "Beauty & Styling": require("@/assets/images/categories/beauty.jpg"),
   "Sound & Lights": require("@/assets/images/categories/sound.jpg"),
+  "Venues & Spaces": require("@/assets/images/categories/venues.jpg"),
+  "Event Production & Technical": require("@/assets/images/categories/production.jpg"),
+  "Planning & Coordination": require("@/assets/images/categories/planning.jpg"),
+  "Invitations & Print": require("@/assets/images/categories/invitations.jpg"),
+  "Transport & Logistics": require("@/assets/images/categories/transport.jpg"),
+  "Kids & Family Entertainment": require("@/assets/images/categories/kids.jpg"),
+  "Security & Support Staff": require("@/assets/images/categories/security.jpg"),
+  "Wellness & Extras": require("@/assets/images/categories/wellness.jpg"),
 };
 
 // Small glyph above the label on the artist photo tiles (mock). Feather has
@@ -46,6 +61,12 @@ const CATEGORY_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   Dancer: "activity",
   Anchor: "radio",
   Magician: "star",
+  Comedian: "smile",
+  Poet: "feather",
+  "Sketch Artist": "edit-3",
+  Celebrity: "award",
+  "Bhajan / Jamming": "sun",
+  Sufi: "moon",
 };
 
 // Zomato-style horizontal category rail — icon chip + label, swipe sideways
