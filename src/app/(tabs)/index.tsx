@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
+import { Image } from "expo-image";
 import * as Location from "expo-location";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
@@ -31,7 +31,6 @@ import { RealEventsRail } from "@/components/RealEventsRail";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { ProfileCompletionBadge } from "@/components/ProfileCompletionBadge";
 import { Skeleton } from "@/components/Skeleton";
-import { GradientText } from "@/components/GradientText";
 import { SoundwaveDivider } from "@/components/SoundwaveDivider";
 import { FadeInView } from "@/components/FadeInView";
 import { useAuth } from "@/lib/auth-context";
@@ -40,7 +39,7 @@ import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
 import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
-import { colors, fonts, gradients, radii, shadows, spacing, visualColors, withAlpha } from "@/theme";
+import { colors, fonts, radii, shadows, spacing, visualColors, withAlpha } from "@/theme";
 
 type BrowseVertical = "artist" | "vendor";
 
@@ -263,8 +262,6 @@ export default function HomeScreen() {
     });
   }, [viewportHeight]);
 
-  const firstName = user?.name?.split(" ")[0];
-
   return (
     <GradientBackground variant="giggifi">
       <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -276,18 +273,25 @@ export default function HomeScreen() {
           scrollEventThrottle={100}
         >
           <View style={styles.header}>
-            <View style={styles.headerRow}>
-              <Text style={styles.eyebrow}>GIGGIFI</Text>
+            <View style={styles.brandCol}>
+              <Image source={require("@/assets/images/giggifi-logo-cropped.png")} style={styles.logo} contentFit="contain" accessibilityLabel="GiggiFi" />
+              <Text style={styles.tagline}>Where real talent meets real opportunities.</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <HomeCityControl city={homeCity} onChange={handleCityChange} />
               <NotificationBell />
             </View>
-            <GradientText style={styles.title}>{firstName ? `Hey ${firstName},` : "Hey there,"}{"\n"}who&apos;s the act tonight?</GradientText>
           </View>
 
           <AnnouncementBanner />
           <ProfileCompletionBadge />
 
+          <View style={styles.carouselWrap}>
+            <HeroCarousel />
+          </View>
+
+          {/* My Event Hub keeps its spot until the quick-tiles row replaces it. */}
           <View style={styles.cityEventRow}>
-            <HomeCityControl city={homeCity} onChange={handleCityChange} />
             <Pressable style={({ pressed }) => [styles.eventHubCard, pressed && styles.pressed]} onPress={() => router.push("/my-event")}>
               <View style={styles.eventHubIcon}>
                 <Feather name="calendar" size={14} color={colors.purple} />
@@ -361,10 +365,6 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          <View style={styles.section}>
-            <HeroCarousel />
-          </View>
-
           {/* Compact reel-discovery strip — replaces both the old
               "N events booked this week" social-proof strip and the old
               full-size "Scroll the reel, find your act" gradient promo
@@ -385,27 +385,6 @@ export default function HomeScreen() {
           {/* Position per the corrected Home order: directly below the
               offer cards. */}
           <SeasonalPicksRail />
-
-          {/* Business flow entry point — same destination as the bottom nav
-              "Business" tab (see (tabs)/business.tsx and (tabs)/_layout.tsx),
-              which itself decides form-vs-deals. Static, no dependency on
-              artists/featured/trending, so it no longer needs to sit behind
-              the loading/error branch below. */}
-          <Pressable style={({ pressed }) => [styles.businessPromo, pressed && styles.pressed]} onPress={() => router.push("/(tabs)/business")}>
-            <LinearGradient colors={[colors.purple, colors.orange]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.businessPromoGradient}>
-              <View style={styles.businessPromoGlow} pointerEvents="none" />
-              <View style={styles.businessPromoBadge}>
-                <Feather name="briefcase" size={11} color="#fff" />
-                <Text style={styles.businessPromoBadgeText}>FOR BUSINESSES</Text>
-              </View>
-              <Text style={styles.businessPromoTitle}>Curated for <Text style={styles.businessPromoKeyword}>Restaurants</Text>{"\n"}& Event Companies</Text>
-              <Text style={styles.businessPromoSub}>Recurring bookings, business deals & invoicing.</Text>
-              <View style={styles.businessPromoCta}>
-                <Text style={styles.businessPromoCtaText}>See business deals</Text>
-                <Feather name="arrow-right" size={16} color={colors.purple} />
-              </View>
-            </LinearGradient>
-          </Pressable>
 
           <SoundwaveDivider />
 
@@ -583,25 +562,20 @@ function TrustCard({ doodle, label, caption }: { doodle: string; label: string; 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { paddingBottom: spacing.xxl },
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, marginBottom: spacing.md },
-  headerRow: {
+  header: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: spacing.sm,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    marginBottom: spacing.md,
   },
-  eyebrow: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.orange,
-    letterSpacing: 2,
-  },
-  title: {
-    fontFamily: fonts.displayBold,
-    fontSize: 30,
-    lineHeight: 34,
-    letterSpacing: -0.3,
-  },
+  brandCol: { flex: 1, gap: 4 },
+  logo: { width: 104, height: 43 },
+  tagline: { fontFamily: fonts.body, fontSize: 10, letterSpacing: 0.8, lineHeight: 13, color: "#C9C1D8", maxWidth: 170 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2 },
+  carouselWrap: { marginBottom: spacing.md },
   pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   cityEventRow: {
     flexDirection: "row",
@@ -710,32 +684,6 @@ const styles = StyleSheet.create({
   eventHubTextWrap: { flex: 1 },
   eventHubTitle: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.text },
   eventHubSub: { fontFamily: fonts.body, fontSize: 10, color: colors.textMute, marginTop: 1 },
-  // Shadow sits on the outer Pressable; the gradient inside does the clipping
-  // (a clipped view can't cast an iOS shadow).
-  businessPromo: { marginHorizontal: spacing.lg, marginBottom: spacing.lg, borderRadius: radii.xl, ...shadows.hero },
-  businessPromoGradient: { padding: spacing.lg, gap: spacing.sm, borderRadius: radii.xl, overflow: "hidden" },
-  businessPromoGlow: {
-    position: "absolute",
-    right: -50,
-    top: -50,
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    backgroundColor: "rgba(255,255,255,0.14)",
-  },
-  businessPromoKeyword: { color: "#FFE9A8" },
-  businessPromoBadge: {
-    flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.pill, backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  businessPromoBadgeText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 1 },
-  businessPromoTitle: { fontFamily: fonts.display, fontSize: 21, lineHeight: 25, color: "#fff", marginTop: 2 },
-  businessPromoSub: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.88)" },
-  businessPromoCta: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: spacing.xs,
-    backgroundColor: "#fff", borderRadius: radii.pill, paddingVertical: 12,
-  },
-  businessPromoCtaText: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple },
   reelsStrip: {
     flexDirection: "row",
     alignItems: "center",

@@ -75,9 +75,9 @@ export function HomeCityControl({ city, onChange }: Props) {
         accessibilityRole="button"
         accessibilityLabel={city ? `Change city, currently ${city}` : "Set your city"}
       >
-        <Feather name="map-pin" size={12} color={colors.orange} />
+        <Feather name="map-pin" size={14} color="#FFB24A" />
         <Text style={styles.pillText} numberOfLines={1}>{city ?? "Set your city"}</Text>
-        <Feather name="chevron-down" size={12} color={colors.textMute} />
+        <Feather name="chevron-down" size={13} color={colors.text} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -139,16 +139,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    height: 34,
+    paddingHorizontal: 12,
     borderRadius: radii.pill,
-    backgroundColor: colors.ink2,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: "rgba(255,255,255,0.22)",
   },
   pillText: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12,
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
     color: colors.text,
     maxWidth: 120,
   },

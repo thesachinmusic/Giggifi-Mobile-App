@@ -1,50 +1,79 @@
 import { useRef, useState } from "react";
-import { Dimensions, FlatList, Pressable, StyleSheet, Text, View, type ViewToken } from "react-native";
+import { Dimensions, FlatList, Pressable, StyleSheet, Text, View, type ImageSourcePropType, type ViewToken } from "react-native";
+import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, type Href } from "expo-router";
-import { fonts, gradients, radii, spacing } from "@/theme";
+import { fonts, gradients, mock, spacing } from "@/theme";
 
+const SIDE = spacing.md;
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_WIDTH = SCREEN_WIDTH - spacing.lg * 2;
-const CARD_HEIGHT = 168;
+const CARD_WIDTH = SCREEN_WIDTH - SIDE * 2;
+const CARD_HEIGHT = 152;
+const CARD_GAP = 8;
 
 interface Slide {
   id: string;
   tag: string;
   title: string;
+  titleSize: number;
   sub: string;
   cta: string;
   href: Href;
+  // Slides without a photo (Secure Payment) keep the plain brand gradient.
+  image?: ImageSourcePropType;
 }
 
-// Home's hero carousel — 3 slides, identical size/background gradient
-// (only tag/headline/subtext/CTA differ). Replaces the old standalone
-// "Open Planner" and "GiggiFi 20-20 / Quick Performance" promo cards; both
-// destinations below are unchanged, just relocated into one carousel.
-// Slide 3 ("Secure Payment") now has a real destination — see
-// app/how-it-works.tsx.
+// Home's top carousel (artists set) — the old mid-page Event Planner, Quick
+// Performance and For Businesses banners now live here as slides, each with
+// its original copy and destination; only the look follows the new mock.
+// "Next Event" is the default slide and opens Browse on the artists tab.
 const SLIDES: Slide[] = [
   {
-    id: "planner",
-    tag: "Event Planner",
-    title: "Artists, decor, sound & more — planned",
-    sub: "Tell us your event, we suggest what you need",
-    cta: "Open planner",
-    href: "/plan-my-event",
+    id: "next",
+    tag: "Book artists for your",
+    title: "Next Event",
+    titleSize: 30,
+    sub: "Live Music · DJs · Performers · & More",
+    cta: "Explore Artists",
+    href: { pathname: "/(tabs)/browse", params: { vertical: "artist" } },
+    image: require("@/assets/images/home/hero-next.jpg"),
   },
   {
     id: "quick",
     tag: "⚡ Quick Performance",
     title: "Same-day booking, big surprises",
+    titleSize: 20,
     sub: "Budget friendly, quick and short performance",
     cta: "Book now",
     href: "/quick-moments",
+    image: require("@/assets/images/home/hero-quick.jpg"),
+  },
+  {
+    id: "planner",
+    tag: "Event Planner",
+    title: "Artists, decor, sound & more — planned",
+    titleSize: 20,
+    sub: "Tell us your event, we suggest what you need",
+    cta: "Open planner",
+    href: "/plan-my-event",
+    image: require("@/assets/images/home/hero-planner.jpg"),
+  },
+  {
+    id: "business",
+    tag: "For Businesses",
+    title: "Curated for Restaurants & Event Companies",
+    titleSize: 20,
+    sub: "Recurring bookings, business deals & invoicing.",
+    cta: "See business deals",
+    href: "/(tabs)/business",
+    image: require("@/assets/images/home/hero-business.jpg"),
   },
   {
     id: "secure",
     tag: "Secure Payment",
     title: "You pay only after the event is done",
+    titleSize: 20,
     sub: "Money held safe until the booking is complete",
     cta: "How it works",
     href: "/how-it-works",
@@ -64,38 +93,56 @@ export function HeroCarousel() {
         data={SLIDES}
         keyExtractor={(item) => item.id}
         horizontal
-        pagingEnabled
         showsHorizontalScrollIndicator={false}
-        snapToInterval={CARD_WIDTH + spacing.sm}
+        snapToInterval={CARD_WIDTH + CARD_GAP}
+        snapToAlignment="start"
         decelerationRate="fast"
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
+        contentContainerStyle={{ paddingHorizontal: SIDE, gap: CARD_GAP }}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(item.href)} style={{ width: CARD_WIDTH }}>
+          <Pressable onPress={() => router.push(item.href)} style={styles.card}>
             <LinearGradient
               colors={gradients.hero}
               locations={gradients.heroLocations}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.card}
-            >
-              <View style={styles.glowOuter} />
-              <View style={styles.glowInner} />
-              <View style={styles.tagPill}>
-                <Text style={styles.tagText}>{item.tag.toUpperCase()}</Text>
+              style={StyleSheet.absoluteFill}
+            />
+            {item.image ? (
+              <Image source={item.image} style={styles.photo} contentFit="cover" contentPosition="right center" />
+            ) : (
+              <View style={styles.photoIcon} pointerEvents="none">
+                <Feather name="shield" size={96} color="rgba(255,255,255,0.12)" />
               </View>
-              <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-              <Text style={styles.sub} numberOfLines={1}>{item.sub}</Text>
+            )}
+            <LinearGradient
+              colors={["rgba(72,22,98,0.97)", "rgba(112,34,104,0.78)", "rgba(190,70,50,0)"]}
+              locations={[0.28, 0.48, 0.8]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            <View style={styles.glow} pointerEvents="none" />
+            <View style={styles.copy}>
+              <Text style={styles.tag} numberOfLines={1}>{item.tag.toUpperCase()}</Text>
+              <Text
+                style={[styles.title, { fontSize: item.titleSize, lineHeight: item.titleSize + 3 }]}
+                numberOfLines={item.titleSize > 24 ? 1 : 3}
+              >
+                {item.title}
+              </Text>
+              <Text style={styles.sub} numberOfLines={2}>{item.sub}</Text>
               <View style={styles.ctaPill}>
                 <Text style={styles.ctaText}>{item.cta}</Text>
-                <Feather name="arrow-right" size={14} color="#3d1a52" />
+                <Feather name="arrow-right" size={13} color="#2A1445" />
               </View>
-            </LinearGradient>
+            </View>
           </Pressable>
         )}
       />
-      <View style={styles.dots}>
+      <View style={styles.dots} pointerEvents="none">
         {SLIDES.map((slide, index) => (
           <View key={slide.id} style={[styles.dot, index === activeIndex ? styles.dotActive : null]} />
         ))}
@@ -106,67 +153,57 @@ export function HeroCarousel() {
 
 const styles = StyleSheet.create({
   card: {
+    width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    justifyContent: "center",
-    gap: spacing.xs,
+    borderRadius: 24,
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: mock.cardBorderWarm,
   },
-  glowOuter: {
+  photo: { position: "absolute", right: 0, top: 0, bottom: 0, width: "74%" },
+  photoIcon: { position: "absolute", right: 24, top: 0, bottom: 0, justifyContent: "center" },
+  glow: {
     position: "absolute",
-    top: -60,
-    right: -50,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(255,179,64,0.16)",
+    right: -34,
+    top: -44,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "rgba(255,170,90,0.16)",
   },
-  glowInner: {
+  copy: {
     position: "absolute",
-    top: -30,
-    right: -20,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "rgba(255,179,64,0.22)",
+    left: 16,
+    top: 12,
+    bottom: 20,
+    width: 215,
+    justifyContent: "center",
+    gap: 3,
   },
-  tagPill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  tagText: { fontFamily: fonts.mono, fontSize: 10, color: "#fff", letterSpacing: 1 },
-  title: { fontFamily: fonts.display, fontSize: 20, lineHeight: 24, color: "#fff" },
-  sub: { fontFamily: fonts.body, fontSize: 12.5, lineHeight: 17, color: "rgba(255,255,255,0.88)" },
+  tag: { fontFamily: fonts.mono, fontSize: 9.5, letterSpacing: 1.5, color: "#D9D0EA" },
+  title: { fontFamily: fonts.displayBold, color: "#fff", letterSpacing: -0.2 },
+  sub: { fontFamily: fonts.body, fontSize: 11, lineHeight: 14, color: "#E8E0F5" },
   ctaPill: {
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
-    gap: 8,
-    marginTop: spacing.xs,
+    gap: 6,
+    height: 30,
+    marginTop: 6,
+    paddingHorizontal: 14,
+    borderRadius: 15,
     backgroundColor: "#fff",
-    borderRadius: radii.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
   },
-  ctaText: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: "#3d1a52" },
+  ctaText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: "#2A1445" },
   dots: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 8,
     flexDirection: "row",
     justifyContent: "center",
-    gap: 6,
-    marginTop: spacing.sm,
+    gap: 5,
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  dotActive: {
-    backgroundColor: "#fff",
-    width: 16,
-  },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.4)" },
+  dotActive: { width: 16, backgroundColor: "#FF9A3D" },
 });
