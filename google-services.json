@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "900267701233",
+    "project_id": "giggifi-20332",
+    "storage_bucket": "giggifi-20332.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:900267701233:android:b41ff5f0f5555a06114a50",
+        "android_client_info": {
+          "package_name": "com.giggifi.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "900267701233-51babeeovinlfjchmqu5popuokj71nf5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHgUTgwEqNXWEwJ0c0qPrkINCex0Ruyuo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "900267701233-51babeeovinlfjchmqu5popuokj71nf5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:900267701233:android:d51ec0309d9463de114a50",
+        "android_client_info": {
+          "package_name": "com.giggifi.artist"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "900267701233-51babeeovinlfjchmqu5popuokj71nf5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHgUTgwEqNXWEwJ0c0qPrkINCex0Ruyuo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "900267701233-51babeeovinlfjchmqu5popuokj71nf5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

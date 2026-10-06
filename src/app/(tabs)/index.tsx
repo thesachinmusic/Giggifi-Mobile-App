@@ -36,6 +36,7 @@ import { ProfileCompletionBadge } from "@/components/ProfileCompletionBadge";
 import { Skeleton } from "@/components/Skeleton";
 import { SoundwaveDivider } from "@/components/SoundwaveDivider";
 import { useAuth } from "@/lib/auth-context";
+import { HomePushPrimer } from "@/components/HomePushPrimer";
 import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
@@ -543,6 +544,7 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+      <HomePushPrimer />
     </GradientBackground>
   );
 }

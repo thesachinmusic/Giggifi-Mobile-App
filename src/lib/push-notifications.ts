@@ -4,7 +4,8 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { useAuth } from "./auth-context";
-import { registerPushToken } from "./api";
+import { ApiError, registerPushToken } from "./api";
+import { markPushStep, recordPushResult } from "./push-status";
 import { useAppForeground } from "./use-app-foreground";
 import { captureError } from "./telemetry";
 
@@ -60,23 +61,13 @@ async function ensureAndroidChannels(): Promise<void> {
   );
 }
 
-// Silent path: returns a token only if permission is ALREADY granted, never
-// prompts. Used by the auto-run registration effect below (bugs 5/6) — the
-// explicit ask only ever happens via requestPushPermission(), triggered from
-// the primer sheet after the user has a reason to say yes.
-async function getTokenIfPermitted(): Promise<string | null> {
-  if (!Device.isDevice) return null; // push tokens don't work on simulators/emulators
+function plog(message: string): void {
+  console.log(`[GIGGIFI PUSH] ${message}`);
+}
 
-  await ensureAndroidChannels();
-
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== "granted") return null;
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  if (!projectId) return null;
-
-  const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-  return token;
+// Error text only (never a token), short enough to show in the UI.
+function errText(err: unknown): string {
+  return (err instanceof Error ? err.message : String(err)).slice(0, 200);
 }
 
 // Only ever called from the push-primer sheet's "Enable" button — this is
@@ -91,9 +82,85 @@ export async function requestPushPermission(): Promise<boolean> {
   return status === "granted";
 }
 
+export interface PushRegistrationResult {
+  ok: boolean;
+  step: string;
+  error: string | null;
+}
+
+// One registration attempt, step by step. Never throws: every exit is logged
+// ("[GIGGIFI PUSH] …", booleans/status only — never a token or project id)
+// and recorded in push-status so Notification Settings can show what
+// happened. Does NOT prompt for permission (see requestPushPermission).
+export async function registerDeviceForPushDetailed(source: string): Promise<PushRegistrationResult> {
+  const finish = async (ok: boolean, step: string, error?: string): Promise<PushRegistrationResult> => {
+    plog(ok ? "registration complete" : `registration stopped at ${step}: ${error ?? "unknown"}`);
+    await recordPushResult({ ok, step, error });
+    return { ok, step, error: ok ? null : (error ?? "Unknown error").slice(0, 200) };
+  };
+
+  plog(`start source=${source} platform=${Platform.OS}`);
+  markPushStep("start");
+
+  if (!Device.isDevice) return finish(false, "device", "Push needs a physical device");
+  plog("isDevice=true");
+
+  // Channels are nice to have, not a gate: a failure must never stop the
+  // permission check or the token fetch.
+  markPushStep("channels");
+  try {
+    await ensureAndroidChannels();
+    plog("channels ok");
+  } catch (err) {
+    plog(`channels failed (continuing): ${errText(err)}`);
+    captureError(err, "push-channels-setup");
+  }
+
+  markPushStep("permission");
+  let status: string;
+  try {
+    ({ status } = await Notifications.getPermissionsAsync());
+  } catch (err) {
+    captureError(err, "push-permission-check");
+    return finish(false, "permission", errText(err));
+  }
+  plog(`permission status=${status}`);
+  if (status !== "granted") return finish(false, "permission", `Notification permission is ${status}`);
+
+  markPushStep("project-id");
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+  plog(`projectId present=${Boolean(projectId)}`);
+  if (!projectId) return finish(false, "project-id", "EAS project id missing from app config");
+
+  markPushStep("expo-token");
+  let expoToken: string;
+  try {
+    ({ data: expoToken } = await Notifications.getExpoPushTokenAsync({ projectId }));
+  } catch (err) {
+    captureError(err, "push-expo-token");
+    return finish(false, "expo-token", errText(err));
+  }
+  plog(`expo token obtained=${Boolean(expoToken)}`);
+  if (!expoToken) return finish(false, "expo-token", "Expo returned no push token");
+
+  markPushStep("post");
+  try {
+    await registerPushToken(expoToken);
+    plog("POST /push-token ok (HTTP 2xx)");
+  } catch (err) {
+    captureError(err, "push-token-post");
+    const detail = err instanceof ApiError ? `HTTP ${err.status}: ${err.message}` : errText(err);
+    plog(`POST /push-token failed: ${detail}`);
+    return finish(false, "post", detail);
+  }
+
+  return finish(true, "done");
+}
+
+// Same name and "resolves even on failure" behaviour the primer callers
+// already rely on, but the outcome is now logged + recorded.
 export async function registerDeviceForPush(): Promise<void> {
-  const token = await getTokenIfPermitted();
-  if (token) await registerPushToken(token);
+  await registerDeviceForPushDetailed("primer");
 }
 
 // Registers this device's push token against the logged-in user whenever
@@ -107,8 +174,12 @@ export function usePushRegistration() {
   userRef.current = user;
 
   const trySilentRegister = useCallback(() => {
-    if (!userRef.current) return Promise.resolve();
-    return registerDeviceForPush().catch((err) => captureError(err, "push-token-register-silent"));
+    if (!userRef.current) {
+      plog("silent register skipped: no signed-in user yet");
+      return Promise.resolve();
+    }
+    plog("silent register: user present");
+    return registerDeviceForPushDetailed("silent").then(() => undefined, (err) => captureError(err, "push-token-register-silent"));
   }, []);
 
   useEffect(() => {

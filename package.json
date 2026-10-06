@@ -48,7 +48,9 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^57.0.1",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   },
   "scripts": {
     "start": "expo start",
@@ -58,7 +60,9 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "build:preview": "npx eas-cli@latest build --profile preview --platform android",
-    "update:preview": "npx eas-cli@latest update --branch preview"
+    "update:preview": "npx eas-cli@latest update --branch preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }
