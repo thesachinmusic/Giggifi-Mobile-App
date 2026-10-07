@@ -654,8 +654,7 @@ export default function ArtistDetailScreen() {
                 ) : null}
               </View>
               <Text style={styles.qmCardBlurb}>
-                A short, spontaneous 15 or 30 min performance — priced by {name.split(" ")[0]}, not negotiable.
-                {artist.quickMomentsPricePerSlot ? ` ₹${artist.quickMomentsPricePerSlot.toLocaleString("en-IN")} / slot.` : ""}
+                A short 20 or 40 min performance at a fixed price plus any travel fee. Not negotiable.
               </Text>
               <View style={styles.qmPillWrap}>
                 {QUICK_MOMENT_FORMATS.map((f) => (
@@ -680,7 +679,6 @@ export default function ArtistDetailScreen() {
                       artistId: artist.id,
                       format: qmFormat,
                       stageName: name,
-                      pricePerSlot: artist.quickMomentsPricePerSlot != null ? String(artist.quickMomentsPricePerSlot) : "",
                     },
                   });
                 }}

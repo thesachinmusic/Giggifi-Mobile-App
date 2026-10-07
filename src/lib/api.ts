@@ -345,20 +345,84 @@ export interface QuickMomentMatch {
   totalFromPrice: number;
 }
 
-export function fetchQuickMomentsMatch(params: { lat: number; lng: number; radiusKm?: number; budgetMax?: number; slotStartTime?: string }) {
+export function fetchQuickMomentsMatch(params: { lat: number; lng: number; radiusKm?: number; budgetMax?: number; slotStartTime?: string; durationMinutes?: number }) {
   const query = new URLSearchParams();
   query.set("lat", String(params.lat));
   query.set("lng", String(params.lng));
   if (params.radiusKm) query.set("radiusKm", String(params.radiusKm));
   if (params.budgetMax) query.set("budgetMax", String(params.budgetMax));
   if (params.slotStartTime) query.set("slotStartTime", params.slotStartTime);
+  if (params.durationMinutes) query.set("durationMinutes", String(params.durationMinutes));
   return request<{ results: QuickMomentMatch[]; total: number; radiusKm: number }>(`/api/mobile/quick-moments/match?${query.toString()}`);
+}
+
+// ─── Quick Moments discover feed (GET /api/mobile/quick-moments/discover) ───
+// Mirrors lib/services/quick-moments-discover.ts on the website. Real data only:
+// a section with nothing real in it arrives as an empty array / null.
+
+export type QuickMomentKind = "BIRTHDAY" | "ANNIVERSARY" | "JUST_BECAUSE";
+export type QuickMomentsCategory = "Singers" | "Instrumentalists" | "Duo" | "Comedians" | "Magicians" | "Sketch artists" | "Poets";
+export type QuickMomentDuration = 20 | 40;
+
+export interface QuickMomentDiscoverItem {
+  artistId: string;
+  displayName: string;
+  performerType: string | null;
+  category: QuickMomentsCategory;
+  profileImageUrl: string | null;
+  // Rounded distance from the artist's saved location. Not shown to clients for
+  // now (see SHOW_QUICK_MOMENT_DISTANCE) — the saved locations aren't reliable yet.
+  distanceKm: number;
+  online: boolean;
+  // e.g. "6:00 PM" — only when the artist is offline today.
+  availableFrom: string | null;
+}
+
+export interface QuickMomentDiscoverReel {
+  artistId: string;
+  displayName: string;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+}
+
+export interface QuickMomentDiscover {
+  durations: { minutes: QuickMomentDuration; priceINR: number }[];
+  travel: { freeKm: number; note: string };
+  featured: QuickMomentDiscoverItem | null;
+  forMoment: QuickMomentDiscoverItem[];
+  mostViewed: QuickMomentDiscoverItem[];
+  reels: QuickMomentDiscoverReel[];
+  emptyReason: "NO_ARTISTS_NEARBY" | null;
+}
+
+export function fetchQuickMomentsDiscover(params: {
+  lat: number;
+  lng: number;
+  radiusKm?: number;
+  moment?: QuickMomentKind;
+  category?: QuickMomentsCategory | "All";
+  q?: string;
+  durationMinutes?: QuickMomentDuration;
+  slotStartTime?: string;
+}) {
+  const query = new URLSearchParams();
+  query.set("lat", String(params.lat));
+  query.set("lng", String(params.lng));
+  if (params.radiusKm) query.set("radiusKm", String(params.radiusKm));
+  if (params.moment) query.set("moment", params.moment);
+  if (params.category && params.category !== "All") query.set("category", params.category);
+  if (params.q?.trim()) query.set("q", params.q.trim());
+  if (params.durationMinutes) query.set("durationMinutes", String(params.durationMinutes));
+  if (params.slotStartTime) query.set("slotStartTime", params.slotStartTime);
+  return request<QuickMomentDiscover>(`/api/mobile/quick-moments/discover?${query.toString()}`);
 }
 
 export function bookQuickMoment(input: {
   artistId: string;
   quickMomentFormat: QuickMomentFormat;
   slotStartTime: string;
+  // 20 or 40. Omitted = the server's default (20); older 15/30 are mapped.
+  slotDurationMinutes?: QuickMomentDuration;
   venueAddress: string;
   eventCity: string;
   specialRequests?: string;

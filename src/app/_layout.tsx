@@ -21,7 +21,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { IntroSplash } from "@/components/IntroSplash";
 import { AgeGateScreen } from "@/components/AgeGateScreen";
 import { useAppFonts } from "@/theme/typography";
-import { colors } from "@/theme";
+import { QuickMomentsHeaderActions } from "@/components/quick-moments/HeaderActions";
+import { colors, fonts } from "@/theme";
 
 initTelemetry();
 
@@ -251,6 +252,8 @@ function RootLayoutContent() {
                     options={{
                       headerShown: true,
                       headerTitle: "Quick Moments",
+                      headerTitleStyle: { fontFamily: fonts.display, color: colors.text },
+                      headerRight: () => <QuickMomentsHeaderActions />,
                       headerTintColor: colors.text,
                       headerStyle: { backgroundColor: colors.ink },
                       headerBackTitle: "Back",
@@ -261,6 +264,7 @@ function RootLayoutContent() {
                     options={{
                       headerShown: true,
                       headerTitle: "Book a Slot",
+                      headerTitleStyle: { fontFamily: fonts.display, color: colors.text },
                       headerTintColor: colors.text,
                       headerStyle: { backgroundColor: colors.ink },
                       headerBackTitle: "Back",

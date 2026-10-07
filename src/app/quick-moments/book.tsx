@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -11,8 +11,25 @@ import { clientPriceBreakdown } from "@/lib/pricing";
 import { DateField } from "@/components/DateField";
 import { TimeField } from "@/components/TimeField";
 import { StateCityField } from "@/components/StateCityField";
-import { bookQuickMoment, ApiError, type QuickMomentFormat } from "@/lib/api";
-import { QUICK_MOMENT_FORMAT_LABEL, QUICK_MOMENTS_MIN_LEAD_HOURS } from "@/lib/quick-moments";
+import * as Location from "expo-location";
+import { DurationCards } from "@/components/quick-moments/QuickMomentsParts";
+import {
+  bookQuickMoment,
+  fetchQuickMomentsDiscover,
+  ApiError,
+  type QuickMomentDiscover,
+  type QuickMomentDuration,
+  type QuickMomentFormat,
+} from "@/lib/api";
+import { getCachedLocation, setCachedLocation } from "@/lib/location-cache";
+import {
+  DEFAULT_QUICK_MOMENT_DURATION,
+  formatINR,
+  priceForDuration,
+  QUICK_MOMENT_FORMAT_LABEL,
+  QUICK_MOMENTS_MIN_LEAD_HOURS,
+  SHOW_QUICK_MOMENT_DISTANCE,
+} from "@/lib/quick-moments";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 // Comfortably past the server's minimum lead time by default, so the form
@@ -34,7 +51,12 @@ export default function QuickMomentsBookScreen() {
     artistId: string;
     format: QuickMomentFormat;
     stageName?: string;
+    // The chosen duration (20 / 40) and the slot picked on the Quick Moments
+    // screen. Absent when arriving from an artist's own profile.
+    duration?: string;
+    slot?: string;
     pricePerSlot?: string;
+    // Kept so a distance can be shown again later (SHOW_QUICK_MOMENT_DISTANCE).
     distanceKm?: string;
     travelFee?: string;
     clientLat?: string;
@@ -42,14 +64,62 @@ export default function QuickMomentsBookScreen() {
   }>();
   const { artistId, format } = params;
   const stageName = params.stageName || "this artist";
-  const pricePerSlot = params.pricePerSlot ? Number(params.pricePerSlot) : null;
   const distanceKm = params.distanceKm ? Number(params.distanceKm) : null;
   const travelFee = params.travelFee ? Number(params.travelFee) : 0;
-  const clientLat = params.clientLat ? Number(params.clientLat) : null;
-  const clientLng = params.clientLng ? Number(params.clientLng) : null;
+
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    params.clientLat && params.clientLng ? { lat: Number(params.clientLat), lng: Number(params.clientLng) } : null,
+  );
+  const clientLat = coords?.lat ?? null;
+  const clientLng = coords?.lng ?? null;
+  const [duration, setDuration] = useState<QuickMomentDuration>(
+    params.duration === "40" || params.duration === "30" ? 40 : DEFAULT_QUICK_MOMENT_DURATION,
+  );
+  // Prices come from the server (never hard-coded here): either passed in from
+  // the Quick Moments screen for the chosen duration, or fetched below.
+  const [durations, setDurations] = useState<QuickMomentDiscover["durations"] | null>(null);
+  const passedPrice = params.pricePerSlot ? Number(params.pricePerSlot) : null;
+  const pricePerSlot = priceForDuration(durations, duration) ?? passedPrice;
   const totalPrice = pricePerSlot != null ? pricePerSlot + travelFee : null;
 
-  const initial = defaultSlotStart();
+  // Opened from an artist's profile there is no location yet: use a recent fix
+  // or ask for one, same as the Quick Moments screen.
+  useEffect(() => {
+    if (coords) return;
+    let cancelled = false;
+    (async () => {
+      const cached = await getCachedLocation();
+      if (cached) {
+        if (!cancelled) setCoords(cached);
+        return;
+      }
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted" || cancelled) return;
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        const next = { lat: position.coords.latitude, lng: position.coords.longitude };
+        if (!cancelled) setCoords(next);
+        await setCachedLocation(next.lat, next.lng);
+      } catch {
+        // Leaves the Book button disabled; the user can go back and allow location.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coords]);
+
+  // Both durations and their prices, from the server.
+  useEffect(() => {
+    if (!coords) return;
+    let cancelled = false;
+    fetchQuickMomentsDiscover({ lat: coords.lat, lng: coords.lng, durationMinutes: duration })
+      .then((res) => { if (!cancelled) setDurations(res.durations); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coords]);
+
+  const passedSlot = params.slot ? new Date(params.slot) : null;
+  const initial = passedSlot && !Number.isNaN(passedSlot.getTime()) ? passedSlot : defaultSlotStart();
   const [date, setDate] = useState<Date>(initial);
   const [hour, setHour] = useState<number>(initial.getHours());
   const [venueAddress, setVenueAddress] = useState("");
@@ -72,6 +142,9 @@ export default function QuickMomentsBookScreen() {
         artistId,
         quickMomentFormat: format,
         slotStartTime: slotStart.toISOString(),
+        // The chosen length. The moment itself goes as quickMomentFormat (the
+        // server's existing field) — no separate "notes" copy needed.
+        slotDurationMinutes: duration,
         venueAddress,
         eventCity,
         specialRequests: specialRequests || undefined,
@@ -94,20 +167,32 @@ export default function QuickMomentsBookScreen() {
             <GlassCard style={styles.summaryCard}>
               <Text style={styles.summaryEyebrow}>{QUICK_MOMENT_FORMAT_LABEL[format]?.toUpperCase()}</Text>
               <Text style={styles.summaryName}>{stageName}</Text>
-              {pricePerSlot ? <Text style={styles.summaryPrice}>₹{pricePerSlot.toLocaleString("en-IN")} <Text style={styles.summaryPriceUnit}>/ slot</Text></Text> : null}
+              {pricePerSlot ? <Text style={styles.summaryPrice}>{formatINR(pricePerSlot)} <Text style={styles.summaryPriceUnit}>/ {duration} min + travel</Text></Text> : null}
             </GlassCard>
 
-            {distanceKm != null && totalPrice != null ? (
+            {durations ? (
+              <>
+                <FormLabel text="DURATION" />
+                <DurationCards durations={durations} selected={duration} onSelect={setDuration} />
+              </>
+            ) : null}
+
+            {totalPrice != null ? (
               <PriceBreakdown
                 total={clientPriceBreakdown(totalPrice).total}
+                totalLabel="Total before travel"
                 lines={[
                   { label: "Performance", amount: pricePerSlot ?? 0 },
-                  ...(travelFee > 0 ? [{ label: `Travel (${distanceKm.toFixed(1)} km)`, amount: travelFee }] : []),
+                  ...(travelFee > 0
+                    ? [{ label: SHOW_QUICK_MOMENT_DISTANCE && distanceKm != null ? `Travel (${distanceKm.toFixed(1)} km)` : "Travel", amount: travelFee }]
+                    : []),
                   { label: "Service fee", amount: clientPriceBreakdown(totalPrice).serviceFee },
                   { label: "GST (18%) on service fee", amount: clientPriceBreakdown(totalPrice).gst, kind: "tax" as const },
                 ]}
               />
             ) : null}
+
+            <Text style={styles.travelNote}>Travel is added based on distance and shown before you confirm.</Text>
 
             <FormLabel text="WHEN" />
             <View style={styles.row}>
@@ -143,7 +228,7 @@ export default function QuickMomentsBookScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Btn
-              label={totalPrice ? `Book for ₹${clientPriceBreakdown(totalPrice).total.toLocaleString("en-IN")}` : "Book this Quick Moment"}
+              label="Book this Quick Moment"
               onPress={handleSubmit}
               disabled={!canSubmit}
               loading={submitting}
@@ -191,6 +276,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   row: { flexDirection: "row", gap: spacing.sm },
+  travelNote: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
   hint: { fontFamily: fonts.body, fontSize: 12, color: colors.warn, marginTop: 2 },
   input: {
     backgroundColor: colors.ink2,
