@@ -1,5 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { RatingBadge } from "@/components/RatingBadge";
+import { ReportSheet } from "@/components/ReportSheet";
 import type { ReviewSummary } from "@/lib/api";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -7,6 +9,7 @@ import { colors, fonts, radii, spacing } from "@/theme";
 // already returned by both mobile detail endpoints (up to 5, per review
 // route.ts on the website) but was rendered nowhere until now.
 export function ReviewsList({ reviews }: { reviews: ReviewSummary[] }) {
+  const [reportingId, setReportingId] = useState<string | null>(null);
   if (reviews.length === 0) return null;
   return (
     <View style={styles.block}>
@@ -21,8 +24,20 @@ export function ReviewsList({ reviews }: { reviews: ReviewSummary[] }) {
             </Text>
           </View>
           {review.comment ? <Text style={styles.comment}>{review.comment}</Text> : null}
+          {review.id ? (
+            <Pressable onPress={() => setReportingId(review.id ?? null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Report this review">
+              <Text style={styles.report}>Report</Text>
+            </Pressable>
+          ) : null}
         </View>
       ))}
+      <ReportSheet
+        visible={reportingId !== null}
+        onClose={() => setReportingId(null)}
+        targetType="review"
+        targetId={reportingId ?? ""}
+        noun="review"
+      />
     </View>
   );
 }
@@ -48,4 +63,5 @@ const styles = StyleSheet.create({
   },
   date: { fontFamily: fonts.mono, fontSize: 9.5, color: colors.textMute },
   comment: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.textDim },
+  report: { alignSelf: "flex-end", fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute },
 });

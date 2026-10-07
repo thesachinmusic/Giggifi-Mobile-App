@@ -130,6 +130,9 @@ export interface SessionUser {
 }
 
 export interface ReviewSummary {
+  // Present on responses from the Play-release backend; older cached
+  // responses may lack it (the Report action is simply hidden then).
+  id?: string;
   rating: number;
   comment: string;
   eventType: string | null;
@@ -1113,6 +1116,18 @@ export function submitReview(bookingId: string, input: { rating: number; comment
     `/api/mobile/booking/${bookingId}/review`,
     { method: "POST", body: JSON.stringify(input) },
   );
+}
+
+// ─── Content reports (Play UGC policy) ───
+
+export type ReportTargetType = "review" | "artist-profile";
+export type ReportReason = "spam" | "abusive" | "fake" | "inappropriate" | "impersonation" | "other";
+
+export function reportContent(input: { targetType: ReportTargetType; targetId: string; reason: ReportReason; note?: string }) {
+  return request<{ ok: true; alreadyReported?: boolean }>("/api/mobile/report", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker", reason?: string) {

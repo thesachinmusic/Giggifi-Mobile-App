@@ -15,6 +15,7 @@ import { DateField } from "@/components/DateField";
 import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
+import { ReportSheet } from "@/components/ReportSheet";
 import { FullScreenVideoPlayer } from "@/components/FullScreenVideoPlayer";
 import { Skeleton } from "@/components/Skeleton";
 import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, fetchBackupGuaranteeStatus, ApiError, type ArtistSummary, type QuickMomentFormat, type EventPlanSummary, type BackupGuaranteeStatus } from "@/lib/api";
@@ -896,6 +897,7 @@ function ArtistHero({
   // that header; every top-anchored overlay here now adds insets.top itself.
   const insets = useSafeAreaInsets();
   const videoSource = artist.introVideoUrl ?? artist.showreelUrl ?? null;
+  const [reportOpen, setReportOpen] = useState(false);
   // Tapping the hero opens the shared FullScreenVideoPlayer (rendered once,
   // at the top of ArtistDetailScreen — see its own comment on why) — the
   // hero's own ambient muted loop underneath is untouched by that (never
@@ -1037,7 +1039,17 @@ function ArtistHero({
         >
           <Feather name="share-2" size={16} color="#fff" />
         </Pressable>
+        <Pressable
+          onPress={() => setReportOpen(true)}
+          style={styles.heroActionButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Report this profile"
+        >
+          <Feather name="flag" size={15} color="#fff" />
+        </Pressable>
       </View>
+      <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} targetType="artist-profile" targetId={artist.id} noun="artist profile" />
 
       {videoSource ? (
         <Pressable
