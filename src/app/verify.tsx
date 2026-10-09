@@ -1,4 +1,4 @@
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
@@ -27,6 +27,11 @@ export default function VerifyScreen() {
               <Text style={styles.tagline}>Book artists & vendors in minutes.</Text>
             </View>
             <InlinePhoneVerification onVerified={() => router.replace("/(tabs)")} />
+            <Text style={styles.legal}>
+              <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/terms")}>Terms of Service</Text>{"  ·  "}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/privacy")}>Privacy Policy</Text>{"  ·  "}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/refund")}>Refund Policy</Text>
+            </Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -40,5 +45,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, justifyContent: "center", paddingHorizontal: spacing.lg, paddingVertical: spacing.xl, gap: spacing.xl },
   brand: { alignItems: "center", gap: spacing.xs },
   logo: { width: 96, height: 96 },
+  legal: { fontFamily: fonts.body, fontSize: 11.5, lineHeight: 17, color: "rgba(255,255,255,0.5)", textAlign: "center" },
+  legalLink: { color: "rgba(255,255,255,0.8)", textDecorationLine: "underline" },
   tagline: { fontFamily: fonts.body, fontSize: 13, color: "rgba(255,255,255,0.6)" },
 });
