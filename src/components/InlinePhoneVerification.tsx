@@ -7,13 +7,8 @@ import { isSuspendedAccountError, SuspendedAccountNotice } from "@/components/Su
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { HELPLINE_NUMBER } from "@/lib/constants";
+import { getResendState, MAX_RESENDS, clearResendState, recordFirstSend, recordResend, remainingCooldownSeconds } from "@/lib/otp-resend-state";
 import { colors, fonts, radii, spacing } from "@/theme";
-
-// Matches the backend's own limits (10/phone/hour, 30/IP/hour) — escalating
-// so a user can't rack up SMS spend faster than the server would reject
-// anyway, and stops offering resend once further taps would just be noise.
-const RESEND_COOLDOWNS_SECONDS = [30, 60, 120];
-const MAX_RESENDS = RESEND_COOLDOWNS_SECONDS.length;
 
 function formatCountdown(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -40,6 +35,13 @@ export function InlinePhoneVerification({ onVerified }: { onVerified: () => void
   const [resending, setResending] = useState(false);
   const [resendCount, setResendCount] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  // Counters live in otp-resend-state, so a reopened sheet picks up where the
+  // last one stopped instead of starting from zero.
+  function syncResendState(phoneDigits: string) {
+    setResendCount(getResendState(phoneDigits)?.resendCount ?? 0);
+    setCooldownSeconds(remainingCooldownSeconds(phoneDigits));
+  }
   const verifyingRef = useRef(false);
 
   useEffect(() => {
@@ -56,7 +58,13 @@ export function InlinePhoneVerification({ onVerified }: { onVerified: () => void
     setSending(true);
     setError("");
     try {
-      await requestOtp(digits);
+      // A code was already sent to this number a short while ago (sheet was
+      // closed and reopened): don't send another, just go back to the code step.
+      if (!getResendState(digits)) {
+        await requestOtp(digits);
+        recordFirstSend(digits);
+      }
+      syncResendState(digits);
       setOtpSent(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not send OTP. Please try again.");
@@ -72,6 +80,7 @@ export function InlinePhoneVerification({ onVerified }: { onVerified: () => void
     setError("");
     try {
       await confirmOtp(digits, otp);
+      clearResendState(digits);
       onVerified();
     } catch (err) {
       if (isSuspendedAccountError(err)) setSuspended(true);
@@ -95,8 +104,8 @@ export function InlinePhoneVerification({ onVerified }: { onVerified: () => void
     setResending(true);
     try {
       await requestOtp(digits);
-      setResendCount((c) => c + 1);
-      setCooldownSeconds(RESEND_COOLDOWNS_SECONDS[resendCount]);
+      recordResend(digits);
+      syncResendState(digits);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not resend OTP.");
     } finally {
