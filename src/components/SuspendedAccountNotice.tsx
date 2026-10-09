@@ -19,7 +19,7 @@ export function SuspendedAccountNotice({ onBack }: { onBack: () => void }) {
         <Text style={styles.title}>Your account is on hold</Text>
       </View>
       <Text style={styles.body}>
-        We have paused this account, so you can't sign in right now. This can happen when we are checking a report or a payment problem.
+        We have paused this account, so you can&apos;t sign in right now. This can happen when we are checking a report or a payment problem.
       </Text>
       <Text style={styles.body}>
         If you think this is a mistake, please contact us. Tell us the phone number you used, and we will look into it.
