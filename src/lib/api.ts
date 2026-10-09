@@ -1130,17 +1130,28 @@ export function submitReview(bookingId: string, input: { rating: number; comment
 
 // ─── Content reports (Play UGC policy) ───
 
-export type ReportTargetType = "review" | "artist-profile";
+// "booking" and "user" need the website's report route to accept them (that
+// change is on the backend branch, not in this app) — until it ships the
+// server answers 400 and the sheet shows its message.
+export type ReportTargetType = "review" | "artist-profile" | "booking" | "user";
 export type ReportReason = "spam" | "abusive" | "fake" | "inappropriate" | "impersonation" | "other";
 
-export function reportContent(input: { targetType: ReportTargetType; targetId: string; reason: ReportReason; note?: string }) {
+export function reportContent(input: {
+  targetType: ReportTargetType;
+  targetId: string;
+  reason: ReportReason;
+  note?: string;
+  // The booking the report came from, so support can find the context when
+  // the target is the other person rather than the booking itself.
+  bookingId?: string;
+}) {
   return request<{ ok: true; alreadyReported?: boolean }>("/api/mobile/report", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
 
-export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker", reason?: string) {
+export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker" | "raise_dispute", reason?: string) {
   return request<{ success: true; status: string }>(`/api/mobile/booking/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ action, reason }),

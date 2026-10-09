@@ -19,8 +19,10 @@ interface ReportSheetProps {
   onClose: () => void;
   targetType: ReportTargetType;
   targetId: string;
-  // "review" | "artist profile" — only used in the heading.
+  // "review" | "artist profile" | "booking" | "artist's behaviour" — only used in the heading.
   noun: string;
+  // Set when the report is raised from a booking screen.
+  bookingId?: string;
 }
 
 // Simple report sheet (Google Play user-generated-content requirement) for a
@@ -36,7 +38,7 @@ export function ReportSheet(props: ReportSheetProps) {
   );
 }
 
-function ReportForm({ onClose, targetType, targetId, noun }: ReportSheetProps) {
+function ReportForm({ onClose, targetType, targetId, noun, bookingId }: ReportSheetProps) {
   const { user } = useAuth();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [note, setNote] = useState("");
@@ -49,7 +51,7 @@ function ReportForm({ onClose, targetType, targetId, noun }: ReportSheetProps) {
     setSubmitting(true);
     setError("");
     try {
-      await reportContent({ targetType, targetId, reason, note: note.trim() || undefined });
+      await reportContent({ targetType, targetId, reason, note: note.trim() || undefined, bookingId });
       setDone(true);
     } catch (err) {
       captureError(err, "content-report");

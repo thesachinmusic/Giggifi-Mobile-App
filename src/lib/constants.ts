@@ -4,3 +4,7 @@
 // at least a new EAS Update publish) to take effect: Expo public env vars
 // are inlined into the JS bundle at build time, not fetched at runtime.
 export const HELPLINE_NUMBER = process.env.EXPO_PUBLIC_HELPLINE_NUMBER ?? "8655688134";
+
+export const SUPPORT_EMAIL = "contact@giggifi.com";
+// Grievance Officer inbox (IT Rules / Play policy) — used for suspended-account appeals.
+export const GRIEVANCE_EMAIL = "admin@giggifi.com";

@@ -3,6 +3,7 @@ import { Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-nat
 import { Feather } from "@expo/vector-icons";
 import { GradientButton } from "@/components/GradientButton";
 import { OtpInput } from "@/components/OtpInput";
+import { isSuspendedAccountError, SuspendedAccountNotice } from "@/components/SuspendedAccountNotice";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 import { HELPLINE_NUMBER } from "@/lib/constants";
@@ -35,6 +36,7 @@ export function InlinePhoneVerification({ onVerified }: { onVerified: () => void
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState("");
+  const [suspended, setSuspended] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendCount, setResendCount] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
@@ -72,7 +74,8 @@ export function InlinePhoneVerification({ onVerified }: { onVerified: () => void
       await confirmOtp(digits, otp);
       onVerified();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Verification failed. Please try again.");
+      if (isSuspendedAccountError(err)) setSuspended(true);
+      else setError(err instanceof ApiError ? err.message : "Verification failed. Please try again.");
       verifyingRef.current = false;
     } finally {
       setVerifying(false);
@@ -102,6 +105,19 @@ export function InlinePhoneVerification({ onVerified }: { onVerified: () => void
   }
 
   const capReached = resendCount >= MAX_RESENDS;
+
+  if (suspended) {
+    return (
+      <SuspendedAccountNotice
+        onBack={() => {
+          setSuspended(false);
+          setOtpSent(false);
+          setOtp("");
+          setError("");
+        }}
+      />
+    );
+  }
 
   return (
     <View style={styles.card}>

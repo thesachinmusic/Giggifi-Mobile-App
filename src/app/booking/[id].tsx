@@ -8,6 +8,8 @@ import RazorpayCheckout from "react-native-razorpay";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
+import { DisputeNextSteps, DisputeSheet } from "@/components/DisputeSheet";
+import { ReportSheet } from "@/components/ReportSheet";
 import { PriceBreakdown, type PriceLine } from "@/components/PriceBreakdown";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { Skeleton } from "@/components/Skeleton";
@@ -27,8 +29,8 @@ import {
   type QuickMomentLocation,
   type BackupMatchAttempt,
 } from "@/lib/api";
-import { PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
-import { HELPLINE_NUMBER } from "@/lib/constants";
+import { canRaiseDispute, isPaidAndUpcoming, PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
+import { HELPLINE_NUMBER, SUPPORT_EMAIL } from "@/lib/constants";
 import { hapticSuccess } from "@/lib/haptics";
 import { QUICK_MOMENT_FORMAT_LABEL } from "@/lib/quick-moments";
 import { haversineKm, formatTimeAgo } from "@/lib/geo";
@@ -58,6 +60,8 @@ export default function BookingDetailScreen() {
   const [respondError, setRespondError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [backupAttempt, setBackupAttempt] = useState<BackupMatchAttempt | null>(null);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [reportKind, setReportKind] = useState<"booking" | "artist-behaviour" | null>(null);
 
   // load() is shared across several call sites (direct focus call, two
   // await-chained calls inside the pending-payment recovery IIFE below, and
@@ -460,6 +464,64 @@ export default function BookingDetailScreen() {
             <ReviewFormCard bookingId={booking.id} onSubmitted={load} />
           ) : null}
 
+          {booking.viewerRole === "BOOKER" && booking.status === "DISPUTED" ? (
+            <GlassCard style={styles.helplineCard}>
+              <View style={styles.helplineRow}>
+                <Feather name="flag" size={18} color={colors.err} />
+                <Text style={styles.helplineTitle}>Your report is with our team</Text>
+              </View>
+              <DisputeNextSteps />
+            </GlassCard>
+          ) : null}
+
+          {booking.viewerRole === "BOOKER" && isPaidAndUpcoming(booking.status) ? (
+            <GlassCard style={styles.helplineCard}>
+              <View style={styles.helplineRow}>
+                <Feather name="x-circle" size={18} color={colors.purple} />
+                <Text style={styles.helplineTitle}>Need to cancel? Contact support</Text>
+              </View>
+              <Text style={styles.helplineBody}>
+                You can&apos;t cancel a paid booking in the app. Call or email us and we will help. Refunds follow our Cancellation &amp; Refund Policy.
+              </Text>
+              <Text style={styles.problemLink} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)} accessibilityRole="link">
+                Call {HELPLINE_NUMBER}
+              </Text>
+              <Text style={styles.problemLink} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} accessibilityRole="link">
+                Email {SUPPORT_EMAIL}
+              </Text>
+            </GlassCard>
+          ) : null}
+
+          {booking.viewerRole === "BOOKER" && booking.status !== "ENQUIRY_SENT" && booking.status !== "ENQUIRY_VIEWED" ? (
+            <GlassCard style={styles.helplineCard}>
+              <View style={styles.helplineRow}>
+                <Feather name="flag" size={18} color={colors.textDim} />
+                <Text style={styles.helplineTitle}>Something wrong?</Text>
+              </View>
+              {canRaiseDispute(booking.status) ? (
+                <Pressable onPress={() => setDisputeOpen(true)} accessibilityRole="button">
+                  <Text style={styles.problemLink}>Report a problem with this booking</Text>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => setReportKind("booking")} accessibilityRole="button">
+                <Text style={styles.problemLink}>Report this booking</Text>
+              </Pressable>
+              <Pressable onPress={() => setReportKind("artist-behaviour")} accessibilityRole="button">
+                <Text style={styles.problemLink}>Report the artist&apos;s behaviour</Text>
+              </Pressable>
+            </GlassCard>
+          ) : null}
+
+          <DisputeSheet visible={disputeOpen} bookingId={booking.id} onClose={() => setDisputeOpen(false)} onRaised={load} />
+          <ReportSheet
+            visible={reportKind !== null}
+            onClose={() => setReportKind(null)}
+            targetType={reportKind === "booking" ? "booking" : "user"}
+            targetId={reportKind === "booking" ? booking.id : booking.artist.id}
+            bookingId={booking.id}
+            noun={reportKind === "booking" ? "booking" : "artist's behaviour"}
+          />
+
           <GlassCard style={styles.helplineCard}>
             <View style={styles.helplineRow}>
               <Feather name="headphones" size={18} color={colors.purple} />
@@ -812,6 +874,7 @@ const styles = StyleSheet.create({
   otpLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 1 },
   otpCode: { fontFamily: fonts.display, fontSize: 32, color: colors.text, letterSpacing: 4 },
   otpHint: { fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute, textAlign: "center" },
+  problemLink: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple, paddingVertical: 4 },
   helplineCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   helplineRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   helplineTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14.5, color: colors.text },
