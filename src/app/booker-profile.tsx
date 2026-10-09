@@ -9,7 +9,7 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { StateCityField } from "@/components/StateCityField";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, saveBookerProfile, uploadProfilePhoto, updateProfile, ApiError } from "@/lib/api";
-import { isValidEmail } from "@/lib/format";
+import { displayName, isValidEmail, realName } from "@/lib/format";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -37,7 +37,7 @@ export default function BookerProfileScreen() {
     fetchMyProfile()
       .then(({ bookerProfile }) => {
         if (bookerProfile) {
-          setFullName(bookerProfile.fullName);
+          setFullName(realName(bookerProfile.fullName) ?? "");
           setEmail(bookerProfile.email);
           setCity(bookerProfile.city ?? "");
           setState(bookerProfile.state ?? "");
@@ -101,7 +101,7 @@ export default function BookerProfileScreen() {
 
   const canSave = Boolean(fullName && isValidEmail(email) && city && state) && !saving;
   const avatarUri = photoUri ?? user?.image ?? null;
-  const initial = (fullName || user?.name || user?.phone || "G").trim().charAt(0).toUpperCase();
+  const initial = displayName(fullName, user?.name).charAt(0).toUpperCase();
 
   if (loading) {
     return (

@@ -37,6 +37,7 @@ import { haversineKm, formatTimeAgo } from "@/lib/geo";
 import { recoverPendingPayment } from "@/lib/pending-payment-recovery";
 import { captureError } from "@/lib/telemetry";
 import { clearPendingPayment, getPendingPayment, setPendingPayment, type PendingPayment } from "@/lib/pending-payment-storage";
+import { realName } from "@/lib/format";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 // Statuses where the other side is expected to act soon (artist hasn't
@@ -171,7 +172,7 @@ export default function BookingDetailScreen() {
         order_id: order.orderId,
         name: "GiggiFi",
         description: order.eventName,
-        prefill: { name: user?.name ?? undefined, email: user?.email ?? undefined, contact: user?.phone ?? undefined },
+        prefill: { name: realName(user?.name) ?? undefined, email: user?.email ?? undefined, contact: user?.phone ?? undefined },
         theme: { color: colors.pink },
       });
     } catch (err) {

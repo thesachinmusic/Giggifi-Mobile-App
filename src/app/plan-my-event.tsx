@@ -36,7 +36,7 @@ import {
   type MatchedArtist,
   type PlaceDetails,
 } from "@/lib/api";
-import { isValidEmail, maskName } from "@/lib/format";
+import { isValidEmail, maskName, realName } from "@/lib/format";
 import { useAuth } from "@/lib/auth-context";
 import { captureError } from "@/lib/telemetry";
 import { DURATION_MULTIPLIERS, FULL_SHOW_MINUTES, getDurationAdjustedPrice, isSoloPerformerType } from "@/lib/duration-pricing";
@@ -418,7 +418,7 @@ export default function PlanMyEventScreen() {
         artistId: selectedArtist.id,
         // The offer shown in the price above; the server re-validates it.
         offerId: activeOffer?.id,
-        eventName: `${eventType} — ${user?.name?.trim() || "Client"}`,
+        eventName: `${eventType} — ${realName(user?.name) ?? "Client"}`,
         eventType,
         eventDate: eventDate ? eventDate.toISOString() : undefined,
         eventStartTime: formatHourString(eventHour),
