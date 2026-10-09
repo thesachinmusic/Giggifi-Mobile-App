@@ -32,7 +32,7 @@ export function isPhoneLikeName(name: string | null | undefined): boolean {
 }
 
 // The first usable real name from the candidates, or null.
-export function realName(...candidates: Array<string | null | undefined>): string | null {
+export function realName(...candidates: (string | null | undefined)[]): string | null {
   for (const c of candidates) {
     const t = c?.trim();
     if (t && !isPhoneLikeName(t)) return t;
@@ -41,6 +41,6 @@ export function realName(...candidates: Array<string | null | undefined>): strin
 }
 
 // What to show as the user's name: their real name, otherwise "Guest".
-export function displayName(...candidates: Array<string | null | undefined>): string {
+export function displayName(...candidates: (string | null | undefined)[]): string {
   return realName(...candidates) ?? "Guest";
 }
