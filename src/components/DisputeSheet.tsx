@@ -47,7 +47,11 @@ function DisputeForm({ bookingId, onClose, onRaised }: DisputeSheetProps) {
       await onRaised().catch(() => {});
     } catch (err) {
       captureError(err, "raise-dispute");
-      setError(err instanceof ApiError ? err.message : "Could not send your report. Please try again.");
+      setError(
+        err instanceof ApiError && err.status === 400
+          ? "This booking can't be reported right now. Please call our helpline."
+          : "Could not send your report. Please try again, or call our helpline.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +73,10 @@ function DisputeForm({ bookingId, onClose, onRaised }: DisputeSheetProps) {
           <>
             <Text style={styles.title}>Report a problem with this booking</Text>
             <Text style={styles.body}>
-              Tell us what went wrong. Our team will look into it and may pause the payment to the artist while we check.
+              Tell us what went wrong. Our team will contact you.
+            </Text>
+            <Text style={styles.warn}>
+              Important: raising a dispute stops the payout to the artist for this booking. This also applies before the event. Only continue if you really have a problem.
             </Text>
             <TextInput
               style={styles.input}
@@ -105,9 +112,7 @@ export function DisputeNextSteps() {
   return (
     <View style={styles.steps}>
       <Text style={styles.body}>What happens next:</Text>
-      <Text style={styles.body}>1. Our team reviews your report and the booking details.</Text>
-      <Text style={styles.body}>2. We may contact you and the artist to hear both sides.</Text>
-      <Text style={styles.body}>3. We tell you the outcome, including any refund, by notification and phone or email.</Text>
+      <Text style={styles.body}>Our team will contact you. The payout to the artist for this booking is stopped while the dispute is open.</Text>
       <Text style={styles.body}>Need to talk to someone now?</Text>
       <Text style={styles.link} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)} accessibilityRole="link">
         Call {HELPLINE_NUMBER}
@@ -133,6 +138,7 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: fonts.bodySemiBold, fontSize: 17, color: colors.text },
   body: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19, color: colors.textDim },
+  warn: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, lineHeight: 18, color: colors.err },
   hint: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textMute },
   link: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple, paddingVertical: 2 },
   steps: { gap: spacing.xs },

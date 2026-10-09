@@ -160,6 +160,7 @@ function RootLayoutContent() {
                       to; hardware/edge-swipe back should do nothing, not
                       reveal a blank frame. */}
                   <Stack.Screen name="verify" options={{ headerShown: false, gestureEnabled: false }} />
+                  <Stack.Screen name="account-suspended" options={{ headerShown: false, gestureEnabled: false }} />
                   <Stack.Screen name="(tabs)" />
                   {/* headerShown: false, not headerTransparent — a
                       headerTransparent native header floats its own

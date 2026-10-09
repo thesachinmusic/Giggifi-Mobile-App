@@ -16,6 +16,33 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("reportContent", () => {
+  it("sends a booking report with concern and no extra fields", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    await reportContent({ targetType: "booking", targetId: "b1", reason: "harassment", concern: "other_party" });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ targetType: "booking", targetId: "b1", reason: "harassment", concern: "other_party" });
+  });
+
+  it("clears the session and opens the suspended screen on 401 + ACCOUNT_SUSPENDED", async () => {
+    const { router } = await import("expo-router");
+    const { emitSessionExpired } = await import("./session-events");
+    const { showToast } = await import("./toast-host");
+    fetchMock.mockResolvedValue({ ok: false, status: 401, json: async () => ({ error: "This account has been suspended.", code: "ACCOUNT_SUSPENDED" }) });
+    await expect(reportContent({ targetType: "review", targetId: "r1", reason: "spam" })).rejects.toMatchObject({ status: 401, code: "ACCOUNT_SUSPENDED" });
+    expect(router.replace).toHaveBeenCalledWith("/account-suspended");
+    expect(emitSessionExpired).toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it("keeps the expired-session behaviour for a 401 without the code", async () => {
+    const { router } = await import("expo-router");
+    const { showToast } = await import("./toast-host");
+    vi.mocked(router.replace).mockClear();
+    fetchMock.mockResolvedValue({ ok: false, status: 401, json: async () => ({ error: "Login required." }) });
+    await expect(reportContent({ targetType: "review", targetId: "r1", reason: "spam" })).rejects.toMatchObject({ status: 401 });
+    expect(router.replace).toHaveBeenCalledWith("/(tabs)");
+    expect(showToast).toHaveBeenCalled();
+  });
+
   it("POSTs the report to /api/mobile/report with the bearer token", async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
     await expect(reportContent({ targetType: "review", targetId: "r1", reason: "spam", note: "n" })).resolves.toEqual({ ok: true });

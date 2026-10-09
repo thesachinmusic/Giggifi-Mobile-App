@@ -4,11 +4,11 @@ import { ApiError } from "@/lib/api";
 import { GRIEVANCE_EMAIL, HELPLINE_NUMBER } from "@/lib/constants";
 import { colors, fonts, radii, spacing } from "@/theme";
 
-// verify-otp answers a suspended account with 403 "This account has been
-// suspended." — the only place the app can tell suspension apart from a
-// wrong code. (A suspended token mid-session is a plain 401, see api.ts.)
+// Login/OTP verify answers a suspended account with 403 "This account has been
+// suspended." A blocked token mid-session is a 401 with code ACCOUNT_SUSPENDED
+// (handled in api.ts, which opens the account-suspended screen).
 export function isSuspendedAccountError(err: unknown): boolean {
-  return err instanceof ApiError && err.status === 403 && /suspended/i.test(err.message);
+  return err instanceof ApiError && (err.code === "ACCOUNT_SUSPENDED" || (err.status === 403 && /suspended/i.test(err.message)));
 }
 
 export function SuspendedAccountNotice({ onBack }: { onBack: () => void }) {

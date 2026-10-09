@@ -30,7 +30,7 @@ import {
   type BackupMatchAttempt,
 } from "@/lib/api";
 import { canRaiseDispute, isPaidAndUpcoming, PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
-import { HELPLINE_NUMBER, SUPPORT_EMAIL } from "@/lib/constants";
+import { BOOKING_REPORTS_ENABLED, HELPLINE_NUMBER, SUPPORT_EMAIL } from "@/lib/constants";
 import { hapticSuccess } from "@/lib/haptics";
 import { QUICK_MOMENT_FORMAT_LABEL } from "@/lib/quick-moments";
 import { haversineKm, formatTimeAgo } from "@/lib/geo";
@@ -492,7 +492,7 @@ export default function BookingDetailScreen() {
             </GlassCard>
           ) : null}
 
-          {booking.viewerRole === "BOOKER" && booking.status !== "ENQUIRY_SENT" && booking.status !== "ENQUIRY_VIEWED" ? (
+          {booking.viewerRole === "BOOKER" && (canRaiseDispute(booking.status) || (BOOKING_REPORTS_ENABLED && booking.status !== "ENQUIRY_SENT" && booking.status !== "ENQUIRY_VIEWED")) ? (
             <GlassCard style={styles.helplineCard}>
               <View style={styles.helplineRow}>
                 <Feather name="flag" size={18} color={colors.textDim} />
@@ -503,12 +503,16 @@ export default function BookingDetailScreen() {
                   <Text style={styles.problemLink}>Report a problem with this booking</Text>
                 </Pressable>
               ) : null}
-              <Pressable onPress={() => setReportKind("booking")} accessibilityRole="button">
-                <Text style={styles.problemLink}>Report this booking</Text>
-              </Pressable>
-              <Pressable onPress={() => setReportKind("artist-behaviour")} accessibilityRole="button">
-                <Text style={styles.problemLink}>Report the artist&apos;s behaviour</Text>
-              </Pressable>
+              {BOOKING_REPORTS_ENABLED ? (
+                <>
+                  <Pressable onPress={() => setReportKind("booking")} accessibilityRole="button">
+                    <Text style={styles.problemLink}>Report this booking</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setReportKind("artist-behaviour")} accessibilityRole="button">
+                    <Text style={styles.problemLink}>Report the artist&apos;s behaviour</Text>
+                  </Pressable>
+                </>
+              ) : null}
             </GlassCard>
           ) : null}
 
@@ -516,9 +520,9 @@ export default function BookingDetailScreen() {
           <ReportSheet
             visible={reportKind !== null}
             onClose={() => setReportKind(null)}
-            targetType={reportKind === "booking" ? "booking" : "user"}
-            targetId={reportKind === "booking" ? booking.id : booking.artist.id}
-            bookingId={booking.id}
+            targetType="booking"
+            targetId={booking.id}
+            concern={reportKind === "booking" ? "booking" : "other_party"}
             noun={reportKind === "booking" ? "booking" : "artist's behaviour"}
           />
 

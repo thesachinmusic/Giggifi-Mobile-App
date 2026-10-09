@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { ApiError, reportContent, type ReportReason, type ReportTargetType } from "@/lib/api";
+import { ApiError, reportContent, type ReportConcern, type ReportReason, type ReportTargetType } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
@@ -14,6 +14,16 @@ const REASONS: { value: ReportReason; label: string }[] = [
   { value: "other", label: "Something else" },
 ];
 
+const BOOKING_REASONS: { value: ReportReason; label: string }[] = [
+  { value: "harassment", label: "Harassment or abuse" },
+  { value: "unsafe_behaviour", label: "Unsafe behaviour" },
+  { value: "intoxicated_or_aggressive", label: "Seemed intoxicated or aggressive" },
+  { value: "no_show_or_late", label: "Did not show up or was very late" },
+  { value: "outside_payment_pressure", label: "Asked to pay outside the app" },
+  { value: "poor_quality", label: "Poor quality of service" },
+  { value: "other", label: "Something else" },
+];
+
 interface ReportSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -21,8 +31,8 @@ interface ReportSheetProps {
   targetId: string;
   // "review" | "artist profile" | "booking" | "artist's behaviour" — only used in the heading.
   noun: string;
-  // Set when the report is raised from a booking screen.
-  bookingId?: string;
+  // Required when targetType is "booking": which side the report is about.
+  concern?: ReportConcern;
 }
 
 // Simple report sheet (Google Play user-generated-content requirement) for a
@@ -38,8 +48,9 @@ export function ReportSheet(props: ReportSheetProps) {
   );
 }
 
-function ReportForm({ onClose, targetType, targetId, noun, bookingId }: ReportSheetProps) {
+function ReportForm({ onClose, targetType, targetId, noun, concern }: ReportSheetProps) {
   const { user } = useAuth();
+  const reasons = targetType === "booking" ? BOOKING_REASONS : REASONS;
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -51,14 +62,18 @@ function ReportForm({ onClose, targetType, targetId, noun, bookingId }: ReportSh
     setSubmitting(true);
     setError("");
     try {
-      await reportContent({ targetType, targetId, reason, note: note.trim() || undefined, bookingId });
+      await reportContent({ targetType, targetId, reason, note: note.trim() || undefined, concern });
       setDone(true);
     } catch (err) {
       captureError(err, "content-report");
       if (err instanceof ApiError && err.status === 401) {
         setError("Please verify your phone number first, then report again.");
       } else {
-        setError(err instanceof ApiError ? err.message : "Couldn't send your report. Please try again.");
+        setError(
+          err instanceof ApiError && err.status === 429
+            ? "You have sent too many reports. Please try again later."
+            : "Couldn't send your report. Please try again, or call our helpline.",
+        );
       }
     } finally {
       setSubmitting(false);
@@ -85,7 +100,7 @@ function ReportForm({ onClose, targetType, targetId, noun, bookingId }: ReportSh
                 {user ? "What's wrong with it?" : "You'll need to verify your phone number to send a report."}
               </Text>
               <View style={styles.chips}>
-                {REASONS.map((r) => (
+                {reasons.map((r) => (
                   <Pressable
                     key={r.value}
                     style={[styles.chip, reason === r.value && styles.chipActive]}

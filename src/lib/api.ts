@@ -9,9 +9,12 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  // Machine-readable code from the server body, when it sends one (e.g. ACCOUNT_SUSPENDED).
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -89,13 +92,19 @@ async function request<T>(path: string, options: RequestInit = {}, withAuth = tr
       // rendering InlinePhoneVerification; no toast, no navigation needed.
       // sendOtp/verifyOtp (withAuth: false) are excluded from all of this
       // since a wrong OTP isn't a session expiring.
-      if (response.status === 401 && withAuth && token) {
+      if (response.status === 401 && body.code === "ACCOUNT_SUSPENDED") {
+        // Blocked token: not an expired session, so no "Session expired"
+        // toast — the suspended-account screen explains it instead.
+        await clearStoredToken();
+        emitSessionExpired();
+        router.replace("/account-suspended");
+      } else if (response.status === 401 && withAuth && token) {
         await clearStoredToken();
         emitSessionExpired();
         showToast({ title: "Session expired", body: "Please sign in again.", category: "SECURITY" });
         router.replace("/(tabs)");
       }
-      throw new ApiError(response.status, body.error ?? "Something went wrong.");
+      throw new ApiError(response.status, body.error ?? "Something went wrong.", typeof body.code === "string" ? body.code : undefined);
     }
     return body as T;
   })();
@@ -1130,20 +1139,26 @@ export function submitReview(bookingId: string, input: { rating: number; comment
 
 // ─── Content reports (Play UGC policy) ───
 
-// "booking" and "user" need the website's report route to accept them (that
-// change is on the backend branch, not in this app) — until it ships the
-// server answers 400 and the sheet shows its message.
-export type ReportTargetType = "review" | "artist-profile" | "booking" | "user";
-export type ReportReason = "spam" | "abusive" | "fake" | "inappropriate" | "impersonation" | "other";
+export type ReportTargetType = "review" | "artist-profile" | "booking";
+export type ContentReportReason = "spam" | "abusive" | "fake" | "inappropriate" | "impersonation" | "other";
+export type BookingReportReason =
+  | "harassment"
+  | "unsafe_behaviour"
+  | "intoxicated_or_aggressive"
+  | "no_show_or_late"
+  | "outside_payment_pressure"
+  | "poor_quality"
+  | "other";
+export type ReportReason = ContentReportReason | BookingReportReason;
+// Only for targetType "booking": which side the report is about.
+export type ReportConcern = "booking" | "other_party";
 
 export function reportContent(input: {
   targetType: ReportTargetType;
   targetId: string;
   reason: ReportReason;
   note?: string;
-  // The booking the report came from, so support can find the context when
-  // the target is the other person rather than the booking itself.
-  bookingId?: string;
+  concern?: ReportConcern;
 }) {
   return request<{ ok: true; alreadyReported?: boolean }>("/api/mobile/report", {
     method: "POST",
