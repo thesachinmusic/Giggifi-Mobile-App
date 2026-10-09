@@ -39,47 +39,13 @@ import { useAuth } from "@/lib/auth-context";
 import { HomePushPrimer } from "@/components/HomePushPrimer";
 import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
-import { rankByHomeCity, travelsToYourCity } from "@/lib/home-ranking";
+import { travelsToYourCity } from "@/lib/home-ranking";
+import { featuredRail, freshRail, popularRail } from "@/lib/home-rails";
 import { setPendingVideoFeed, type VideoFeedItem } from "@/lib/video-feed-handoff";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, mock, mockGradients, radii, spacing } from "@/theme";
 
 type BrowseVertical = "artist" | "vendor";
-
-// Deterministic PRNG (mulberry32-style LCG) seeded from a plain integer —
-// same seed always produces the same shuffle order.
-function seededRandom(seed: number) {
-  let s = seed % 2147483647;
-  if (s <= 0) s += 2147483646;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
-
-// YYYYMMDD hashed to an int — same all day, changes at midnight local time.
-function todaySeed(): number {
-  const d = new Date();
-  const key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  let hash = 0;
-  const str = String(key);
-  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(hash) || 1;
-}
-
-// Sorted by id first so the shuffle is stable even if the API returns the
-// same set of artists in a different order across requests — otherwise a
-// fixed seed applied to a different starting order still yields a different
-// result, defeating the "stops reshuffling on refresh" point of this.
-function shuffle<T extends { id: string }>(items: T[]): T[] {
-  const sorted = [...items].sort((a, b) => a.id.localeCompare(b.id));
-  const rand = seededRandom(todaySeed());
-  for (let i = sorted.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
-  }
-  return sorted;
-}
 
 // Video-feed.tsx only ever swipes through items that actually have a video —
 // filtering here (rather than in the viewer) also means the starting index
@@ -111,7 +77,8 @@ export default function HomeScreen() {
   const [featured, setFeatured] = useState<ArtistSummary[]>([]);
   // Unpaid daily-rotating artists that fill the Featured rail's empty slots.
   const [featuredFill, setFeaturedFill] = useState<ArtistSummary[]>([]);
-  const [trending, setTrending] = useState<ArtistSummary[]>([]);
+  // Most-booked artists (the server's booking-count sort) for "Popular right now".
+  const [popularArtists, setPopularArtists] = useState<ArtistSummary[]>([]);
   const [saved, setSaved] = useState<ArtistSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -120,30 +87,36 @@ export default function HomeScreen() {
   const [homeCity, setHomeCityState] = useState<string | null>(null);
   const [browseVertical, setBrowseVertical] = useState<BrowseVertical>("artist");
 
+  // Newest artists first (the default sort) feed "Fresh picks"; the booking-count
+  // sort feeds "Popular right now".
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [{ artists: results }, { artists: featuredResults, fill: fillResults }, { artists: trendingResults }] = await Promise.all([
+      const [{ artists: results }, { artists: popularResults }] = await Promise.all([
         fetchArtists({}),
-        fetchFeatured(),
         fetchArtists({ sort: "trending" }),
       ]);
       setArtists(results);
-      setFeatured(featuredResults);
-      // Forced to isFeatured:false so a fill artist can never get the Premium
-      // pill or purple ring, whatever the server sends; `?? []` keeps an older
-      // backend (no `fill` key) working.
-      setFeaturedFill((fillResults ?? []).map((a) => ({ ...a, isFeatured: false })));
-      // No one has racked up real bookings yet, so a "trending" sort is flat —
-      // shuffle instead of showing the same static order every time. Seeded
-      // by the date so it holds steady across pull-to-refresh and only
-      // rotates once a day. Swap this for the real sort once booking volume
-      // makes it meaningful.
-      setTrending(shuffle(trendingResults).slice(0, 10));
+      setPopularArtists(popularResults);
     } catch {
       setError(true);
     }
   }, []);
+
+  // Featured is its own fetch so a newly known Home city can re-request just
+  // this rail. `artists` is the paid list; `fill` the unpaid daily rotation.
+  const loadFeatured = useCallback(
+    () =>
+      fetchFeatured(homeCity ? { city: homeCity } : {})
+        .then(({ artists: featuredResults, fill: fillResults }) => {
+          setFeatured(featuredResults);
+          // `?? []` keeps an older backend (no `fill` key) working. Which artists
+          // get the Promoted pill is decided in featuredRail().
+          setFeaturedFill(fillResults ?? []);
+        })
+        .catch(() => setError(true)),
+    [homeCity],
+  );
 
   // Independent of the paginated `artists` fetch above — filtering that
   // array (the old approach) only ever showed a saved artist who happened to
@@ -165,6 +138,10 @@ export default function HomeScreen() {
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, [load]);
+
+  useEffect(() => {
+    void loadFeatured();
+  }, [loadFeatured]);
 
   useEffect(() => {
     loadSaved();
@@ -209,29 +186,28 @@ export default function HomeScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    await Promise.all([load(), loadSaved()]);
+    await Promise.all([load(), loadFeatured(), loadSaved()]);
     setRefreshing(false);
   }
 
-  const rankedArtists = useMemo(() => rankByHomeCity(artists, homeCity), [artists, homeCity]);
-  const popular = useMemo(() => rankedArtists.slice(0, 12), [rankedArtists]);
+  // "Popular right now": most booked first. "Fresh picks": newest first, without
+  // anyone already shown under Popular, so the two rails never repeat an artist.
+  const popular = useMemo(() => popularRail(popularArtists), [popularArtists]);
+  const fresh = useMemo(() => freshRail(artists, popular), [artists, popular]);
   // Paid artists first, then the daily fill.
   // (An artist is never in both lists server-side; the filter just guarantees
   // unique FlatList keys if a response ever repeats one.)
-  const featuredList = useMemo(() => {
-    const paidIds = new Set(featured.map((a) => a.id));
-    return [...featured, ...featuredFill.filter((a) => !paidIds.has(a.id))];
-  }, [featured, featuredFill]);
+  const featuredList = useMemo(() => featuredRail(featured, featuredFill), [featured, featuredFill]);
 
-  const [activeTrendingIndex, setActiveTrendingIndex] = useState(0);
+  const [activeFreshIndex, setActiveFreshIndex] = useState(0);
 
   const featuredViewability = useRef({ itemVisiblePercentThreshold: 65 }).current;
   const onFeaturedViewableChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (viewableItems[0]?.index != null) setActiveFeaturedIndex(viewableItems[0].index);
   }).current;
-  const trendingViewability = useRef({ itemVisiblePercentThreshold: 65 }).current;
-  const onTrendingViewableChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (viewableItems[0]?.index != null) setActiveTrendingIndex(viewableItems[0].index);
+  const freshViewability = useRef({ itemVisiblePercentThreshold: 65 }).current;
+  const onFreshViewableChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems[0]?.index != null) setActiveFreshIndex(viewableItems[0].index);
   }).current;
 
   // The rails' own horizontal viewability (above) only tracks which CARD is
@@ -245,9 +221,9 @@ export default function HomeScreen() {
   // on every scroll frame.
   const viewportHeight = Dimensions.get("window").height;
   const featuredSectionLayout = useRef({ y: 0, height: 0 });
-  const trendingSectionLayout = useRef({ y: 0, height: 0 });
+  const freshSectionLayout = useRef({ y: 0, height: 0 });
   const [featuredSectionVisible, setFeaturedSectionVisible] = useState(true);
-  const [trendingSectionVisible, setTrendingSectionVisible] = useState(true);
+  const [freshSectionVisible, setFreshSectionVisible] = useState(true);
 
   // Scroll-based visibility above only reacts to scrolling *within* this
   // screen — it never goes false just because Home itself lost focus (e.g.
@@ -272,8 +248,8 @@ export default function HomeScreen() {
       const next = isVisible(featuredSectionLayout.current);
       return prev === next ? prev : next;
     });
-    setTrendingSectionVisible((prev) => {
-      const next = isVisible(trendingSectionLayout.current);
+    setFreshSectionVisible((prev) => {
+      const next = isVisible(freshSectionLayout.current);
       return prev === next ? prev : next;
     });
   }, [viewportHeight]);
@@ -359,7 +335,7 @@ export default function HomeScreen() {
 
           {loading ? (
             <View style={styles.section}>
-              <SectionHeader icon="star" title="Featured Artists" sub="Watch before you book" />
+              <SectionHeader icon="star" title="Featured artists" sub="Watch before you book" />
               <View style={[styles.artistRow, styles.skeletonRow]}>
                 {[0, 1, 2].map((i) => (
                   <View key={i} style={styles.skeletonCard}>
@@ -384,8 +360,7 @@ export default function HomeScreen() {
                   <View style={styles.featuredBoxTitleRow}>
                     <MaterialCommunityIcons name="crown-outline" size={26} color={mock.amber} />
                     <View>
-                      <Text style={styles.featuredBoxTitle}>Featured Artists</Text>
-                      <Text style={styles.featuredBoxSub}>{featured.length > 0 ? "Top performers, handpicked for you" : "Artists to discover today"}</Text>
+                      <Text style={styles.featuredBoxTitle}>Featured artists</Text>
                     </View>
                   </View>
                   <Pressable onPress={() => router.push("/(tabs)/browse")} hitSlop={8}>
@@ -427,7 +402,7 @@ export default function HomeScreen() {
           {loading ? (
             <>
               <View style={styles.section}>
-                <SectionHeader icon="zap" title="Fresh picks for you" sub="Handpicked for you — watch before you book" />
+                <SectionHeader icon="zap" title="Fresh picks" sub="New on GiggiFi — watch before you book" />
                 <View style={[styles.featuredRow, styles.skeletonRow]}>
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
                   <Skeleton width={FEATURED_CARD_WIDTH} height={FEATURED_CARD_WIDTH * (16 / 9)} borderRadius={radii.xl} />
@@ -450,29 +425,29 @@ export default function HomeScreen() {
                   Picks per the redesign order. Both video rails open the same
                   swipeable video-feed screen via openVideoFeed (see its own
                   comment). */}
-              {trending.length > 0 ? (
+              {fresh.length > 0 ? (
                 <View
                   style={styles.section}
                   onLayout={(e) => {
-                    trendingSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
+                    freshSectionLayout.current = { y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height };
                   }}
                 >
                   <SectionHeader
                     icon="zap"
-                    title="Fresh picks for you"
-                    sub="Handpicked for you — watch before you book"
+                    title="Fresh picks"
+                    sub="New on GiggiFi — watch before you book"
                     onSeeAll={() => router.push({ pathname: "/(tabs)/browse" })}
                   />
                   <FlatList
-                    data={trending}
+                    data={fresh}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.featuredRow}
                     snapToInterval={FEATURED_CARD_WIDTH + spacing.sm}
                     decelerationRate="fast"
-                    viewabilityConfig={trendingViewability}
-                    onViewableItemsChanged={onTrendingViewableChanged}
+                    viewabilityConfig={freshViewability}
+                    onViewableItemsChanged={onFreshViewableChanged}
                     initialNumToRender={2}
                     maxToRenderPerBatch={2}
                     windowSize={3}
@@ -480,8 +455,8 @@ export default function HomeScreen() {
                     renderItem={({ item, index }) => (
                       <FeaturedArtistCard
                         artist={item}
-                        isActive={index === activeTrendingIndex && trendingSectionVisible && focused}
-                        onOpenVideo={() => openVideoFeed(trending, item)}
+                        isActive={index === activeFreshIndex && freshSectionVisible && focused}
+                        onOpenVideo={() => openVideoFeed(fresh, item)}
                         onViewProfile={() => router.push({ pathname: "/artist/[id]", params: { id: item.id } })}
                       />
                     )}
