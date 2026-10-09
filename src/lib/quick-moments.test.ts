@@ -8,7 +8,8 @@ import {
   MOMENT_IMAGES,
   nearLabel,
   priceForDuration,
-  QUICK_MOMENT_CATEGORY_CHIPS,
+  categoryChips,
+  resolveCategory,
   QUICK_MOMENT_KIND,
   SHOW_QUICK_MOMENT_DISTANCE,
   visibleSections,
@@ -21,7 +22,7 @@ const item = (over: Partial<QuickMomentDiscoverItem> = {}): QuickMomentDiscoverI
 });
 const feed = (over: Partial<QuickMomentDiscover> = {}): QuickMomentDiscover => ({
   durations: [{ minutes: 20, priceINR: 1500 }, { minutes: 40, priceINR: 2500 }],
-  travel: { freeKm: 5, note: "" }, featured: null, forMoment: [], mostViewed: [], reels: [], emptyReason: null, ...over,
+  travel: { freeKm: 5, note: "" }, featured: null, forMoment: [], mostViewed: [], reels: [], emptyReason: null, categories: [], ...over,
 });
 
 describe("prices come from the server's durations", () => {
@@ -101,7 +102,25 @@ describe("moment cards and chips", () => {
   it("no moment photo exists yet: the card falls back to the drawn art (no category photo is used)", () => {
     expect(Object.values(MOMENT_IMAGES).every((v) => v === null)).toBe(true);
   });
-  it("the category chips are exactly the server's list", () => {
-    expect(QUICK_MOMENT_CATEGORY_CHIPS).toEqual(["All", "Singers", "Instrumentalists", "Duo", "Comedians", "Magicians", "Sketch artists", "Poets"]);
+});
+
+describe("category chips come from the server's categories", () => {
+  it("'All' first, then only the categories the server sent, in its order", () => {
+    expect(categoryChips([{ category: "Singers", count: 9 }, { category: "Magicians", count: 1 }])).toEqual(["All", "Singers", "Magicians"]);
+  });
+  it("a category with a zero count is never a chip", () => {
+    expect(categoryChips([{ category: "Singers", count: 2 }, { category: "Poets", count: 0 }])).toEqual(["All", "Singers"]);
+  });
+  it("no list (not loaded, empty, or missing) = just 'All', no crash", () => {
+    expect(categoryChips([])).toEqual(["All"]);
+    expect(categoryChips(null)).toEqual(["All"]);
+    expect(categoryChips(undefined)).toEqual(["All"]);
+  });
+  it("a selected chip that is no longer offered resets to 'All'", () => {
+    const chips = categoryChips([{ category: "Singers", count: 3 }]);
+    expect(resolveCategory("Singers", chips)).toBe("Singers");
+    expect(resolveCategory("Poets", chips)).toBe("All");
+    expect(resolveCategory("All", chips)).toBe("All");
+    expect(resolveCategory("Singers", ["All"])).toBe("All");
   });
 });

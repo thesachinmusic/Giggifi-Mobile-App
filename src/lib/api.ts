@@ -393,6 +393,10 @@ export interface QuickMomentDiscover {
   mostViewed: QuickMomentDiscoverItem[];
   reels: QuickMomentDiscoverReel[];
   emptyReason: "NO_ARTISTS_NEARBY" | null;
+  // Categories that really have eligible, free artists nearby (count > 0 only), in
+  // chip order. Counted before the category / search / moment filters, so it does
+  // not shrink as the artist picks a chip.
+  categories: { category: QuickMomentsCategory; count: number }[];
 }
 
 export function fetchQuickMomentsDiscover(params: {

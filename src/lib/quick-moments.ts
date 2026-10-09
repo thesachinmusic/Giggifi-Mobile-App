@@ -55,16 +55,19 @@ export const MOMENT_IMAGES: Record<QuickMomentFormat, ImageSourcePropType | null
 // this to true to show "x.x km away" again; the field is still carried around.
 export const SHOW_QUICK_MOMENT_DISTANCE = false;
 
-export const QUICK_MOMENT_CATEGORY_CHIPS: ("All" | QuickMomentsCategory)[] = [
-  "All",
-  "Singers",
-  "Instrumentalists",
-  "Duo",
-  "Comedians",
-  "Magicians",
-  "Sketch artists",
-  "Poets",
-];
+// The chip row: "All" first, then only the categories the server says have real
+// artists nearby (QuickMomentDiscover.categories). No server list (not loaded yet,
+// or empty) = just "All".
+export type CategoryChip = "All" | QuickMomentsCategory;
+
+export function categoryChips(categories: QuickMomentDiscover["categories"] | null | undefined): CategoryChip[] {
+  return ["All", ...(categories ?? []).filter((c) => c.count > 0).map((c) => c.category)];
+}
+
+// A selected chip that is no longer offered falls back to "All".
+export function resolveCategory(selected: CategoryChip, chips: readonly CategoryChip[]): CategoryChip {
+  return chips.includes(selected) ? selected : "All";
+}
 
 export const QUICK_MOMENT_DURATION_OPTIONS: QuickMomentDuration[] = [20, 40];
 export const DEFAULT_QUICK_MOMENT_DURATION: QuickMomentDuration = 20;

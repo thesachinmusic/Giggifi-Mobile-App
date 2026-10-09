@@ -58,11 +58,12 @@ import {
   isLeadTimeOk,
   nearLabel,
   priceForDuration,
-  QUICK_MOMENT_CATEGORY_CHIPS,
+  categoryChips,
   QUICK_MOMENT_FORMAT_LABEL,
   QUICK_MOMENT_KIND,
   QUICK_MOMENT_SHORT_LABEL,
   QUICK_MOMENTS_MIN_LEAD_HOURS,
+  resolveCategory,
   visibleSections,
 } from "@/lib/quick-moments";
 import { colors, fonts, mock, radii, spacing } from "@/theme";
@@ -162,7 +163,11 @@ export default function QuickMomentsBrowseScreen() {
 
   // The feed. Re-fetched whenever the moment, filters, duration or time change;
   // an answer for an older query is ignored (cancelled flag).
-  const queryKey = coords ? [coords.lat, coords.lng, format, category, q, duration, slotStartTime].join("|") : null;
+  // The chips are whatever the server last said has real artists nearby; a chip
+  // that is no longer offered counts as "All".
+  const chips = useMemo(() => categoryChips(feed?.data.categories), [feed]);
+  const activeCategory = resolveCategory(category, chips);
+  const queryKey = coords ? [coords.lat, coords.lng, format, activeCategory, q, duration, slotStartTime].join("|") : null;
   useEffect(() => {
     if (!coords || !queryKey) return;
     let cancelled = false;
@@ -170,13 +175,16 @@ export default function QuickMomentsBrowseScreen() {
       lat: coords.lat,
       lng: coords.lng,
       moment: format ? QUICK_MOMENT_KIND[format] : undefined,
-      category,
+      category: activeCategory,
       q: q || undefined,
       durationMinutes: duration,
       slotStartTime,
     })
       .then((res) => {
-        if (!cancelled && mountedRef.current) setFeed({ key: queryKey, data: res });
+        if (cancelled || !mountedRef.current) return;
+        setFeed({ key: queryKey, data: res });
+        // If the selected chip is gone from the server's new list, reset to All.
+        setCategory((prev) => resolveCategory(prev, categoryChips(res.categories)));
       })
       .catch((err) => {
         if (cancelled || !mountedRef.current) return;
@@ -185,7 +193,7 @@ export default function QuickMomentsBrowseScreen() {
     return () => {
       cancelled = true;
     };
-  }, [coords, queryKey, format, category, q, duration, slotStartTime]);
+  }, [coords, queryKey, format, activeCategory, q, duration, slotStartTime]);
 
   const data = feed?.data ?? null;
   const loading = queryKey !== null && feed?.key !== queryKey && feedError?.key !== queryKey;
@@ -336,8 +344,8 @@ export default function QuickMomentsBrowseScreen() {
                 ) : null}
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {QUICK_MOMENT_CATEGORY_CHIPS.map((c) => (
-                  <CategoryPill key={c} label={c} active={category === c} onPress={() => setCategory(c)} />
+                {chips.map((c) => (
+                  <CategoryPill key={c} label={c} active={activeCategory === c} onPress={() => setCategory(c)} />
                 ))}
               </ScrollView>
 
