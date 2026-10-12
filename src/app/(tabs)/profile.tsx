@@ -91,6 +91,8 @@ export default function ProfileScreen() {
     : [];
   const legalRows: MenuRowProps[] = [
     { icon: "file-text", label: "Terms of Service", tint: "lilac", onPress: () => Linking.openURL("https://giggifi.com/terms") },
+    { icon: "users", label: "Booker Terms", tint: "lilac", onPress: () => Linking.openURL("https://giggifi.com/booker-terms") },
+    { icon: "alert-triangle", label: "Acceptable Use Policy", tint: "rose", onPress: () => Linking.openURL("https://giggifi.com/acceptable-use") },
     { icon: "shield", label: "Privacy Policy", tint: "amber", onPress: () => Linking.openURL("https://giggifi.com/privacy") },
     { icon: "rotate-ccw", label: "Refund Policy", tint: "rose", onPress: () => Linking.openURL("https://giggifi.com/refund") },
     { icon: "user-check", label: "Privacy Rights Request", tint: "lilac", onPress: () => Linking.openURL("https://giggifi.com/privacy-request") },

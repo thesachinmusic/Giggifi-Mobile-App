@@ -62,6 +62,8 @@ export default function VerifyScreen() {
             )}
             <Text style={styles.legal}>
               <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/terms")}>Terms of Service</Text>{"  ·  "}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/booker-terms")}>Booker Terms</Text>{"  ·  "}
+              <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/acceptable-use")}>Acceptable Use</Text>{"  ·  "}
               <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/privacy")}>Privacy Policy</Text>{"  ·  "}
               <Text style={styles.legalLink} onPress={() => Linking.openURL("https://giggifi.com/refund")}>Refund Policy</Text>
             </Text>

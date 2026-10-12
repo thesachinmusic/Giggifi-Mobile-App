@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { ApiError, reportContent, type ReportConcern, type ReportReason, type ReportTargetType } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { EMERGENCY_LINE, isSafetyReason } from "@/lib/report-safety";
 import { captureError } from "@/lib/telemetry";
 import { colors, fonts, radii, spacing } from "@/theme";
 
@@ -112,6 +113,7 @@ function ReportForm({ onClose, targetType, targetId, noun, concern }: ReportShee
                   </Pressable>
                 ))}
               </View>
+              {isSafetyReason(reason) ? <Text style={styles.emergency}>{EMERGENCY_LINE}</Text> : null}
               <TextInput
                 style={styles.input}
                 value={note}
@@ -179,6 +181,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlignVertical: "top",
   },
+  emergency: { fontFamily: fonts.bodySemiBold, fontSize: 13, lineHeight: 19, color: colors.err },
   error: { fontFamily: fonts.body, fontSize: 12.5, color: colors.err },
   actions: { flexDirection: "row", gap: spacing.sm, justifyContent: "flex-end" },
   primary: {
