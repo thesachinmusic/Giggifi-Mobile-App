@@ -36,3 +36,8 @@ Gaps for 5.1:
 - Dispute sheet and "Report" sheets on Android with the keyboard open.
 - That a real dispute moves the booking to "In dispute" and the next-steps card shows.
 - That an urgent safety report really reaches the grievance inbox.
+
+## Update 2026-10-13 (after Sachin's decisions)
+- **Done:** Booker Terms and Acceptable Use Policy links added to the login screen ([verify.tsx](../src/app/verify.tsx)) and the profile legal list ([profile.tsx](../src/app/(tabs)/profile.tsx)). Choosing a safety reason in the report sheet (harassment, unsafe behaviour, seemed intoxicated or aggressive) shows "If you are in immediate danger, call 112 first." ([ReportSheet.tsx](../src/components/ReportSheet.tsx), [report-safety.ts](../src/lib/report-safety.ts)).
+- **Before vendors go live:** add a Report action on [vendor/[id].tsx](../src/app/vendor/[id].tsx) (needs a vendor target type on the report route). Vendors cannot be reported in 1.0.0. Do this before vendors are shown to clients.
+- Still open: Quick Moments reels and artist videos have no report entry of their own; no in-app message to support (phone and email only).

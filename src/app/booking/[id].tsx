@@ -29,6 +29,7 @@ import {
   type QuickMomentLocation,
   type BackupMatchAttempt,
 } from "@/lib/api";
+import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_NO_IN_APP_CANCEL, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_ROWS } from "@/lib/refund-summary";
 import { checkoutDecision, isPendingStale } from "@/lib/payment-guard";
 import { useAppForeground } from "@/lib/use-app-foreground";
 import { canRaiseDispute, isPaidAndUpcoming, PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
@@ -555,9 +556,22 @@ export default function BookingDetailScreen() {
               <Text style={styles.problemLink} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)} accessibilityRole="link">
                 Call {HELPLINE_NUMBER}
               </Text>
-              <Text style={styles.problemLink} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} accessibilityRole="link">
+              <Text style={styles.problemLink} onPress={() => Linking.openURL(cancellationMailto(booking))} accessibilityRole="link">
                 Email {SUPPORT_EMAIL}
               </Text>
+              <View style={styles.refundNote}>
+                <Text style={styles.refundNoteTitle}>From our Cancellation &amp; Refund Policy</Text>
+                <Text style={styles.refundNoteText}>{COOLING_OFF_TEXT}</Text>
+                {(booking.format === "QUICK_MOMENT" ? QUICK_MOMENT_REFUND_ROWS : STANDARD_REFUND_ROWS).map((row) => (
+                  <Text key={row.notice} style={styles.refundNoteText}>
+                    {row.notice}: {row.refund} refund
+                  </Text>
+                ))}
+                {booking.format === "QUICK_MOMENT" ? <Text style={styles.refundNoteText}>{QUICK_MOMENT_NO_IN_APP_CANCEL}</Text> : null}
+                <Text style={styles.problemLink} onPress={() => Linking.openURL("https://giggifi.com/refund")} accessibilityRole="link">
+                  Read the full policy
+                </Text>
+              </View>
             </GlassCard>
           ) : null}
 
@@ -947,6 +961,9 @@ const styles = StyleSheet.create({
   otpLabel: { fontFamily: fonts.mono, fontSize: 10, color: colors.textMute, letterSpacing: 1 },
   otpCode: { fontFamily: fonts.display, fontSize: 32, color: colors.text, letterSpacing: 4 },
   otpHint: { fontFamily: fonts.body, fontSize: 11.5, color: colors.textMute, textAlign: "center" },
+  refundNote: { gap: 4, marginTop: spacing.xs, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.line },
+  refundNoteTitle: { fontFamily: fonts.bodySemiBold, fontSize: 12.5, color: colors.text },
+  refundNoteText: { fontFamily: fonts.body, fontSize: 12, lineHeight: 17, color: colors.textDim },
   problemLink: { fontFamily: fonts.bodySemiBold, fontSize: 13.5, color: colors.purple, paddingVertical: 4 },
   helplineCard: { marginHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg },
   helplineRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },

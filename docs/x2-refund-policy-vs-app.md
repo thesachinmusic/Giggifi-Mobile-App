@@ -27,3 +27,8 @@ It states honestly that paid cancellation is by support. The gap that matters is
 ## Questions
 1. Do you want option 1 or 2 for 1.0.0?
 2. Should a client see "refund requested / refund sent" on the booking after an artist cancel? The backend would need to expose the refund state.
+
+## Update 2026-10-13 (after Sachin's decision: option 1 for 1.0.0)
+- **Done (option 1):** on a paid booking (`PAYMENT_HELD` or `EVENT_UPCOMING`) the "Need to cancel? Contact support" card now shows a short note copied word for word from the live policy (giggifi.com/refund, version 1.0, effective 7 October 2026): the clause 3.5 cooling-off sentence and the refund percentages from 4.1 (standard booking) or 4.2 (Quick Moment). Source and pinned test: [refund-summary.ts](../src/lib/refund-summary.ts), [refund-summary.test.ts](../src/lib/refund-summary.test.ts). The text was checked against the live page by GET. The card's email action opens a message with the booking reference, event name and event date filled in. No backend or ticket was added.
+- **For 1.0.1 (option 2):** a "Request cancellation" button that raises a support ticket with the booking id and payment time, so the 2-hour check is not manual. Needs a backend endpoint and an admin view.
+- **Conflict to note (policy vs product, not app vs policy):** the policy promises 75% / 50% / 25% refunds, but the admin tool "Cancel a paid booking" refunds in full only; a partial refund needs the dispute route (website note `docs/refund-policy-vs-product.md`). The app now shows the percentages, so clients will expect them. Every refund is still handled by hand, so the backend owner should be ready to calculate the tier from the notice time.
