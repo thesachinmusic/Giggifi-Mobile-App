@@ -25,8 +25,8 @@ const LOCKED_CATEGORIES: NotificationCategory[] = ["BOOKING", "PAYMENT", "EVENT_
 
 const LANGUAGES: { key: Language; label: string }[] = [
   { key: "en", label: "English" },
-  { key: "hi", label: "हिंदी" },
-  { key: "mr", label: "मराठी" },
+  { key: "hi", label: "Hindi" },
+  { key: "mr", label: "Marathi" },
 ];
 
 type PermissionStatus = "granted" | "denied" | "undetermined";

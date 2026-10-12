@@ -725,7 +725,7 @@ export default function ArtistDetailScreen() {
 
 function AboutTab({ artist }: { artist: ArtistSummary }) {
   const highlights: { icon: keyof typeof Feather.glyphMap; title: string; desc: string }[] = [
-    ...(artist.kycStatus === "APPROVED" ? [{ icon: "shield" as const, title: "Verified Artist", desc: "Identity & KYC verified" }] : []),
+    ...(artist.kycStatus === "APPROVED" ? [{ icon: "shield" as const, title: "Verified Artist", desc: "ID and documents checked" }] : []),
     { icon: "clock", title: "Fast Response", desc: "Usually replies within 2 hrs" },
     { icon: "award", title: "Professional", desc: `${artist.yearsExperience ?? 5}+ years experience` },
     { icon: "users", title: "All Events", desc: "Wedding, corporate & more" },
