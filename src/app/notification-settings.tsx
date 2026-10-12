@@ -23,6 +23,12 @@ import { colors, fonts, radii, spacing } from "@/theme";
 
 const LOCKED_CATEGORIES: NotificationCategory[] = ["BOOKING", "PAYMENT", "EVENT_DAY", "SECURITY", "SUPPORT"];
 
+// The Language section is hidden for 1.0.0: this choice is only saved on the phone
+// (it is never sent to the server), and the server has English notification
+// text only, so the picker would change nothing. The code stays so it can come
+// back by setting this to true once real translations exist.
+const SHOW_LANGUAGE_PICKER = false;
+
 const LANGUAGES: { key: Language; label: string }[] = [
   { key: "en", label: "English" },
   { key: "hi", label: "Hindi" },
@@ -214,20 +220,24 @@ export default function NotificationSettingsScreen() {
             </View>
           </GlassCard>
 
-          <SectionTitle>Language</SectionTitle>
-          <GlassCard style={styles.card}>
-            <View style={styles.languageRow}>
-              {LANGUAGES.map((option) => (
-                <Pressable
-                  key={option.key}
-                  style={[styles.languagePill, language === option.key && styles.languagePillActive]}
-                  onPress={() => changeLanguage(option.key)}
-                >
-                  <Text style={[styles.languagePillText, language === option.key && styles.languagePillTextActive]}>{option.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </GlassCard>
+          {SHOW_LANGUAGE_PICKER ? (
+            <>
+              <SectionTitle>Language</SectionTitle>
+              <GlassCard style={styles.card}>
+                <View style={styles.languageRow}>
+                  {LANGUAGES.map((option) => (
+                    <Pressable
+                      key={option.key}
+                      style={[styles.languagePill, language === option.key && styles.languagePillActive]}
+                      onPress={() => changeLanguage(option.key)}
+                    >
+                      <Text style={[styles.languagePillText, language === option.key && styles.languagePillTextActive]}>{option.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </GlassCard>
+            </>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </GradientBackground>
