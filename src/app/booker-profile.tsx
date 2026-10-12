@@ -58,10 +58,15 @@ export default function BookerProfileScreen() {
   }, [loadProfile]);
 
   async function handlePickPhoto() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      setError("Photo access is needed to set a profile picture.");
-      return;
+    // Android uses the system photo picker, which needs no permission (and
+    // the app declares no READ_MEDIA_IMAGES, so asking would always be
+    // refused on Android 13 and later). Only iOS needs the library permission.
+    if (Platform.OS === "ios") {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        setError("Photo access is needed to set a profile picture. You can allow it in Settings.");
+        return;
+      }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
