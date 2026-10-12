@@ -28,7 +28,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://giggifi.com"
+        "EXPO_PUBLIC_API_URL": "https://giggifi.com",
+        "EXPO_PUBLIC_BOOKING_REPORTS": "true"
       }
     }
   }
