@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import { CityNotFound } from "@/components/CityNotFound";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { ALL_CITIES } from "@/lib/india-locations";
 import { captureError } from "@/lib/telemetry";
@@ -123,7 +124,7 @@ export function HomeCityControl({ city, onChange }: Props) {
                   <Text style={styles.optionText}>{item}</Text>
                 </Pressable>
               )}
-              ListEmptyComponent={<Text style={styles.emptyText}>No matches</Text>}
+              ListEmptyComponent={<CityNotFound query={query} onUseCity={pick} />}
             />
           </Pressable>
         </Pressable>

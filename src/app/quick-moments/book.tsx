@@ -11,7 +11,8 @@ import { clientPriceBreakdown } from "@/lib/pricing";
 import { DateField } from "@/components/DateField";
 import { TimeField } from "@/components/TimeField";
 import { StateCityField } from "@/components/StateCityField";
-import * as Location from "expo-location";
+import { LocationProblemCard } from "@/components/LocationProblemCard";
+import { getDeviceLocation, type LocationFailure } from "@/lib/device-location";
 import { DurationCards } from "@/components/quick-moments/QuickMomentsParts";
 import {
   bookQuickMoment,
@@ -21,7 +22,6 @@ import {
   type QuickMomentDuration,
   type QuickMomentFormat,
 } from "@/lib/api";
-import { getCachedLocation, setCachedLocation } from "@/lib/location-cache";
 import {
   DEFAULT_QUICK_MOMENT_DURATION,
   formatINR,
@@ -84,28 +84,19 @@ export default function QuickMomentsBookScreen() {
 
   // Opened from an artist's profile there is no location yet: use a recent fix
   // or ask for one, same as the Quick Moments screen.
+  const [locationFailure, setLocationFailure] = useState<LocationFailure | null>(null);
+  const [locationAttempt, setLocationAttempt] = useState(0);
   useEffect(() => {
     if (coords) return;
     let cancelled = false;
-    (async () => {
-      const cached = await getCachedLocation();
-      if (cached) {
-        if (!cancelled) setCoords(cached);
-        return;
-      }
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted" || cancelled) return;
-        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        const next = { lat: position.coords.latitude, lng: position.coords.longitude };
-        if (!cancelled) setCoords(next);
-        await setCachedLocation(next.lat, next.lng);
-      } catch {
-        // Leaves the Book button disabled; the user can go back and allow location.
-      }
-    })();
+    setLocationFailure(null);
+    getDeviceLocation().then((result) => {
+      if (cancelled) return;
+      if (result.ok) setCoords(result.coords);
+      else setLocationFailure(result.reason);
+    });
     return () => { cancelled = true; };
-  }, [coords]);
+  }, [coords, locationAttempt]);
 
   // Both durations and their prices, from the server.
   useEffect(() => {
@@ -226,6 +217,8 @@ export default function QuickMomentsBookScreen() {
             />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            {!coords && locationFailure ? <LocationProblemCard reason={locationFailure} onRetry={() => setLocationAttempt((n) => n + 1)} /> : null}
 
             <Btn
               label="Book this Quick Moment"

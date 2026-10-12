@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, type BookerProfile } from "@/lib/api";
 import { HELPLINE_NUMBER } from "@/lib/constants";
 import { captureError } from "@/lib/telemetry";
+import { displayName } from "@/lib/format";
 import { colors, fonts, mock, mockGradients, spacing, radii } from "@/theme";
 
 // Official grievance / support address (confirmed). Phone and WhatsApp reuse
@@ -68,7 +69,7 @@ export default function ProfileScreen() {
     Linking.openURL(`https://wa.me/91${HELPLINE_NUMBER}`).catch((err) => captureError(err, "profile-support-whatsapp"));
   }
 
-  const initial = (user?.name ?? user?.phone ?? "G").trim().charAt(0).toUpperCase();
+  const initial = displayName(bookerProfile?.fullName, user?.name).charAt(0).toUpperCase();
 
   const filledCount = bookerProfile
     ? [bookerProfile.fullName, bookerProfile.email, bookerProfile.city, bookerProfile.state, user?.image].filter(Boolean).length
@@ -116,7 +117,7 @@ export default function ProfileScreen() {
                 </LinearGradient>
               )}
               <View style={styles.userInfo}>
-                <Text style={styles.name} numberOfLines={1}>{bookerProfile?.fullName ?? user.name ?? "GiggiFi user"}</Text>
+                <Text style={styles.name} numberOfLines={1}>{displayName(bookerProfile?.fullName, user.name)}</Text>
                 {user.phone ? <Text style={styles.meta}>+{user.phone.replace(/^\+/, "")}</Text> : null}
                 {(bookerProfile?.email ?? user.email) ? <Text style={styles.meta} numberOfLines={1}>{bookerProfile?.email ?? user.email}</Text> : null}
                 {user.role ? (

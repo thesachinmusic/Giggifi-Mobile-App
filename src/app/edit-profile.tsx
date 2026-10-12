@@ -6,7 +6,7 @@ import { GradientButton } from "@/components/GradientButton";
 import { DateField } from "@/components/DateField";
 import { useAuth } from "@/lib/auth-context";
 import { updateProfile, confirmDateOfBirth, ApiError } from "@/lib/api";
-import { isValidEmail } from "@/lib/format";
+import { isValidEmail, realName } from "@/lib/format";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 const GENDER_OPTIONS = ["Male", "Female", "Other"];
@@ -21,7 +21,7 @@ const MIN_ANNIVERSARY_DATE = new Date(new Date().setFullYear(TODAY.getFullYear()
 // have; everything else goes through updateProfile in one PATCH.
 export default function EditProfileScreen() {
   const { user, refreshSession } = useAuth();
-  const [name, setName] = useState(user?.name ?? "");
+  const [name, setName] = useState(realName(user?.name) ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [gender, setGender] = useState(user?.gender ?? "");
   const [religion, setReligion] = useState(user?.religion ?? "");

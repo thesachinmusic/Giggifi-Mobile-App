@@ -48,3 +48,14 @@ export const PAYMENT_STATUS_LABEL: Record<string, string> = {
   REFUNDED: "Refunded",
   CANCELLED: "Cancelled",
 };
+
+// Mirrors the backend's assertTransitionAllowed for raise_dispute (booker).
+export function canRaiseDispute(status: string): boolean {
+  return status === "PAYMENT_HELD" || status === "EVENT_COMPLETED";
+}
+
+// Paid and still before the event: the client has no in-app cancel here, so
+// the booking screen points them to support instead.
+export function isPaidAndUpcoming(status: string): boolean {
+  return status === "PAYMENT_HELD" || status === "EVENT_UPCOMING";
+}

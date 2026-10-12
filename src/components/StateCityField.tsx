@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Location from "expo-location";
 import { Feather } from "@expo/vector-icons";
+import { CityNotFound } from "@/components/CityNotFound";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { ALL_CITIES, INDIA_STATES, INDIA_STATE_NAMES, findStateForCity } from "@/lib/india-locations";
 import { captureError } from "@/lib/telemetry";
@@ -205,7 +206,9 @@ export function StateCityField({ city, onChangeCity, state, onChangeState, cityL
                   <Text style={styles.optionText}>{item}</Text>
                 </Pressable>
               )}
-              ListEmptyComponent={<Text style={styles.emptyText}>No matches</Text>}
+              ListEmptyComponent={
+                step === "city" ? <CityNotFound query={query} onUseCity={pickCity} /> : <Text style={styles.emptyText}>No matches</Text>
+              }
             />
           </Pressable>
         </Pressable>
