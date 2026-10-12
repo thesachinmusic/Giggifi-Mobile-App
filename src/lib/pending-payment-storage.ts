@@ -8,6 +8,9 @@ export interface PendingPayment {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
+  // When the app saved it (older saves have none), so a payment that never
+  // confirms can stop showing a spinner — see payment-guard.ts.
+  savedAt?: number;
 }
 
 // Mirrors auth-storage.ts's SecureStore/localStorage split — same reason:

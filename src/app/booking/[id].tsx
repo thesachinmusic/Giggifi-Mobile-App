@@ -29,6 +29,8 @@ import {
   type QuickMomentLocation,
   type BackupMatchAttempt,
 } from "@/lib/api";
+import { checkoutDecision, isPendingStale } from "@/lib/payment-guard";
+import { useAppForeground } from "@/lib/use-app-foreground";
 import { canRaiseDispute, isPaidAndUpcoming, PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
 import { BOOKING_REPORTS_ENABLED, HELPLINE_NUMBER, SUPPORT_EMAIL } from "@/lib/constants";
 import { hapticSuccess } from "@/lib/haptics";
@@ -61,6 +63,9 @@ export default function BookingDetailScreen() {
   const [respondError, setRespondError] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [backupAttempt, setBackupAttempt] = useState<BackupMatchAttempt | null>(null);
+  const [payInfo, setPayInfo] = useState("");
+  const payingRef = useRef(false);
+  const focusedRef = useRef(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [reportKind, setReportKind] = useState<"booking" | "artist-behaviour" | null>(null);
 
@@ -106,44 +111,59 @@ export default function BookingDetailScreen() {
   // separately ask the server directly (payment-status) in case the webhook
   // or the reconciliation cron already resolved it — either path clears the
   // stored pending payment and reloads once the booking has actually moved.
+  const syncBooking = useCallback(
+    async (isCancelled: () => boolean) => {
+      void load();
+
+      const stored = await getPendingPayment();
+      if (!isCancelled()) setPendingPaymentState(stored && stored.bookingId === id ? stored : null);
+
+      if (stored?.bookingId === id) {
+        const { resolved } = await recoverPendingPayment();
+        if (isCancelled()) return;
+        if (resolved) {
+          setPendingPaymentState(null);
+          await load();
+          return;
+        }
+      }
+      if (isCancelled()) return;
+
+      try {
+        const status = await fetchBookingPaymentStatus(id);
+        if (isCancelled()) return;
+        if (status.payment?.status === "PAID" && status.bookingStatus !== "AWAITING_PAYMENT") {
+          if (stored?.bookingId === id) await clearPendingPayment();
+          if (isCancelled()) return;
+          setPendingPaymentState(null);
+          await load();
+        }
+      } catch {
+        // Background self-heal check — a failed poll here isn't user-facing.
+      }
+    },
+    [id, load],
+  );
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      load();
-
-      (async () => {
-        const stored = await getPendingPayment();
-        if (!cancelled) setPendingPaymentState(stored && stored.bookingId === id ? stored : null);
-
-        if (stored?.bookingId === id) {
-          const { resolved } = await recoverPendingPayment();
-          if (cancelled) return;
-          if (resolved) {
-            setPendingPaymentState(null);
-            await load();
-            return;
-          }
-        }
-        if (cancelled) return;
-
-        try {
-          const status = await fetchBookingPaymentStatus(id);
-          if (cancelled) return;
-          if (status.payment?.status === "PAID" && status.bookingStatus !== "AWAITING_PAYMENT") {
-            if (stored?.bookingId === id) await clearPendingPayment();
-            if (cancelled) return;
-            setPendingPaymentState(null);
-            await load();
-          }
-        } catch {
-          // Background self-heal check — a failed poll here isn't user-facing.
-        }
-      })();
-
+      focusedRef.current = true;
+      void syncBooking(() => cancelled);
       return () => {
         cancelled = true;
+        focusedRef.current = false;
       };
-    }, [id, load]),
+    }, [syncBooking]),
+  );
+
+  // The screen stays focused while the app is in the background (a UPI app
+  // was open, the phone was locked), so focus alone never refreshes it on
+  // return. Run the same sync when the app comes back to the foreground.
+  useAppForeground(
+    useCallback(() => {
+      if (focusedRef.current) void syncBooking(() => !mountedRef.current);
+    }, [syncBooking]),
   );
 
   // Polls while waiting on the other side to act. useFocusEffect's cleanup
@@ -158,10 +178,42 @@ export default function BookingDetailScreen() {
     }, [booking?.status, load]),
   );
 
+  // Guards the Pay button: one tap at a time, and never a NEW order while the
+  // client may already have paid (stored unconfirmed payment, or a PAID
+  // payment on the server) — that is how a second charge would happen.
   async function handlePay() {
-    if (!booking) return;
+    if (!booking || payingRef.current) return;
+    payingRef.current = true;
     setPaying(true);
     setPayError("");
+    setPayInfo("");
+    try {
+      const stored = await getPendingPayment();
+      const server = await fetchBookingPaymentStatus(booking.id)
+        .then((s) => ({ bookingStatus: s.bookingStatus, paymentStatus: s.payment?.status ?? null }))
+        .catch(() => null);
+      const decision = checkoutDecision({ hasPendingForThisBooking: stored?.bookingId === booking.id, server });
+      if (decision !== "ok") {
+        if (mountedRef.current) {
+          if (stored?.bookingId === booking.id) setPendingPaymentState(stored);
+          setPayInfo(
+            decision === "already_paid"
+              ? "We already have a payment for this booking. We are confirming it now — please don't pay again."
+              : "Your payment is still being confirmed — please don't pay again.",
+          );
+          setPaying(false);
+        }
+        if (decision === "already_paid") await load();
+        return;
+      }
+      await startPayment();
+    } finally {
+      payingRef.current = false;
+    }
+  }
+
+  async function startPayment() {
+    if (!booking) return;
     let razorpayResult: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string } | null = null;
     try {
       const order = await createRazorpayOrder(booking.id, undefined, termsAccepted);
@@ -207,6 +259,7 @@ export default function BookingDetailScreen() {
         razorpayOrderId: razorpayResult.razorpay_order_id,
         razorpayPaymentId: razorpayResult.razorpay_payment_id,
         razorpaySignature: razorpayResult.razorpay_signature,
+        savedAt: Date.now(),
       };
       await setPendingPayment(stuck);
       if (mountedRef.current) setPendingPaymentState(stuck);
@@ -417,12 +470,26 @@ export default function BookingDetailScreen() {
 
           {booking.status === "AWAITING_PAYMENT" && booking.viewerRole === "BOOKER" && pendingPayment?.bookingId === booking.id ? (
             <GlassCard style={styles.payCard}>
-              <View style={styles.recoveryRow}>
-                <ActivityIndicator size="small" color={colors.ok} />
-                <Text style={styles.recoveryText}>
-                  Payment received. We&apos;re confirming your booking — this usually takes under a minute.
-                </Text>
-              </View>
+              {isPendingStale(pendingPayment) ? (
+                <>
+                  <Text style={styles.recoveryText}>
+                    We haven&apos;t been able to confirm your payment yet. Your money is safe. Please don&apos;t pay again — contact us and share this payment reference: {pendingPayment.razorpayPaymentId}
+                  </Text>
+                  <Text style={styles.problemLink} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)} accessibilityRole="link">
+                    Call {HELPLINE_NUMBER}
+                  </Text>
+                  <Text style={styles.problemLink} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} accessibilityRole="link">
+                    Email {SUPPORT_EMAIL}
+                  </Text>
+                </>
+              ) : (
+                <View style={styles.recoveryRow}>
+                  <ActivityIndicator size="small" color={colors.ok} />
+                  <Text style={styles.recoveryText}>
+                    Payment received. We&apos;re confirming your booking — this usually takes under a minute.
+                  </Text>
+                </View>
+              )}
             </GlassCard>
           ) : booking.status === "AWAITING_PAYMENT" && booking.viewerRole === "BOOKER" ? (
             <GlassCard style={styles.payCard}>
@@ -431,6 +498,7 @@ export default function BookingDetailScreen() {
                 <Text style={styles.payText}>{booking.artist.name} accepted — pay securely to confirm your event.</Text>
               </View>
               {payError ? <Text style={styles.error}>{payError}</Text> : null}
+              {payInfo ? <Text style={styles.recoveryText}>{payInfo}</Text> : null}
               <Pressable style={styles.termsRow} onPress={() => setTermsAccepted((v) => !v)}>
                 <Feather name={termsAccepted ? "check-square" : "square"} size={17} color={termsAccepted ? colors.purple : colors.textMute} />
                 <Text style={styles.termsText}>
