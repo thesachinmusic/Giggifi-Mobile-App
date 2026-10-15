@@ -3,7 +3,9 @@ import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_REFUND_ROWS, STANDAR
 
 describe("refund summary (pinned to the live policy wording)", () => {
   it("keeps the 3.5 cooling-off sentence", () => {
-    expect(COOLING_OFF_TEXT).toContain("full refund within 2 hours of paying, provided the Event is more than 7 days away");
+    expect(COOLING_OFF_TEXT).toContain("cancel within 2 hours of paying, provided the Event is more than 7 days away");
+    expect(COOLING_OFF_TEXT).toContain("less payment gateway charges");
+    expect(COOLING_OFF_TEXT).not.toContain("absorbs");
   });
   it("keeps the 4.1 percentages in order", () => {
     expect(STANDARD_REFUND_ROWS.map((r) => r.refund)).toEqual(["100%", "75%", "50%", "25%", "0%", "0%"]);
