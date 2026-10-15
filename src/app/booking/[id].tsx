@@ -29,7 +29,7 @@ import {
   type QuickMomentLocation,
   type BackupMatchAttempt,
 } from "@/lib/api";
-import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_NO_IN_APP_CANCEL, QUICK_MOMENT_REFUND_ROWS, REFUND_TABLE_NOTE, STANDARD_REFUND_ROWS, SUPPORT_HOURS_TEXT } from "@/lib/refund-summary";
+import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_NO_IN_APP_CANCEL, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_NOTE, QUICK_MOMENT_REFUND_NOTE, STANDARD_REFUND_ROWS, SUPPORT_HOURS_TEXT } from "@/lib/refund-summary";
 import { checkoutDecision, isPendingStale } from "@/lib/payment-guard";
 import { useAppForeground } from "@/lib/use-app-foreground";
 import { canRaiseDispute, isPaidAndUpcoming, PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
@@ -567,7 +567,7 @@ export default function BookingDetailScreen() {
                     {row.notice} — refund: {row.refund}
                   </Text>
                 ))}
-                <Text style={styles.refundNoteText}>{REFUND_TABLE_NOTE}</Text>
+                <Text style={styles.refundNoteText}>{booking.format === "QUICK_MOMENT" ? QUICK_MOMENT_REFUND_NOTE : STANDARD_REFUND_NOTE}</Text>
                 {booking.format === "QUICK_MOMENT" ? <Text style={styles.refundNoteText}>{QUICK_MOMENT_NO_IN_APP_CANCEL}</Text> : null}
                 <Text style={styles.refundNoteText}>{SUPPORT_HOURS_TEXT}</Text>
                 <Text style={styles.problemLink} onPress={() => Linking.openURL("https://giggifi.com/refund")} accessibilityRole="link">
