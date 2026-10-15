@@ -230,7 +230,7 @@ export default function QuickMomentsBookScreen() {
 
             <View style={styles.escrow}>
               <Feather name="shield" size={16} color={colors.purple} />
-              <Text style={styles.escrowText}>Payment is held securely until the artist confirms they&apos;ve arrived and performed.</Text>
+              <Text style={styles.escrowText}>You pay through Razorpay. Giggifi pays the artist after the performance.</Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -239,7 +239,7 @@ function RootLayoutContent() {
                     name="how-it-works"
                     options={{
                       headerShown: true,
-                      headerTitle: "Secure Payment",
+                      headerTitle: "Payment",
                       headerTintColor: colors.text,
                       headerStyle: { backgroundColor: colors.ink },
                       headerBackTitle: "Back",

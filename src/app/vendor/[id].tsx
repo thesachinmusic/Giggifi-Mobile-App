@@ -278,7 +278,7 @@ export default function VendorDetailScreen() {
 
             <View style={styles.escrow}>
               <Feather name="shield" size={16} color={colors.purple} />
-              <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
+              <Text style={styles.escrowText}>You pay through Razorpay. Giggifi pays the vendor after the event is done.</Text>
             </View>
           </GlassCard>
           </View>

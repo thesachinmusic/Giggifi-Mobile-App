@@ -120,7 +120,7 @@ export default function BackupMatchScreen() {
                 <Feather name="loader" size={16} color={colors.textMute} />
                 <Text style={styles.statusText}>We're working on finding you a backup. You'll be notified the moment we do.</Text>
               </GlassCard>
-              <Text style={styles.paymentNote}>Your payment for the original booking has been refunded.</Text>
+              <Text style={styles.paymentNote}>A refund for the original booking follows our Refund Policy. Your bank or payment provider decides how long it takes.</Text>
             </>
           ) : (
             <>
