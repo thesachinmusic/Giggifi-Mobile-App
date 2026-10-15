@@ -1,24 +1,30 @@
 import { SUPPORT_EMAIL } from "./constants";
 
-// Wording follows the Booking, Cancellation & Refund Policy (clause 3.5 and
-// the tables in 4.1 and 4.2). The cooling-off sentence was changed in October
-// 2026 so that Giggifi does not absorb gateway charges; the published policy
-// must be changed to match BEFORE this app version is released.
+// Wording must never contradict the LIVE Booking, Cancellation & Refund Policy (clause 3.5 and the
+// tables in 4.1 and 4.2). Where the live policy says something the owner does not want to repeat to
+// clients ("full refund", who bears the gateway charge in the cooling-off window) the app stays
+// neutral and points to the policy. The live documents change only later, with the lawyer.
 // refund-summary.test.ts pins the strings.
 export const COOLING_OFF_TEXT =
-  "Cooling-off immediately after booking. A Booker may cancel within 2 hours of paying, provided the Event is more than 7 days away. The refund is the amount paid less payment gateway charges. To use this, contact support; refunds are handled by hand (see section 10).";
+  "Cooling-off immediately after booking. A Booker may cancel within 2 hours of paying, provided the Event is more than 7 days away. To use this, contact support; refunds are handled by hand. The Refund Policy explains the amount.";
 
 // The policy (clause 4.1 table heading and clause 2) applies the percentages to the
 // Booking Fee: the artist's price, without Giggifi's fee and taxes. The Platform Fee
 // column says "Refunded" only for the cooling-off window and for more than 14 days,
 // and "Retained" in every other row. The Gateway Charge is "Deducted from the refund".
 export const STANDARD_REFUND_NOTE =
-  "Each percentage is of the Booking Fee, which is the artist's price without Giggifi's fee and taxes. Giggifi's Platform Fee is refunded only if you cancel more than 14 days before the event or inside the 2-hour cooling-off window. Otherwise it is kept. Payment gateway charges are deducted from the refund. Your bank or payment provider decides how long a refund takes to reach you.";
+  "Each percentage is of the Booking Fee, which is the artist's price without Giggifi's fee and taxes. Giggifi's Platform Fee is refunded only if you cancel more than 14 days before the event or inside the 2-hour cooling-off window. Otherwise it is kept. Payment gateway charges are deducted from the refund in the cancellation windows where the Refund Policy says so. Your bank or payment provider decides how long a refund takes to reach you.";
 
 // The Quick Moment table (clause 4.2) does not say what its percentages apply to, so the
 // app does not guess. It points to the policy instead.
 export const QUICK_MOMENT_REFUND_NOTE =
-  "The Refund Policy explains exactly what each percentage applies to. Payment gateway charges may be deducted from a refund. Your bank or payment provider decides how long a refund takes to reach you.";
+  "The Refund Policy explains exactly what each percentage applies to. The Refund Policy also explains how payment gateway charges are treated. Your bank or payment provider decides how long a refund takes to reach you.";
+
+// The one sentence about refunds shown above the schedule (owner decision R1): no "full" or "partial", no amount.
+export const REFUND_PROCESSING_SENTENCE =
+  "Your refund will be processed as per the Refund Policy, after deducting the cancellation charges and payment gateway charges that apply to your cancellation window, along with any applicable taxes.";
+
+export const SCHEDULE_INTRO = "The schedule below applies when you cancel. It is taken from the Refund Policy.";
 
 export const SUPPORT_HOURS_TEXT = "Support is open 9 AM to 11 PM IST.";
 

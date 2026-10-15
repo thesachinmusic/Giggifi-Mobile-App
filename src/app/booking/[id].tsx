@@ -29,7 +29,7 @@ import {
   type QuickMomentLocation,
   type BackupMatchAttempt,
 } from "@/lib/api";
-import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_NO_IN_APP_CANCEL, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_NOTE, QUICK_MOMENT_REFUND_NOTE, STANDARD_REFUND_ROWS, SUPPORT_HOURS_TEXT } from "@/lib/refund-summary";
+import { cancellationMailto, COOLING_OFF_TEXT, REFUND_PROCESSING_SENTENCE, SCHEDULE_INTRO, QUICK_MOMENT_NO_IN_APP_CANCEL, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_NOTE, QUICK_MOMENT_REFUND_NOTE, STANDARD_REFUND_ROWS, SUPPORT_HOURS_TEXT } from "@/lib/refund-summary";
 import { checkoutDecision, isPendingStale } from "@/lib/payment-guard";
 import { useAppForeground } from "@/lib/use-app-foreground";
 import { canRaiseDispute, isPaidAndUpcoming, PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
@@ -561,6 +561,8 @@ export default function BookingDetailScreen() {
               </Text>
               <View style={styles.refundNote}>
                 <Text style={styles.refundNoteTitle}>From our Cancellation &amp; Refund Policy</Text>
+                <Text style={styles.refundNoteText}>{REFUND_PROCESSING_SENTENCE}</Text>
+                <Text style={styles.refundNoteText}>{SCHEDULE_INTRO}</Text>
                 <Text style={styles.refundNoteText}>{COOLING_OFF_TEXT}</Text>
                 {(booking.format === "QUICK_MOMENT" ? QUICK_MOMENT_REFUND_ROWS : STANDARD_REFUND_ROWS).map((row) => (
                   <Text key={row.notice} style={styles.refundNoteText}>
