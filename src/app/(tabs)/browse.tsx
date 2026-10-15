@@ -453,7 +453,7 @@ function EmptyState({ label, pristine = false }: { label: string; pristine?: boo
   if (label === "vendors" && pristine) {
     return (
       <View style={styles.emptyState}>
-        <Text style={styles.muted}>Vendors are joining soon — check back shortly.</Text>
+        <Text style={styles.muted}>Vendors will appear here once they join.</Text>
         <Pressable style={styles.emptyCta} onPress={() => router.push("/ask-giggfi")}>
           <Feather name="zap" size={13} color={colors.pink} />
           <Text style={styles.emptyCtaText}>Let GiggiFi find you a match instead</Text>

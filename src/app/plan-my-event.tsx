@@ -642,7 +642,7 @@ export default function PlanMyEventScreen() {
                 {loadingMatches ? (
                   <View style={styles.loadingBlock}>
                     <ActivityIndicator color={colors.purple} size="large" />
-                    <Text style={styles.loadingText}>Finding the best artists for you…</Text>
+                    <Text style={styles.loadingText}>Finding artists for you…</Text>
                   </View>
                 ) : (
                   <>

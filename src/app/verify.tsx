@@ -47,7 +47,7 @@ export default function VerifyScreen() {
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             <View style={styles.brand}>
               <Image source={require("@/assets/images/giggifi-logo-cropped.png")} style={styles.logo} resizeMode="contain" />
-              <Text style={styles.tagline}>Book artists & vendors in minutes.</Text>
+              <Text style={styles.tagline}>Book artists & vendors for your event.</Text>
             </View>
             {connection === "offline" ? (
               <View style={styles.offline} accessibilityRole="alert">

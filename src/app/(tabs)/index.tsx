@@ -518,9 +518,9 @@ export default function HomeScreen() {
               tab bar, per the corrected order (it lived here before the
               earlier rebuild moved it up; that placement is reverted). */}
           <View style={styles.trustRow}>
-            <TrustCard doodle="✅" label="Verified artists" caption="ID and documents checked" />
-            <TrustCard doodle="🔒" label="Secure payments" caption="Held till event's done" />
-            <TrustCard doodle="⚡" label="Fast responses" caption="Quotes within hours" />
+            <TrustCard doodle="✅" label="Approved artists" caption="Documents reviewed by Giggifi" />
+            <TrustCard doodle="💳" label="Pay by Razorpay" caption="Artist is paid after the event" />
+            <TrustCard doodle="📄" label="Refund Policy" caption="Read how refunds work" />
           </View>
         </ScrollView>
       </SafeAreaView>

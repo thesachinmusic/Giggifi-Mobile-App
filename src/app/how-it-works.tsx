@@ -9,22 +9,22 @@ const STEPS: { icon: keyof typeof Feather.glyphMap; title: string; body: string 
   {
     icon: "credit-card",
     title: "You pay to confirm the booking",
-    body: "Payment is collected upfront when you confirm — but it isn't handed to the artist or vendor yet.",
+    body: "You pay through Razorpay when you confirm. Giggifi does not pass the money to the artist or vendor until the event is done.",
   },
   {
     icon: "lock",
-    title: "Held securely until the event is done",
-    body: "Payments are held securely until the event is confirmed done — same protection on every booking, every category.",
+    title: "The artist is paid after the event",
+    body: "Giggifi pays the artist or vendor after the event is confirmed done.",
   },
   {
     icon: "check-circle",
-    title: "Event happens, then payout releases",
-    body: "Once the event is marked completed, the payout is released to the artist or vendor — not a moment before.",
+    title: "Event happens, then payout",
+    body: "Once the event is marked completed, Giggifi pays the artist or vendor.",
   },
   {
     icon: "shield",
-    title: "Something go wrong? You're covered",
-    body: "If there's a dispute, GiggiFi steps in before any payout is released — see the full Cancellation & Refund Policy below.",
+    title: "Something go wrong? Tell us",
+    body: "If there is a dispute, contact support (9 AM to 11 PM IST). Giggifi helps with the details it has and cannot promise an outcome. See the full Cancellation & Refund Policy below.",
   },
 ];
 
@@ -38,9 +38,9 @@ export default function HowItWorksScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.eyebrow}>SECURE PAYMENT</Text>
+          <Text style={styles.eyebrow}>PAYMENT</Text>
           <Text style={styles.title}>You pay only after{"\n"}the event is done</Text>
-          <Text style={styles.sub}>Here&apos;s exactly how your money is protected, start to finish.</Text>
+          <Text style={styles.sub}>Here&apos;s exactly how payment works, start to finish.</Text>
 
           {STEPS.map((step, i) => (
             <GlassCard key={step.title} style={styles.stepCard}>

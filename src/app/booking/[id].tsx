@@ -29,7 +29,7 @@ import {
   type QuickMomentLocation,
   type BackupMatchAttempt,
 } from "@/lib/api";
-import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_NO_IN_APP_CANCEL, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_ROWS } from "@/lib/refund-summary";
+import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_NO_IN_APP_CANCEL, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_NOTE, QUICK_MOMENT_REFUND_NOTE, STANDARD_REFUND_ROWS, SUPPORT_HOURS_TEXT } from "@/lib/refund-summary";
 import { checkoutDecision, isPendingStale } from "@/lib/payment-guard";
 import { useAppForeground } from "@/lib/use-app-foreground";
 import { canRaiseDispute, isPaidAndUpcoming, PAYMENT_STATUS_LABEL } from "@/lib/booking-status";
@@ -487,7 +487,7 @@ export default function BookingDetailScreen() {
                 <View style={styles.recoveryRow}>
                   <ActivityIndicator size="small" color={colors.ok} />
                   <Text style={styles.recoveryText}>
-                    Payment received. We&apos;re confirming your booking — this usually takes under a minute.
+                    Payment received. We&apos;re confirming your booking.
                   </Text>
                 </View>
               )}
@@ -496,7 +496,7 @@ export default function BookingDetailScreen() {
             <GlassCard style={styles.payCard}>
               <View style={styles.payRow}>
                 <Feather name="check-circle" size={16} color={colors.ok} />
-                <Text style={styles.payText}>{booking.artist.name} accepted — pay securely to confirm your event.</Text>
+                <Text style={styles.payText}>{booking.artist.name} accepted — pay to confirm your event.</Text>
               </View>
               {payError ? <Text style={styles.error}>{payError}</Text> : null}
               {payInfo ? <Text style={styles.recoveryText}>{payInfo}</Text> : null}
@@ -564,10 +564,12 @@ export default function BookingDetailScreen() {
                 <Text style={styles.refundNoteText}>{COOLING_OFF_TEXT}</Text>
                 {(booking.format === "QUICK_MOMENT" ? QUICK_MOMENT_REFUND_ROWS : STANDARD_REFUND_ROWS).map((row) => (
                   <Text key={row.notice} style={styles.refundNoteText}>
-                    {row.notice}: {row.refund} refund
+                    {row.notice} — refund: {row.refund}
                   </Text>
                 ))}
+                <Text style={styles.refundNoteText}>{booking.format === "QUICK_MOMENT" ? QUICK_MOMENT_REFUND_NOTE : STANDARD_REFUND_NOTE}</Text>
                 {booking.format === "QUICK_MOMENT" ? <Text style={styles.refundNoteText}>{QUICK_MOMENT_NO_IN_APP_CANCEL}</Text> : null}
+                <Text style={styles.refundNoteText}>{SUPPORT_HOURS_TEXT}</Text>
                 <Text style={styles.problemLink} onPress={() => Linking.openURL("https://giggifi.com/refund")} accessibilityRole="link">
                   Read the full policy
                 </Text>

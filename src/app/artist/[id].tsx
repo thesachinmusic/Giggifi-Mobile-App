@@ -608,7 +608,7 @@ export default function ArtistDetailScreen() {
 
               <View style={styles.escrow}>
                 <Feather name="shield" size={16} color={colors.purple} />
-                <Text style={styles.escrowText}>Payments are held securely until the event is confirmed done.</Text>
+                <Text style={styles.escrowText}>You pay through Razorpay. Giggifi pays the artist after the event is done.</Text>
               </View>
 
               {/* Scoped guarantee — only ever shown when the real 3+-artist
@@ -616,7 +616,7 @@ export default function ArtistDetailScreen() {
               {guaranteeStatus?.eligible ? (
                 <View style={styles.guaranteeRow}>
                   <Feather name="shield" size={14} color={colors.ok} />
-                  <Text style={styles.guaranteeText}>Backup-Artist Guarantee — if they ever have to cancel, we'll help find a real replacement.</Text>
+                  <Text style={styles.guaranteeText}>If this artist has to cancel, we will try to help find a replacement artist. This is not guaranteed.</Text>
                 </View>
               ) : null}
 
@@ -725,9 +725,8 @@ export default function ArtistDetailScreen() {
 
 function AboutTab({ artist }: { artist: ArtistSummary }) {
   const highlights: { icon: keyof typeof Feather.glyphMap; title: string; desc: string }[] = [
-    ...(artist.kycStatus === "APPROVED" ? [{ icon: "shield" as const, title: "Verified Artist", desc: "ID and documents checked" }] : []),
-    { icon: "clock", title: "Fast Response", desc: "Usually replies within 2 hrs" },
-    { icon: "award", title: "Professional", desc: `${artist.yearsExperience ?? 5}+ years experience` },
+    ...(artist.kycStatus === "APPROVED" ? [{ icon: "shield" as const, title: "Approved Artist", desc: "Documents reviewed by Giggifi" }] : []),
+    ...(artist.yearsExperience ? [{ icon: "award" as const, title: "Experience", desc: `${artist.yearsExperience} years experience` }] : []),
     { icon: "users", title: "All Events", desc: "Wedding, corporate & more" },
   ];
 

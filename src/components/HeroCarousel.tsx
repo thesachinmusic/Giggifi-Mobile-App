@@ -71,10 +71,10 @@ const ARTIST_SLIDES: Slide[] = [
   },
   {
     id: "secure",
-    tag: "Secure Payment",
-    title: "You pay only after the event is done",
+    tag: "Payment",
+    title: "The artist is paid after the event is done",
     titleSize: 20,
-    sub: "Money held safe until the booking is complete",
+    sub: "You pay through Razorpay. Giggifi pays the artist after the event.",
     cta: "How it works",
     href: "/how-it-works",
   },

@@ -17,13 +17,14 @@ function money(n: number) {
   return `₹${Math.abs(n).toLocaleString("en-IN")}`;
 }
 
-// The reassurances shown next to the total. Only things that are true of the
-// booking flow: payment is held until the event (escrow), artists go through
-// KYC, and there is a dispute action plus the backup-artist guarantee.
+// The notes shown next to the total. Only things that are true of the booking
+// flow: payment is made through Razorpay, Giggifi pays the artist after the
+// event, artists submit documents that Giggifi reviews, and there is a dispute action.
+// No guarantees, no "protected" or "secure" claims.
 const ASSURANCES = [
-  "Secure payment — the artist is paid only after your event",
-  "Verified & KYC-checked artists",
-  "Dispute & no-show protection",
+  "You pay through Razorpay. Giggifi pays the artist after your event.",
+  "Artist documents are reviewed by Giggifi",
+  "If there is a problem, you can raise a dispute",
 ] as const;
 
 // Leads with ONE final total, with the full itemised breakdown one tap away (or
