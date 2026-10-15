@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cancellationMailto, COOLING_OFF_TEXT, QUICK_MOMENT_REFUND_NOTE, STANDARD_REFUND_NOTE, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_ROWS } from "./refund-summary";
+import { cancellationMailto, COOLING_OFF_TEXT, REFUND_PROCESSING_SENTENCE, QUICK_MOMENT_REFUND_NOTE, STANDARD_REFUND_NOTE, QUICK_MOMENT_REFUND_ROWS, STANDARD_REFUND_ROWS } from "./refund-summary";
 
 describe("refund summary (pinned to the live policy wording)", () => {
   it("keeps the 3.5 cooling-off sentence", () => {
@@ -24,6 +24,17 @@ describe("refund notes", () => {
   it("Quick Moment note does not guess what the percentages apply to", () => {
     expect(QUICK_MOMENT_REFUND_NOTE).not.toContain("Booking Fee");
     expect(QUICK_MOMENT_REFUND_NOTE).toContain("Refund Policy");
+  });
+});
+
+describe("refund sentence (owner decision R1)", () => {
+  it("is the exact approved sentence, with no full, partial or amount", () => {
+    expect(REFUND_PROCESSING_SENTENCE).toBe("Your refund will be processed as per the Refund Policy, after deducting the cancellation charges and payment gateway charges that apply to your cancellation window, along with any applicable taxes.");
+    expect(REFUND_PROCESSING_SENTENCE).not.toMatch(/full|partial|₹|100%/i);
+  });
+  it("no text shown on the cancel card says full refund or partial refund", () => {
+    const all = [COOLING_OFF_TEXT, STANDARD_REFUND_NOTE, QUICK_MOMENT_REFUND_NOTE, ...STANDARD_REFUND_ROWS.map((r) => r.notice + r.refund), ...QUICK_MOMENT_REFUND_ROWS.map((r) => r.notice + r.refund)].join(" ");
+    expect(all).not.toMatch(/full refund|partial refund/i);
   });
 });
 

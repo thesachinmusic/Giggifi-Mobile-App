@@ -20,6 +20,12 @@ export const STANDARD_REFUND_NOTE =
 export const QUICK_MOMENT_REFUND_NOTE =
   "The Refund Policy explains exactly what each percentage applies to. Payment gateway charges may be deducted from a refund. Your bank or payment provider decides how long a refund takes to reach you.";
 
+// The one sentence about refunds shown above the schedule (owner decision R1): no "full" or "partial", no amount.
+export const REFUND_PROCESSING_SENTENCE =
+  "Your refund will be processed as per the Refund Policy, after deducting the cancellation charges and payment gateway charges that apply to your cancellation window, along with any applicable taxes.";
+
+export const SCHEDULE_INTRO = "The schedule below applies when you cancel. It is taken from the Refund Policy.";
+
 export const SUPPORT_HOURS_TEXT = "Support is open 9 AM to 11 PM IST.";
 
 export interface RefundRow {
