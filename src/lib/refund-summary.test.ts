@@ -4,8 +4,9 @@ import { cancellationMailto, COOLING_OFF_TEXT, REFUND_PROCESSING_SENTENCE, QUICK
 describe("refund summary (pinned to the live policy wording)", () => {
   it("keeps the 3.5 cooling-off sentence", () => {
     expect(COOLING_OFF_TEXT).toContain("cancel within 2 hours of paying, provided the Event is more than 7 days away");
-    expect(COOLING_OFF_TEXT).toContain("less payment gateway charges");
-    expect(COOLING_OFF_TEXT).not.toContain("absorbs");
+    // Neutral: no amount, no "full refund", and nothing about who bears the gateway charge in this window.
+    expect(COOLING_OFF_TEXT).not.toMatch(/gateway|absorb|less |full refund/i);
+    expect(COOLING_OFF_TEXT).toContain("The Refund Policy explains the amount");
   });
   it("keeps the 4.1 percentages in order", () => {
     expect(STANDARD_REFUND_ROWS.map((r) => r.refund)).toEqual(["100%", "75%", "50%", "25%", "0%", "0%"]);
@@ -19,7 +20,7 @@ describe("refund notes", () => {
   it("standard note says the percentages are of the Booking Fee and when the Platform Fee comes back", () => {
     expect(STANDARD_REFUND_NOTE).toContain("of the Booking Fee");
     expect(STANDARD_REFUND_NOTE).toContain("more than 14 days");
-    expect(STANDARD_REFUND_NOTE).toContain("gateway charges are deducted");
+    expect(STANDARD_REFUND_NOTE).toContain("where the Refund Policy says so");
   });
   it("Quick Moment note does not guess what the percentages apply to", () => {
     expect(QUICK_MOMENT_REFUND_NOTE).not.toContain("Booking Fee");
