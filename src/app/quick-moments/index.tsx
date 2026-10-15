@@ -401,7 +401,7 @@ export default function QuickMomentsBrowseScreen() {
 
               {sections.forMoment && data ? (
                 <>
-                  <RowTitle title={format ? `Best for ${QUICK_MOMENT_SHORT_LABEL[format]}` : "Artists near you"} />
+                  <RowTitle title={format ? `Artists for ${QUICK_MOMENT_SHORT_LABEL[format]}` : "Artists near you"} />
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
                     {data.forMoment.map((item) => (
                       <ArtistTile key={item.artistId} item={item} onPress={() => goToBook(item.artistId, item.displayName)} />

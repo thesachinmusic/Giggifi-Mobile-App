@@ -38,9 +38,9 @@ export default function HowItWorksScreen() {
     <GradientBackground>
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.eyebrow}>SECURE PAYMENT</Text>
+          <Text style={styles.eyebrow}>PAYMENT</Text>
           <Text style={styles.title}>You pay only after{"\n"}the event is done</Text>
-          <Text style={styles.sub}>Here&apos;s exactly how your money is protected, start to finish.</Text>
+          <Text style={styles.sub}>Here&apos;s exactly how payment works, start to finish.</Text>
 
           {STEPS.map((step, i) => (
             <GlassCard key={step.title} style={styles.stepCard}>

@@ -487,7 +487,7 @@ export default function BookingDetailScreen() {
                 <View style={styles.recoveryRow}>
                   <ActivityIndicator size="small" color={colors.ok} />
                   <Text style={styles.recoveryText}>
-                    Payment received. We&apos;re confirming your booking — this usually takes under a minute.
+                    Payment received. We&apos;re confirming your booking.
                   </Text>
                 </View>
               )}
@@ -496,7 +496,7 @@ export default function BookingDetailScreen() {
             <GlassCard style={styles.payCard}>
               <View style={styles.payRow}>
                 <Feather name="check-circle" size={16} color={colors.ok} />
-                <Text style={styles.payText}>{booking.artist.name} accepted — pay securely to confirm your event.</Text>
+                <Text style={styles.payText}>{booking.artist.name} accepted — pay to confirm your event.</Text>
               </View>
               {payError ? <Text style={styles.error}>{payError}</Text> : null}
               {payInfo ? <Text style={styles.recoveryText}>{payInfo}</Text> : null}

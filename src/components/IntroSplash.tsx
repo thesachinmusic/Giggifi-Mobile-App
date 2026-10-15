@@ -24,7 +24,7 @@ export function IntroSplash({ onFinish }: { onFinish: () => void }) {
     <Animated.View style={[styles.root, { opacity: rootOpacity }]} pointerEvents="none">
       <Image source={require("@/assets/images/giggifi-logo-cropped.png")} style={styles.logo} resizeMode="contain" />
       <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
-        Book artists & vendors in minutes.
+        Book artists & vendors for your event.
       </Animated.Text>
     </Animated.View>
   );
