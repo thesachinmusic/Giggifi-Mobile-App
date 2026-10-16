@@ -113,12 +113,12 @@ export default function BackupMatchScreen() {
               <Text style={styles.title}>{cancelledName} had to cancel</Text>
               <Text style={styles.subtitle}>
                 {urgent
-                  ? "This is close to your event date and we don't have an automatic match yet — we may not find a replacement in time. Our team has been alerted and is working on it now."
-                  : "We're working on finding you a backup — our team has been alerted and doesn't have an automatic match yet, but there's still time before your event."}
+                  ? "This is close to your event date and we don't have a match yet. We will try to help find a replacement artist. This is not guaranteed."
+                  : "We will try to help find a replacement artist. This is not guaranteed."}
               </Text>
               <GlassCard style={styles.statusCard}>
                 <Feather name="loader" size={16} color={colors.textMute} />
-                <Text style={styles.statusText}>We're working on finding you a backup. You'll be notified the moment we do.</Text>
+                <Text style={styles.statusText}>We will try to help find a replacement artist. This is not guaranteed.</Text>
               </GlassCard>
               <Text style={styles.paymentNote}>A refund for the original booking follows our Refund Policy. Your bank or payment provider decides how long it takes.</Text>
             </>

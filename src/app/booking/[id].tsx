@@ -419,7 +419,7 @@ export default function BookingDetailScreen() {
               <GlassCard style={styles.backupBanner}>
                 <Feather name={backupAttempt.status === "AUTO_MATCHED" ? "refresh-cw" : "clock"} size={16} color={backupAttempt.status === "AUTO_MATCHED" ? colors.purple : "#f59e0b"} />
                 <Text style={styles.backupBannerText}>
-                  {backupAttempt.status === "AUTO_MATCHED" ? "We found a replacement artist — review and confirm" : "We're working on finding you a backup artist"}
+                  {backupAttempt.status === "AUTO_MATCHED" ? "We found a replacement artist — review and confirm" : "We will try to help find a replacement artist. This is not guaranteed."}
                 </Text>
                 <Feather name="chevron-right" size={16} color={colors.textMute} />
               </GlassCard>
@@ -621,7 +621,7 @@ export default function BookingDetailScreen() {
             <Text style={styles.helplineBody}>
               {booking.revealedContact
                 ? "For support, disputes, or anything that needs GiggiFi's help, reach our team directly."
-                : "For your safety, GiggiFi handles all communication between clients and artists. For any queries, contact our helpline — don't try to reach the artist directly."}
+                : "Until payment is confirmed, phone numbers stay hidden. After payment is confirmed, contact details may be shared between you and the artist. For help with a booking, contact Giggifi support."}
             </Text>
             <Pressable style={styles.helplineButton} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)}>
               <Feather name="phone" size={15} color="#fff" />

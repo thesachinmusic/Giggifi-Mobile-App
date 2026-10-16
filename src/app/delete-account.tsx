@@ -14,7 +14,6 @@ import { colors, fonts, radii, spacing } from "@/theme";
 const DELETED_ITEMS = [
   "Your name, email, and phone number",
   "Profile photos, videos, and bio",
-  "Saved artists and notification preferences",
   "Device push-notification data",
 ];
 
