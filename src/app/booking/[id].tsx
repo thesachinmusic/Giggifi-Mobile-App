@@ -621,7 +621,7 @@ export default function BookingDetailScreen() {
             <Text style={styles.helplineBody}>
               {booking.revealedContact
                 ? "For support, disputes, or anything that needs GiggiFi's help, reach our team directly."
-                : "Until payment is confirmed, phone numbers stay hidden. After payment is confirmed, you and the artist can contact each other. For help with a booking, contact Giggifi support."}
+                : "Until payment is confirmed, phone numbers stay hidden. After payment is confirmed, contact details may be shared between you and the artist. For help with a booking, contact Giggifi support."}
             </Text>
             <Pressable style={styles.helplineButton} onPress={() => Linking.openURL(`tel:${HELPLINE_NUMBER}`)}>
               <Feather name="phone" size={15} color="#fff" />
