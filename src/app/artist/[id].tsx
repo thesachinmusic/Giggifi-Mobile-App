@@ -16,6 +16,7 @@ import { StateCityField } from "@/components/StateCityField";
 import { RatingBadge } from "@/components/RatingBadge";
 import { ReviewsList } from "@/components/ReviewsList";
 import { ReportSheet } from "@/components/ReportSheet";
+import { confirmAndBlock } from "@/lib/block-user";
 import { FullScreenVideoPlayer } from "@/components/FullScreenVideoPlayer";
 import { Skeleton } from "@/components/Skeleton";
 import { fetchArtist, sendEnquiry, saveBookerProfile, fetchEventPlans, fetchBackupGuaranteeStatus, ApiError, type ArtistSummary, type QuickMomentFormat, type EventPlanSummary, type BackupGuaranteeStatus } from "@/lib/api";
@@ -1046,6 +1047,15 @@ function ArtistHero({
           accessibilityLabel="Report this profile"
         >
           <Feather name="flag" size={15} color="#fff" />
+        </Pressable>
+        <Pressable
+          onPress={() => confirmAndBlock({ artistId: artist.id })}
+          style={styles.heroActionButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Block this person"
+        >
+          <Feather name="slash" size={15} color="#fff" />
         </Pressable>
       </View>
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} targetType="artist-profile" targetId={artist.id} noun="artist profile" />
