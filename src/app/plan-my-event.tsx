@@ -490,7 +490,7 @@ export default function PlanMyEventScreen() {
           <Text style={styles.doneTitle}>{bookingMode === "QUICK_BOOKING" ? "Booking Confirmed!" : "Enquiry Sent!"}</Text>
           <Text style={styles.doneSub}>
             {bookingMode === "QUICK_BOOKING"
-              ? `You're set at ${bookNowTotalLabel} — complete payment to lock in ${selectedArtistName}.`
+              ? `You're set at ${bookNowTotalLabel} — complete payment to confirm your booking with ${selectedArtistName}.`
               : `${selectedArtistName} will review your offer and respond. You'll only be asked to pay once they accept.`}
           </Text>
 
