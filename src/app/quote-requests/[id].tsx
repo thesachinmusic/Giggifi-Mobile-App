@@ -49,7 +49,7 @@ export default function QuoteRequestDetailScreen() {
     try {
       const res = await acceptQuoteResponse(responseId);
       load();
-      Alert.alert("Booking created", "This artist is confirmed — pay now to lock in the slot.", [
+      Alert.alert("Booking created", "Booking created. Please complete the payment to confirm it.", [
         { text: "Later", style: "cancel" },
         { text: "Pay now", onPress: () => router.push({ pathname: "/booking/[id]", params: { id: res.bookingId } }) },
       ]);
