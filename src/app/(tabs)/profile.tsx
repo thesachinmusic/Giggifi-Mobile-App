@@ -87,6 +87,7 @@ export default function ProfileScreen() {
         { icon: "repeat", label: "Recurring bookings", tint: "lilac", onPress: () => router.push("/recurring-series") },
         { icon: "heart", label: "Saved artists", tint: "rose", onPress: () => router.push("/saved") },
         { icon: "bell", label: "Notification settings", sub: "Push status and alerts", tint: "amber", onPress: () => router.push("/notification-settings") },
+        { icon: "slash", label: "Blocked users", sub: "People you blocked", tint: "rose", onPress: () => router.push("/blocked-users") },
       ]
     : [];
   const legalRows: MenuRowProps[] = [

@@ -10,6 +10,7 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DisputeNextSteps, DisputeSheet } from "@/components/DisputeSheet";
 import { ReportSheet } from "@/components/ReportSheet";
+import { confirmAndBlock } from "@/lib/block-user";
 import { PriceBreakdown, type PriceLine } from "@/components/PriceBreakdown";
 import { KeyboardAvoidingScreen } from "@/components/KeyboardAvoidingScreen";
 import { Skeleton } from "@/components/Skeleton";
@@ -600,6 +601,9 @@ export default function BookingDetailScreen() {
                   </Pressable>
                 </>
               ) : null}
+              <Pressable onPress={() => confirmAndBlock({ bookingId: booking.id })} accessibilityRole="button">
+                <Text style={styles.problemLink}>Block the artist</Text>
+              </Pressable>
             </GlassCard>
           ) : null}
 

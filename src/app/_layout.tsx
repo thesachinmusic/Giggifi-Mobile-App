@@ -206,6 +206,16 @@ function RootLayoutContent() {
                     }}
                   />
                   <Stack.Screen
+                    name="blocked-users"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Blocked users",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
                     name="notification-settings"
                     options={{
                       headerShown: true,
