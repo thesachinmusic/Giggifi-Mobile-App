@@ -1166,6 +1166,22 @@ export function reportContent(input: {
   });
 }
 
+// Block (see the website's /api/mobile/blocks). `target` is an artist profile id, a booking, or a user id.
+export type BlockTarget = { userId?: string; artistId?: string; bookingId?: string };
+export type BlockedUser = { userId: string; name: string; blockedAt: string };
+
+export function blockUser(target: BlockTarget) {
+  return request<{ ok: true }>("/api/mobile/blocks", { method: "POST", body: JSON.stringify(target) });
+}
+
+export function fetchBlockedUsers() {
+  return request<{ blocks: BlockedUser[] }>("/api/mobile/blocks");
+}
+
+export function unblockUser(userId: string) {
+  return request<{ ok: true }>(`/api/mobile/blocks/${encodeURIComponent(userId)}`, { method: "DELETE" });
+}
+
 export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker" | "raise_dispute", reason?: string) {
   return request<{ success: true; status: string }>(`/api/mobile/booking/${id}`, {
     method: "PATCH",
