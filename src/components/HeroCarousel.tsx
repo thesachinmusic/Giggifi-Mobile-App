@@ -60,16 +60,6 @@ const ARTIST_SLIDES: Slide[] = [
     image: require("@/assets/images/home/hero-planner.jpg"),
   },
   {
-    id: "business",
-    tag: "For Businesses",
-    title: "Curated for Restaurants & Event Companies",
-    titleSize: 20,
-    sub: "Recurring bookings, business deals & invoicing.",
-    cta: "See business deals",
-    href: "/(tabs)/business",
-    image: require("@/assets/images/home/hero-business.jpg"),
-  },
-  {
     id: "secure",
     tag: "Payment",
     title: "The artist is paid after the event is done",
@@ -82,8 +72,8 @@ const ARTIST_SLIDES: Slide[] = [
 
 // Vendors set: no Quick Performance (Quick Moments is artists-only), and no
 // Event Planner yet — /plan-my-event only matches artists, so a vendor slide
-// pointing there would promise something it doesn't do. For Businesses and
-// Secure Payment keep the same copy and destinations as the artists set.
+// pointing there would promise something it doesn't do. Secure Payment keeps
+// the same copy and destination as the artists set.
 const VENDOR_SLIDES: Slide[] = [
   {
     id: "next",
@@ -95,7 +85,6 @@ const VENDOR_SLIDES: Slide[] = [
     href: { pathname: "/(tabs)/browse", params: { vertical: "vendor" } },
     image: require("@/assets/images/home/hero-vendor-next.jpg"),
   },
-  ARTIST_SLIDES.find((slide) => slide.id === "business")!,
   ARTIST_SLIDES.find((slide) => slide.id === "secure")!,
 ];
 

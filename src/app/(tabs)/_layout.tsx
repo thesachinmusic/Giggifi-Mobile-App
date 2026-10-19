@@ -79,6 +79,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="business"
         options={{
+          // Hidden from the tab bar for the first release: its example deal cards are not final terms.
+          // The screen files stay; nothing links to it.
+          href: null,
           title: "Business",
           // Feather has no literal "building" glyph — briefcase is the
           // closest standard "business" icon in the set this app uses.
