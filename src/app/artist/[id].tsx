@@ -470,7 +470,7 @@ export default function ArtistDetailScreen() {
                 <View style={styles.form}>
                   <View style={styles.sentBox}>
                     <Feather name="check-circle" size={18} color={colors.ok} />
-                    <Text style={styles.sentText}>Enquiry sent — {name.split(" ")[0]} will respond soon.</Text>
+                    <Text style={styles.sentText}>Enquiry sent to {name.split(" ")[0]}.</Text>
                   </View>
                   {sentBookingId ? (
                     <Btn

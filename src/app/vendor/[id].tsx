@@ -248,7 +248,7 @@ export default function VendorDetailScreen() {
             {sent ? (
               <View style={styles.sentBox}>
                 <Feather name="check-circle" size={18} color={colors.ok} />
-                <Text style={styles.sentText}>Enquiry sent — {name} will respond soon.</Text>
+                <Text style={styles.sentText}>Enquiry sent to {name}.</Text>
               </View>
             ) : showForm ? (
               <View

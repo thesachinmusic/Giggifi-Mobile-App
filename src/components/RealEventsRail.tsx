@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -14,14 +14,6 @@ const VIDEO_EXTENSIONS = [".mp4", ".mov", ".m4v", ".webm"];
 function isVideoUrl(url: string) {
   const lower = url.toLowerCase();
   return VIDEO_EXTENSIONS.some((ext) => lower.includes(ext));
-}
-
-// No photo/video upload exists anywhere in the app yet — the only review
-// flow (booking/[id].tsx's ReviewFormCard) is rating + text comment only,
-// no media picker. Honest placeholder rather than a fake destination:
-// swap for real navigation once upload support is built.
-function handleUploadTilePress() {
-  Alert.alert("Coming soon", "Sharing photos & videos from your events is on its way.");
 }
 
 // Home's "From Real Events" — admin-approved reviews with real uploaded
@@ -54,14 +46,6 @@ export function RealEventsRail() {
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.row}
-        ListHeaderComponent={
-          <Pressable style={styles.uploadTile} onPress={handleUploadTilePress}>
-            <View style={styles.uploadIcon}>
-              <Feather name="camera" size={20} color={colors.purple} />
-            </View>
-            <Text style={styles.uploadText}>Share your{"\n"}moments & review</Text>
-          </Pressable>
-        }
         renderItem={({ item }) => (
           <View style={styles.tile}>
             <Image source={{ uri: item.mediaUrls[0] }} style={styles.tileImage} contentFit="cover" />
@@ -88,33 +72,6 @@ export function RealEventsRail() {
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.xl },
   row: { paddingHorizontal: spacing.lg, gap: spacing.sm },
-  uploadTile: {
-    width: TILE_WIDTH,
-    height: TILE_WIDTH * 1.3,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    padding: spacing.sm,
-    marginRight: spacing.sm,
-  },
-  uploadIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(168,85,247,0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  uploadText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 11.5,
-    color: colors.text,
-    textAlign: "center",
-  },
   tile: {
     width: TILE_WIDTH,
     height: TILE_WIDTH * 1.3,
