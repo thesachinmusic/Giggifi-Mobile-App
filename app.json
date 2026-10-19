@@ -68,7 +68,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "GiggiFi uses your location to find Quick Moments artists near you.",
+          "locationWhenInUsePermission": "GiggiFi uses your location to find artists near you and to fill in your city.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
           "motionUsagePermission": false
