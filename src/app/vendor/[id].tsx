@@ -11,10 +11,12 @@ import { GradientButton as Btn } from "@/components/GradientButton";
 import { GlassCard } from "@/components/GlassCard";
 import { DateField } from "@/components/DateField";
 import { RatingBadge } from "@/components/RatingBadge";
+import { ReportSheet } from "@/components/ReportSheet";
 import { ReviewsList } from "@/components/ReviewsList";
 import { FullScreenVideoPlayer } from "@/components/FullScreenVideoPlayer";
 import { Skeleton } from "@/components/Skeleton";
 import { fetchVendor, sendVendorEnquiry, ApiError, type VendorSummary } from "@/lib/api";
+import { confirmAndBlock } from "@/lib/block-user";
 import { duotoneFor } from "@/lib/palette";
 import { captureError } from "@/lib/telemetry";
 import { useVideoMute } from "@/lib/video-mute-context";
@@ -27,6 +29,7 @@ export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const [vendor, setVendor] = useState<VendorSummary | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   // Vendor profiles never had anywhere to re-watch the portfolio video in
@@ -167,7 +170,14 @@ export default function VendorDetailScreen() {
     <GradientBackground>
       <KeyboardAvoidingView style={styles.scrollFlex} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={80}>
       <ScrollView ref={scrollRef} style={styles.scrollFlex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <VendorHero vendor={vendor} c1={c1} c2={c2} initial={initial} />
+        <VendorHero
+          vendor={vendor}
+          c1={c1}
+          c2={c2}
+          initial={initial}
+          onReport={() => setReportOpen(true)}
+          onBlock={() => confirmAndBlock({ userId: vendor.userId })}
+        />
 
         <View style={styles.body} onLayout={(e) => setBodyY(e.nativeEvent.layout.y)}>
           {vendor.category ? <Text style={styles.tagline}>{vendor.category.toUpperCase()}</Text> : null}
@@ -288,6 +298,8 @@ export default function VendorDetailScreen() {
       </ScrollView>
       </KeyboardAvoidingView>
 
+      <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} targetType="vendor-profile" targetId={vendor.id} noun="vendor profile" />
+
       {!sent ? (
         <View style={[styles.stickyBar, { paddingBottom: insets.bottom + spacing.sm }]}>
           <View style={styles.stickyPriceWrap}>
@@ -317,7 +329,21 @@ export default function VendorDetailScreen() {
   );
 }
 
-function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: string; c2: string; initial: string }) {
+function VendorHero({
+  vendor,
+  c1,
+  c2,
+  initial,
+  onReport,
+  onBlock,
+}: {
+  vendor: VendorSummary;
+  c1: string;
+  c2: string;
+  initial: string;
+  onReport: () => void;
+  onBlock: () => void;
+}) {
   const { muted, toggleMuted } = useVideoMute();
   const videoSource = vendor.portfolioVideoUrl ?? null;
 
@@ -377,6 +403,14 @@ function VendorHero({ vendor, c1, c2, initial }: { vendor: VendorSummary; c1: st
           <Text style={styles.heroInitial}>{initial}</Text>
         </LinearGradient>
       )}
+      <View style={styles.heroActions}>
+        <Pressable onPress={onReport} style={styles.heroActionButton} hitSlop={8} accessibilityRole="button" accessibilityLabel="Report this profile">
+          <Feather name="flag" size={15} color="#fff" />
+        </Pressable>
+        <Pressable onPress={onBlock} style={styles.heroActionButton} hitSlop={8} accessibilityRole="button" accessibilityLabel="Block this person">
+          <Feather name="slash" size={15} color="#fff" />
+        </Pressable>
+      </View>
       {videoSource ? (
         <Pressable
           onPress={toggleMuted}
@@ -431,6 +465,21 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 160,
     color: "rgba(255,255,255,0.16)",
+  },
+  heroActions: {
+    position: "absolute",
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  heroActionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroMuteButton: {
     position: "absolute",

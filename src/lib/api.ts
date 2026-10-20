@@ -1139,7 +1139,7 @@ export function submitReview(bookingId: string, input: { rating: number; comment
 
 // ─── Content reports (Play UGC policy) ───
 
-export type ReportTargetType = "review" | "artist-profile" | "booking";
+export type ReportTargetType = "review" | "artist-profile" | "vendor-profile" | "booking";
 export type ContentReportReason = "spam" | "abusive" | "fake" | "inappropriate" | "impersonation" | "other";
 export type BookingReportReason =
   | "harassment"
