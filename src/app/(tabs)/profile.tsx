@@ -10,14 +10,13 @@ import { ScreenTitle } from "@/components/ScreenTitle";
 import { InlinePhoneVerification } from "@/components/InlinePhoneVerification";
 import { useAuth } from "@/lib/auth-context";
 import { fetchMyProfile, type BookerProfile } from "@/lib/api";
-import { HELPLINE_NUMBER } from "@/lib/constants";
+import { HELPLINE_NUMBER, SUPPORT_EMAIL } from "@/lib/constants";
 import { captureError } from "@/lib/telemetry";
 import { displayName } from "@/lib/format";
 import { colors, fonts, mock, mockGradients, spacing, radii } from "@/theme";
 
-// Official grievance / support address (confirmed). Phone and WhatsApp reuse
-// the existing helpline constant.
-const SUPPORT_EMAIL = "admin@giggifi.com";
+// Help and support: email is SUPPORT_EMAIL (contact@giggifi.com, the one public support address).
+// Phone and WhatsApp reuse the helpline constant.
 
 const PROFILE_FIELDS = 5; // fullName, email, city, state, photo (companyName is optional, excluded)
 
