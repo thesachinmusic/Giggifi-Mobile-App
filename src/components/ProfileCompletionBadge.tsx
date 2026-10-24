@@ -2,22 +2,23 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useAuth } from "@/lib/auth-context";
-import { isProfileComplete } from "@/lib/profile-completion";
+import { completeProfileRoute, isProfileComplete } from "@/lib/profile-completion";
 import { colors, fonts, radii, spacing } from "@/theme";
 
 // Home's soft, persistent profile-completion nudge — same compact-strip
 // visual language as the reels discovery strip and AnnouncementBanner
 // right above it. Renders nothing while logged out (nothing to complete
 // yet — that's what /verify is for) or once every soft field is filled.
-// Never blocks anything; tapping it just opens the edit screen, where
-// every field stays individually optional.
+// Never blocks anything; tapping it opens the client profile screen for
+// someone who has none yet, otherwise the edit screen, where every field
+// stays individually optional.
 export function ProfileCompletionBadge() {
   const { user } = useAuth();
 
   if (!user || isProfileComplete(user)) return null;
 
   return (
-    <Pressable style={styles.strip} onPress={() => router.push("/edit-profile")}>
+    <Pressable style={styles.strip} onPress={() => router.push(completeProfileRoute(user))}>
       <View style={styles.iconWrap}>
         <Feather name="user" size={14} color="#fff" />
       </View>
