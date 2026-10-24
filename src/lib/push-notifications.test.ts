@@ -44,6 +44,7 @@ beforeEach(() => {
   m.channelsImpl = async () => {};
   m.post.mockClear(); m.post.mockResolvedValue({ success: true });
   logs = [];
+  vi.stubGlobal("__DEV__", true);
   vi.spyOn(console, "log").mockImplementation((...a: unknown[]) => { logs.push(a.join(" ")); });
 });
 
@@ -53,6 +54,15 @@ describe("registerDeviceForPushDetailed", () => {
     expect(r).toEqual({ ok: true, step: "done", error: null });
     expect(m.post).toHaveBeenCalledTimes(1);
     expect(m.post).toHaveBeenCalledWith("ExponentPushToken[SECRET-TOKEN-VALUE]");
+    expect((await getPushStatus()).lastOkAt).not.toBeNull();
+  });
+
+  it("release build: registers the same way and writes nothing to the console", async () => {
+    vi.stubGlobal("__DEV__", false);
+    const r = await registerDeviceForPushDetailed("test");
+    expect(r).toEqual({ ok: true, step: "done", error: null });
+    expect(m.post).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual([]);
     expect((await getPushStatus()).lastOkAt).not.toBeNull();
   });
 

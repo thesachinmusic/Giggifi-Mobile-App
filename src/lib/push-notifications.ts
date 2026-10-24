@@ -61,8 +61,10 @@ async function ensureAndroidChannels(): Promise<void> {
   );
 }
 
+// Development only: these lines run on every app start and foreground. The same steps are
+// recorded for the Push status screen by push-status.ts, which is what a release build uses.
 function plog(message: string): void {
-  console.log(`[GIGGIFI PUSH] ${message}`);
+  if (__DEV__) console.log(`[GIGGIFI PUSH] ${message}`);
 }
 
 // Error text only (never a token), short enough to show in the UI.
