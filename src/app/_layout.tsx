@@ -216,6 +216,26 @@ function RootLayoutContent() {
                     }}
                   />
                   <Stack.Screen
+                    name="my-enquiries"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "My enquiries",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="my-enquiry"
+                    options={{
+                      headerShown: true,
+                      headerTitle: "Replies",
+                      headerTintColor: colors.text,
+                      headerStyle: { backgroundColor: colors.ink },
+                      headerBackTitle: "Back",
+                    }}
+                  />
+                  <Stack.Screen
                     name="saved"
                     options={{
                       headerShown: true,

@@ -10,6 +10,8 @@ const ALLOWED = [
   /^\/vendor\/[^/]+$/,
   /^\/booker-profile$/,
   /^\/notifications$/,
+  // The client's own enquiries and the replies to them (src/app/my-enquiries.tsx).
+  /^\/my-enquiries$/,
   // Tag-group discovery (app/discover/[group].tsx) — same shape-trust as
   // the other dynamic-segment patterns above; which `group` values are
   // actually valid is the backend's TAG_GROUPS config to enforce

@@ -795,6 +795,15 @@ export function fetchSavedArtistIds() {
   return request<{ artistIds: string[] }>("/api/mobile/saved-artists");
 }
 
+// The client's own enquiries and the replies to them (read only).
+export function fetchMyEnquiries() {
+  return request<{ enquiries: import("./my-enquiries").MyEnquiry[] }>("/api/mobile/enquiries/mine");
+}
+
+export function fetchEnquiryReplies(enquiryId: string) {
+  return request<import("./my-enquiries").EnquiryReplies>(`/api/mobile/enquiries/${encodeURIComponent(enquiryId)}/responses`);
+}
+
 export function fetchSavedArtists() {
   return request<{ artistIds: string[]; artists: ArtistSummary[] }>("/api/mobile/saved-artists?expand=1");
 }
