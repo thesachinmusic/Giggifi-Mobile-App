@@ -53,3 +53,12 @@ export function findStateForCity(city: string): string | null {
   }
   return null;
 }
+
+// A city typed by hand because it is not in the list (smaller towns).
+// Returns a tidy name, or null when what was typed can't be a place name.
+export function normalizeCustomCity(input: string): string | null {
+  const cleaned = input.trim().replace(/\s+/g, " ");
+  if (cleaned.length < 2 || cleaned.length > 60) return null;
+  if (!/^[\p{L}][\p{L}\s.'-]*$/u.test(cleaned)) return null;
+  return cleaned.replace(/\p{L}[\p{L}'.-]*/gu, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+}

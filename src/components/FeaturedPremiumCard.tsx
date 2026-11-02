@@ -34,10 +34,10 @@ interface Props {
   onViewProfile: () => void;
 }
 
-// Photo card for Home's "Featured Artists" container. The Premium pill and
+// Photo card for Home's "Featured artists" container. The "Promoted" pill and
 // purple ring appear only when the API marks the artist `isFeatured` — i.e. a
-// real, paid FeaturedCampaign. Any artist that reaches this rail without that
-// flag (a future non-paid fill) gets a plain card.
+// real, paid FeaturedCampaign. Artists from the unpaid daily fill list get a
+// plain card with no pill.
 export function FeaturedPremiumCard({ artist, isActive, onOpenVideo, onViewProfile }: Props) {
   const { isSaved, toggle } = useSavedArtists();
   const { muted, toggleMuted } = useVideoMute();
@@ -115,8 +115,8 @@ export function FeaturedPremiumCard({ artist, isActive, onOpenVideo, onViewProfi
 
       {premium ? (
         <View style={styles.premiumPill} pointerEvents="none">
-          <MaterialCommunityIcons name="crown-outline" size={12} color={mock.amber} />
-          <Text style={styles.premiumText}>Premium</Text>
+          <MaterialCommunityIcons name="bullhorn-outline" size={12} color={mock.amber} />
+          <Text style={styles.premiumText}>Promoted</Text>
         </View>
       ) : null}
 
