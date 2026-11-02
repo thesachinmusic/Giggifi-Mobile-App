@@ -19,7 +19,6 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Feather } from "@expo/vector-icons";
-import * as Location from "expo-location";
 import { router, useFocusEffect } from "expo-router";
 import { GradientBackground } from "@/components/GradientBackground";
 import { GradientButton as Btn } from "@/components/GradientButton";
@@ -48,7 +47,8 @@ import {
   type QuickMomentMatch,
   type QuickMomentsCategory,
 } from "@/lib/api";
-import { getCachedLocation, setCachedLocation } from "@/lib/location-cache";
+import { LocationProblemCard } from "@/components/LocationProblemCard";
+import { getDeviceLocation, type LocationFailure } from "@/lib/device-location";
 import { useVideoMute } from "@/lib/video-mute-context";
 import {
   combineDateAndHour,
@@ -72,7 +72,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - spacing.lg * 2;
 const CARD_HEIGHT = CARD_WIDTH * 1.15;
 
-type LocationStatus = "detecting" | "ready" | "denied";
+type LocationStatus = "detecting" | "ready" | "failed";
 type WhenMode = "now" | "pick";
 
 // The server enforces the real 30km hard cutoff; "Find nearby artists" always
@@ -95,6 +95,7 @@ export default function QuickMomentsBrowseScreen() {
 
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("detecting");
+  const [locationFailure, setLocationFailure] = useState<LocationFailure>("unknown");
 
   // The last feed that loaded (kept on screen while the next one loads) and the
   // query it answered; `loading` is "the current query has no answer yet".
@@ -114,29 +115,14 @@ export default function QuickMomentsBrowseScreen() {
   useEffect(() => () => { mountedRef.current = false; }, []);
 
   async function detectLocation() {
-    const cached = await getCachedLocation();
-    if (cached) {
-      if (mountedRef.current) {
-        setCoords(cached);
-        setLocationStatus("ready");
-      }
-      return;
-    }
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (!mountedRef.current) return;
-      if (status !== "granted") {
-        setLocationStatus("denied");
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      if (!mountedRef.current) return;
-      const next = { lat: position.coords.latitude, lng: position.coords.longitude };
-      setCoords(next);
+    const result = await getDeviceLocation();
+    if (!mountedRef.current) return;
+    if (result.ok) {
+      setCoords(result.coords);
       setLocationStatus("ready");
-      await setCachedLocation(next.lat, next.lng);
-    } catch {
-      if (mountedRef.current) setLocationStatus("denied");
+    } else {
+      setLocationFailure(result.reason);
+      setLocationStatus("failed");
     }
   }
 
@@ -394,18 +380,7 @@ export default function QuickMomentsBrowseScreen() {
                 </>
               )}
 
-              {locationStatus === "denied" ? (
-                <View style={styles.locationWarning}>
-                  <Feather name="map-pin" size={16} color={colors.warn} />
-                  <View style={styles.locationWarningBody}>
-                    <Text style={styles.locationWarningTitle}>Turn on location to find artists near you</Text>
-                    <Text style={styles.locationWarningText}>We couldn&apos;t get your location. Check your app permissions and try again.</Text>
-                    <Pressable onPress={retryLocation} style={styles.locationRetryButton}>
-                      <Text style={styles.locationRetryText}>Try again</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : null}
+              {locationStatus === "failed" ? <LocationProblemCard reason={locationFailure} onRetry={retryLocation} /> : null}
 
               {/* Available near you: only what the server really returned */}
               {sections.heading ? (
@@ -652,30 +627,6 @@ const styles = StyleSheet.create({
   barMoment: { fontFamily: fonts.displayMedium, fontSize: 15, color: colors.text },
   barMeta: { fontFamily: fonts.bodyMedium, fontSize: 12.5, color: colors.textDim },
   cta: {},
-  locationWarning: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: colors.warn + "14",
-    borderWidth: 1,
-    borderColor: colors.warn + "40",
-    marginTop: spacing.sm,
-  },
-  locationWarningBody: { flex: 1, gap: 4 },
-  locationWarningTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.warn },
-  locationWarningText: { fontFamily: fonts.body, fontSize: 12, lineHeight: 16, color: colors.textDim },
-  locationRetryButton: {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    backgroundColor: colors.warn + "26",
-    borderWidth: 1,
-    borderColor: colors.warn + "66",
-  },
-  locationRetryText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.warn },
   resultsScroll: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
   resultsHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.lg, paddingTop: spacing.md, marginBottom: spacing.md },
   resultsTitle: { fontFamily: fonts.displayMedium, fontSize: 17, color: colors.text },

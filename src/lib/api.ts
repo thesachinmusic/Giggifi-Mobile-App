@@ -1,3 +1,4 @@
+import { featuredQueryString } from "./home-rails";
 import { router } from "expo-router";
 import { clearStoredToken, getStoredToken } from "./auth-storage";
 import { emitSessionExpired } from "./session-events";
@@ -8,9 +9,12 @@ const REQUEST_TIMEOUT_MS = 15_000;
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  // Machine-readable code from the server body, when it sends one (e.g. ACCOUNT_SUSPENDED).
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -88,13 +92,19 @@ async function request<T>(path: string, options: RequestInit = {}, withAuth = tr
       // rendering InlinePhoneVerification; no toast, no navigation needed.
       // sendOtp/verifyOtp (withAuth: false) are excluded from all of this
       // since a wrong OTP isn't a session expiring.
-      if (response.status === 401 && withAuth && token) {
+      if (response.status === 401 && body.code === "ACCOUNT_SUSPENDED") {
+        // Blocked token: not an expired session, so no "Session expired"
+        // toast — the suspended-account screen explains it instead.
+        await clearStoredToken();
+        emitSessionExpired();
+        router.replace("/account-suspended");
+      } else if (response.status === 401 && withAuth && token) {
         await clearStoredToken();
         emitSessionExpired();
         showToast({ title: "Session expired", body: "Please sign in again.", category: "SECURITY" });
         router.replace("/(tabs)");
       }
-      throw new ApiError(response.status, body.error ?? "Something went wrong.");
+      throw new ApiError(response.status, body.error ?? "Something went wrong.", typeof body.code === "string" ? body.code : undefined);
     }
     return body as T;
   })();
@@ -130,6 +140,9 @@ export interface SessionUser {
 }
 
 export interface ReviewSummary {
+  // Present on responses from the Play-release backend; older cached
+  // responses may lack it (the Report action is simply hidden then).
+  id?: string;
   rating: number;
   comment: string;
   eventType: string | null;
@@ -558,8 +571,13 @@ export async function fetchActiveOfferId(artistId: string): Promise<string | und
 // `artists` is paid placement only (Browse's "Sponsored" rail reads just this).
 // `fill` is an additive list of unpaid artists that rotate daily to fill the
 // Home rail's empty slots — absent on a backend that predates it.
-export function fetchFeatured() {
-  return request<{ artists: ArtistSummary[]; total: number; fill?: ArtistSummary[] }>("/api/mobile/featured");
+//
+// `city` (optional) is the user's chosen Home city. The backend does not use it
+// yet, so it changes nothing today; it is only sent when there is a city.
+export function fetchFeatured(params: { city?: string | null } = {}) {
+  return request<{ artists: ArtistSummary[]; total: number; fill?: ArtistSummary[] }>(
+    `/api/mobile/featured${featuredQueryString(params.city)}`,
+  );
 }
 
 // Home's "X events booked this week" strip — visible is computed
@@ -1119,7 +1137,36 @@ export function submitReview(bookingId: string, input: { rating: number; comment
   );
 }
 
-export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker", reason?: string) {
+// ─── Content reports (Play UGC policy) ───
+
+export type ReportTargetType = "review" | "artist-profile" | "booking";
+export type ContentReportReason = "spam" | "abusive" | "fake" | "inappropriate" | "impersonation" | "other";
+export type BookingReportReason =
+  | "harassment"
+  | "unsafe_behaviour"
+  | "intoxicated_or_aggressive"
+  | "no_show_or_late"
+  | "outside_payment_pressure"
+  | "poor_quality"
+  | "other";
+export type ReportReason = ContentReportReason | BookingReportReason;
+// Only for targetType "booking": which side the report is about.
+export type ReportConcern = "booking" | "other_party";
+
+export function reportContent(input: {
+  targetType: ReportTargetType;
+  targetId: string;
+  reason: ReportReason;
+  note?: string;
+  concern?: ReportConcern;
+}) {
+  return request<{ ok: true; alreadyReported?: boolean }>("/api/mobile/report", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function respondToBooking(id: string, action: "accept_quote" | "cancel_by_booker" | "raise_dispute", reason?: string) {
   return request<{ success: true; status: string }>(`/api/mobile/booking/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ action, reason }),

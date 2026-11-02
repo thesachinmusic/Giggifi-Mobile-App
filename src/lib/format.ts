@@ -22,3 +22,25 @@ export function maskName(name: string | null | undefined): string {
     })
     .join(" ");
 }
+
+// A new account may still carry its phone number as its name. Anything made
+// only of digits and phone punctuation (7+ digits) is treated as "no name".
+export function isPhoneLikeName(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const trimmed = name.trim();
+  return /^[+\d\s().-]+$/.test(trimmed) && trimmed.replace(/\D/g, "").length >= 7;
+}
+
+// The first usable real name from the candidates, or null.
+export function realName(...candidates: (string | null | undefined)[]): string | null {
+  for (const c of candidates) {
+    const t = c?.trim();
+    if (t && !isPhoneLikeName(t)) return t;
+  }
+  return null;
+}
+
+// What to show as the user's name: their real name, otherwise "Guest".
+export function displayName(...candidates: (string | null | undefined)[]): string {
+  return realName(...candidates) ?? "Guest";
+}

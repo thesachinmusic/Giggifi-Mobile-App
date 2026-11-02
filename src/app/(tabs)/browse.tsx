@@ -405,7 +405,7 @@ export default function BrowseScreen() {
             numColumns={2}
             columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.grid}
-            ListEmptyComponent={<EmptyState label="vendors" />}
+            ListEmptyComponent={<EmptyState label="vendors" pristine={category === ALL && !search && activeFilterCount === 0} />}
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListFooterComponent={hasMore ? <LoadMoreFooter loading={loadingMore} /> : null}
@@ -448,7 +448,19 @@ function LoadMoreFooter({ loading }: { loading: boolean }) {
   );
 }
 
-function EmptyState({ label }: { label: string }) {
+function EmptyState({ label, pristine = false }: { label: string; pristine?: boolean }) {
+  // No vendors at all (nothing filtered out) — not a "try another filter" case.
+  if (label === "vendors" && pristine) {
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.muted}>Vendors are joining soon — check back shortly.</Text>
+        <Pressable style={styles.emptyCta} onPress={() => router.push("/ask-giggfi")}>
+          <Feather name="zap" size={13} color={colors.pink} />
+          <Text style={styles.emptyCtaText}>Let GiggiFi find you a match instead</Text>
+        </Pressable>
+      </View>
+    );
+  }
   return (
     <View style={styles.emptyState}>
       <Text style={styles.muted}>{label === "artists" ? "The stage is empty for this filter — try another." : `No ${label} match yet — try another filter.`}</Text>
