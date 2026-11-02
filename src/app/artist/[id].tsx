@@ -373,7 +373,7 @@ export default function ArtistDetailScreen() {
               {artist.isFeatured ? (
                 <View style={styles.featuredBadge}>
                   <Feather name="zap" size={10} color="#000" />
-                  <Text style={styles.featuredBadgeText}>FEATURED</Text>
+                  <Text style={styles.featuredBadgeText}>PROMOTED</Text>
                 </View>
               ) : null}
               {artist.activeOffer ? <OfferBadge offer={artist.activeOffer} /> : null}

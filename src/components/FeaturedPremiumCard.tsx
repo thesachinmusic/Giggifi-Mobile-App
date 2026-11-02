@@ -116,7 +116,7 @@ export function FeaturedPremiumCard({ artist, isActive, onOpenVideo, onViewProfi
       {premium ? (
         <View style={styles.premiumPill} pointerEvents="none">
           <MaterialCommunityIcons name="crown-outline" size={12} color={mock.amber} />
-          <Text style={styles.premiumText}>Premium</Text>
+          <Text style={styles.premiumText}>Promoted</Text>
         </View>
       ) : null}
 

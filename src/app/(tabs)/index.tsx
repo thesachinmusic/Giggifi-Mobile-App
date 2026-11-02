@@ -130,7 +130,7 @@ export default function HomeScreen() {
       ]);
       setArtists(results);
       setFeatured(featuredResults);
-      // Forced to isFeatured:false so a fill artist can never get the Premium
+      // Forced to isFeatured:false so a fill artist can never get the Promoted
       // pill or purple ring, whatever the server sends; `?? []` keeps an older
       // backend (no `fill` key) working.
       setFeaturedFill((fillResults ?? []).map((a) => ({ ...a, isFeatured: false })));

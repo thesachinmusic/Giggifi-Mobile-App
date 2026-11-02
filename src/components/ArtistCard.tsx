@@ -70,7 +70,7 @@ export function ArtistCard({ artist, vendor, onPress, width, travelBadge }: List
           {isFeatured ? (
             <View style={styles.featuredTag}>
               <Feather name="zap" size={9} color="#000" />
-              <Text style={styles.featuredText}>FEATURED</Text>
+              <Text style={styles.featuredText}>PROMOTED</Text>
             </View>
           ) : null}
           {artist?.activeOffer ? <OfferBadge offer={artist.activeOffer} style={styles.offerBadge} /> : null}
