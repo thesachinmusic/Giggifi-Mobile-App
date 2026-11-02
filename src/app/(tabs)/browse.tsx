@@ -372,7 +372,7 @@ export default function BrowseScreen() {
                   <View style={styles.featuredHeader}>
                     <Feather name="zap" size={13} color={visualColors.orange} />
                     <GradientText style={styles.featuredHeaderTitle}>Featured Artists</GradientText>
-                    <Text style={styles.featuredHeaderSub}>Sponsored</Text>
+                    <Text style={styles.featuredHeaderSub}>Promoted</Text>
                   </View>
                   <FlatList
                     data={featuredArtists}
