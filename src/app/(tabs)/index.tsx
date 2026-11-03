@@ -37,7 +37,8 @@ import { Skeleton } from "@/components/Skeleton";
 import { SoundwaveDivider } from "@/components/SoundwaveDivider";
 import { useAuth } from "@/lib/auth-context";
 import { HomePushPrimer } from "@/components/HomePushPrimer";
-import { fetchArtists, fetchFeatured, fetchSavedArtists, type ArtistSummary } from "@/lib/api";
+import { fetchArtists, fetchFeatured, fetchSavedArtists, sendFeaturedSeen, type ArtistSummary } from "@/lib/api";
+import { idsToReport } from "@/lib/featured-seen";
 import { getHomeCity, setHomeCity } from "@/lib/home-city-storage";
 import { travelsToYourCity } from "@/lib/home-ranking";
 import { featuredRail, freshRail, popularRail } from "@/lib/home-rails";
@@ -239,6 +240,13 @@ export default function HomeScreen() {
       return () => setFocused(false);
     }, []),
   );
+
+  // Boosted artists on screen in the Featured rail: tell the server once (see lib/featured-seen.ts). Only the paid list (`featured`), only while
+  // this screen is in front and the rail is on screen. A separate request after the rail is shown; it changes nothing on screen.
+  useEffect(() => {
+    if (!focused || !featuredSectionVisible || featured.length === 0) return;
+    sendFeaturedSeen(idsToReport(featured.map((a) => a.id)));
+  }, [featured, focused, featuredSectionVisible]);
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = e.nativeEvent.contentOffset.y;
