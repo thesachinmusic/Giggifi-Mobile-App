@@ -83,6 +83,7 @@ export default function ProfileScreen() {
           ? [{ icon: "edit-2" as const, label: "Edit profile", tint: "amber" as const, onPress: () => router.push("/booker-profile") }]
           : []),
         { icon: "calendar", label: "My bookings", tint: "lilac", onPress: () => router.push("/(tabs)/bookings") },
+        { icon: "message-square", label: "My enquiries", sub: "Replies from artists and vendors", tint: "lilac", onPress: () => router.push("/my-enquiries") },
         { icon: "calendar", label: "My Event Hub", tint: "amber", onPress: () => router.push("/my-event") },
         { icon: "repeat", label: "Recurring bookings", tint: "lilac", onPress: () => router.push("/recurring-series") },
         { icon: "heart", label: "Saved artists", tint: "rose", onPress: () => router.push("/saved") },
