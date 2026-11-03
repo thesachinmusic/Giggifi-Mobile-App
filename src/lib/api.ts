@@ -580,6 +580,13 @@ export function fetchFeatured(params: { city?: string | null } = {}) {
   );
 }
 
+// Tells the server which Boosted artists were just shown in the Featured rail (for "Times shown (approx.)" in the artist's Boost report).
+// No login, nothing about the person. Never throws: a failure is ignored.
+export function sendFeaturedSeen(artistIds: string[]): void {
+  if (artistIds.length === 0) return;
+  void request<{ ok: boolean }>("/api/mobile/featured/seen", { method: "POST", body: JSON.stringify({ artistIds }) }, false).catch(() => undefined);
+}
+
 // Home's "X events booked this week" strip — visible is computed
 // server-side (count >= 50), not hardcoded here, so the threshold has one
 // source of truth. See app/api/mobile/social-proof/route.ts on the website.
